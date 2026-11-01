@@ -1,0 +1,684 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gerador de MC Tanques RNEST</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>.bkbar{position:fixed;left:0;right:0;bottom:0;display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;padding:6px 12px;background:#1f2a37;color:#fff;font:13px system-ui;z-index:50}.bkbar button,.bkbar .bkbtn{position:relative;background:#fff;color:#1f2a37;border:0;border-radius:6px;padding:5px 10px;font:inherit;cursor:pointer}body{padding-bottom:44px}</style><script>/* Modo independente (GitHub Pages / arquivo local): salva no próprio navegador (IndexedDB). */
+(function(){
+  if(window.claude) return;
+  const DBN="gerador-mc", ST="docs"; let _db=null;
+  const abre=()=>_db||(_db=new Promise((ok,er)=>{ const r=indexedDB.open(DBN,1); r.onupgradeneeded=()=>r.result.createObjectStore(ST); r.onsuccess=()=>ok(r.result); r.onerror=()=>er(r.error); }));
+  const tx=async(modo,fn)=>{ const d=await abre(); return new Promise((ok,er)=>{ const t=d.transaction(ST,modo); const s=t.objectStore(ST); const r=fn(s); t.oncomplete=()=>ok(r&&r.result); t.onerror=()=>er(t.error); }); };
+  const get=k=>tx("readonly",s=>s.get(k)), put=(k,v)=>tx("readwrite",s=>s.put(v,k)), del=k=>tx("readwrite",s=>s.delete(k));
+  const todos=async pre=>{ const d=await abre(); return new Promise((ok,er)=>{ const out=[]; const t=d.transaction(ST,"readonly"); const c=t.objectStore(ST).openCursor(); c.onsuccess=()=>{ const cur=c.result; if(cur){ if(String(cur.key).startsWith(pre)) out.push([cur.key,cur.value]); cur.continue(); } }; t.oncomplete=()=>ok(out); t.onerror=()=>er(t.error); }); };
+  const ouvintes={};
+  const avisa=async col=>{ const l=ouvintes[col]; if(!l||!l.length) return; const snap=await snapCol(col); l.forEach(f=>f(snap)); };
+  const snapCol=async col=>{ const r=await todos(col+"/"); const docs=r.map(([k,v])=>({id:k.slice(col.length+1),exists:true,data:()=>JSON.parse(JSON.stringify(v))})); return {size:docs.length,docs}; };
+  const doc=path=>{ const col=path.split("/")[0]; return { id:path.split("/").pop(), path,
+    get:async()=>{ const v=await get(path); return {id:path.split("/").pop(),exists:v!==undefined,data:()=>v}; },
+    set:async v=>{ await put(path,JSON.parse(JSON.stringify(v))); avisa(col); },
+    update:async v=>{ const a=(await get(path))||{}; await put(path,Object.assign(a,JSON.parse(JSON.stringify(v)))); avisa(col); },
+    delete:async()=>{ await del(path); avisa(col); } }; };
+  const db={ doc, collection:col=>({ doc:id=>doc(col+"/"+id),
+    onSnapshot:(next,err)=>{ (ouvintes[col]=ouvintes[col]||[]).push(next); snapCol(col).then(next,e=>err&&err({code:String(e)})); return ()=>{ ouvintes[col]=ouvintes[col].filter(f=>f!==next); }; } }) };
+  const baixa=(blob,nome)=>{ const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=nome; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},4000); };
+  const downloads={ save:async({filename,data})=>{ baixa(data instanceof Blob?data:new Blob([data]),filename); return {status:"saved"}; } };
+  window.claude={ use:async n=> n==="db"?db : n==="downloads"?downloads : null };
+  // backup
+  window.__backupMC=async()=>{ const r=await todos(""); const o={}; r.forEach(([k,v])=>o[k]=v); baixa(new Blob([JSON.stringify({app:"gerador-mc",versao:1,data:new Date().toISOString(),docs:o})],{type:"application/json"}),"backup_MCs_"+new Date().toISOString().slice(0,10)+".json"); };
+  window.__restauraMC=async file=>{ const j=JSON.parse(await file.text()); if(!j.docs) throw new Error("arquivo inválido"); for(const [k,v] of Object.entries(j.docs)) await put(k,v); await avisa("mcs"); return Object.keys(j.docs).filter(k=>k.startsWith("mcs/")).length; };
+  document.addEventListener("DOMContentLoaded",()=>{
+    const bar=document.createElement("div"); bar.className="bkbar";
+    bar.innerHTML='<span>Dados salvos neste aparelho.</span><button type="button" id="bkOut">Baixar backup</button><label class="bkbtn">Restaurar backup<input type="file" accept=".json,application/json" id="bkIn" style="position:absolute;width:1px;height:1px;opacity:0"></label>';
+    document.body.appendChild(bar);
+    bar.querySelector("#bkOut").onclick=()=>window.__backupMC();
+    bar.querySelector("#bkIn").onchange=async e=>{ const f=e.target.files[0]; if(!f) return; try{ const n=await window.__restauraMC(f); alert(n+" MC(s) restauradas."); }catch(x){ alert("Não foi possível restaurar: "+x.message); } e.target.value=""; };
+  });
+})();
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+</head><body>
+
+<style>
+/* Layout: barra de ferramentas fixa + lista de MCs à esquerda + formulário em blocos numerados como a própria MC */
+:root{
+  --bg:#f4f6f7; --panel:#ffffff; --ink:#18232b; --muted:#5d6b75; --line:#d5dde2;
+  --accent:#0f5f63; --accent-ink:#ffffff; --entry:#fff6d9; --entry-line:#e7d08a;
+  --ok:#1f7a3f; --warn:#a65b00; --bad:#b3261e; --chip:#e6eef0;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11181d; --panel:#18222a; --ink:#e3eaee; --muted:#9aa9b3; --line:#2c3a44;
+  --accent:#4fb3b6; --accent-ink:#0b1417; --entry:#2f2a17; --entry-line:#6b5a22;
+  --ok:#6fcf8f; --warn:#f0a94a; --bad:#ff8a80; --chip:#22323b; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11181d; --panel:#18222a; --ink:#e3eaee; --muted:#9aa9b3; --line:#2c3a44;
+  --accent:#4fb3b6; --accent-ink:#0b1417; --entry:#2f2a17; --entry-line:#6b5a22;
+  --ok:#6fcf8f; --warn:#f0a94a; --bad:#ff8a80; --chip:#22323b; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.45}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--panel)}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--panel);border-bottom:1px solid var(--line);
+  padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}
+.brand{display:flex;flex-direction:column;min-width:0}
+.brand b{font-size:16px;letter-spacing:.01em}
+.brand span{font-size:12px;color:var(--muted);font-family:var(--f-mono)}
+.top .sp{flex:1}
+.status{font-size:12px;color:var(--muted);font-family:var(--f-mono)}
+button,.btn{font:inherit;font-weight:600;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink);
+  padding:7px 12px;cursor:pointer;min-height:36px}
+button:hover{border-color:var(--accent)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+button.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button.ghost{border-color:transparent;background:transparent;color:var(--muted);padding:4px 8px;min-height:28px}
+button.ghost:hover{color:var(--bad)}
+button:disabled{opacity:.5;cursor:default}
+.wrap{display:grid;grid-template-columns:260px minmax(0,1fr);gap:16px;padding-block:16px 48px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+@media (max-width:860px){.wrap{grid-template-columns:minmax(0,1fr)}}
+aside{display:flex;flex-direction:column;gap:10px;min-width:0}
+.listhead{display:flex;gap:8px;align-items:center}
+.listhead select{flex:1}
+.mclist{display:flex;flex-direction:column;gap:6px;max-height:70vh;overflow:auto}
+@media (max-width:860px){.mclist{max-height:220px}}
+.mcrow{text-align:left;display:grid;grid-template-columns:auto 1fr;gap:2px 10px;padding:8px 10px;border-radius:6px;font-weight:400}
+.mcrow.on{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
+.mcrow .n{font-family:var(--f-mono);font-weight:600}
+.mcrow .t{color:var(--muted);font-size:12px}
+.mcrow .v{grid-column:1/-1;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tag{font-size:11px;font-family:var(--f-mono);background:var(--chip);border-radius:4px;padding:1px 6px;color:var(--muted)}
+.empty{border:1px dashed var(--line);border-radius:8px;padding:16px;color:var(--muted)}
+main{display:flex;flex-direction:column;gap:14px;min-width:0}
+section.blk{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;min-width:0}
+.blk h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;margin:0 0 10px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.blk h2 .num{font-family:var(--f-mono);color:var(--accent)}
+.blk h2 small{font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);font-size:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+label.f{display:flex;flex-direction:column;gap:3px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);min-width:0}
+label.f.wide{grid-column:1/-1}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--entry);border:1px solid var(--entry-line);border-radius:5px;padding:6px 8px;min-width:0;width:100%}
+textarea{min-height:70px;resize:vertical}
+.calc{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.ro{background:transparent;border:1px solid transparent}
+.tblw{overflow-x:auto;border:1px solid var(--line);border-radius:6px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{background:var(--chip);font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);text-align:left;padding:6px;white-space:nowrap;font-weight:600}
+td{border-top:1px solid var(--line);padding:4px 6px;vertical-align:middle}
+td.r,th.r{text-align:right}
+td.c,th.c{text-align:center}
+td input,td select{padding:4px 6px}
+td input.num{text-align:right;width:90px}
+td input.sm{width:62px}
+td .out{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+td .txt{font-family:var(--f-mono);font-size:12px;color:var(--muted);white-space:nowrap}
+td input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
+tr.over td{background:color-mix(in srgb,var(--bad) 12%,transparent)}
+tfoot td{font-weight:700;background:var(--chip)}
+.total{display:flex;align-items:baseline;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+.total .big{font-family:var(--f-mono);font-size:22px;font-weight:600;color:var(--accent);font-variant-numeric:tabular-nums}
+.hint{font-size:12px;color:var(--muted);margin:8px 0 0}
+.alerts{display:flex;flex-direction:column;gap:6px}
+.alert{border-left:3px solid var(--warn);background:color-mix(in srgb,var(--warn) 10%,transparent);padding:6px 10px;border-radius:4px;font-size:13px}
+.alert.bad{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 10%,transparent)}
+.crit{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:6px}
+.crit b{color:var(--ink);font-family:var(--f-mono)}
+.photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.ph{border:1px solid var(--line);border-radius:6px;overflow:hidden;display:flex;flex-direction:column;background:var(--bg)}
+.ph img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;background:var(--chip)}
+.ph input{border-radius:0;border:0;border-top:1px solid var(--entry-line)}
+.ph .rm{align-self:flex-end}
+.drop{border:2px dashed var(--line);border-radius:8px;padding:16px;text-align:center;color:var(--muted)}
+.vh{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0)}
+.drop .btn{position:relative}
+#fotoMsg.err{color:#c0392b;white-space:pre-line}
+.drop.hot{border-color:var(--accent);color:var(--accent)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--panel);
+  padding:8px 14px;border-radius:6px;font-size:13px;z-index:20;max-width:calc(100% - 32px)}
+.confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px}
+@media (prefers-reduced-motion:no-preference){.mcrow{transition:border-color .15s}}
+</style>
+
+<header class="top">
+  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span></div>
+  <div class="sp"></div>
+  <span class="status" id="status">Conectando…</span>
+  <button id="bNova" class="pri">+ Nova MC</button>
+</header>
+
+<div class="wrap">
+  <aside>
+    <div class="listhead">
+      <label class="f" style="flex:1">BM<select id="fBM"></select></label>
+    </div>
+    <div class="mclist" id="list"><div class="empty">Carregando as MCs salvas…</div></div>
+    <button id="bBM">Baixar todas as MCs deste BM (.xlsx)</button>
+    <p class="hint">Cada MC vira uma aba, com fórmulas e fotos, no padrão do contrato.</p>
+  </aside>
+  <main id="ed"></main>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const DATA = {"ppu":[["1.1","Limpeza manual e desgaseificação interna de tanques de produtos leves","m²",173.59,"5.1.1","A medição será por metro quadrado (m2) de área de fundo de tanque limpo, considerando se a dimensão do tanque, estando incluídos todos os materiais, serviços e equipamentos necessários à execução deste item, inclusive fornecimento de caminhão auto vácuo."],["1.2","Limpeza manual e desgaseificação de tanques de produtos pesados","m³",1018.4,"5.1.2","A medição dos Serviços de limpeza se dará por metro cúbico (m³) de produto transferido e/ou removido, medido após a conclusão da “raspagem”, antes da adição de diluentes, devendo estar incluído no valor do item todos os recursos (equipamentos, materiais, serviços etc.) inerentes à sua execução, inclusive fornecimento de caminhão auto vácuo. Este serviço corresponde aos itens abaixo da Planilha de Preços Unitários."],["1.3","Limpeza mecanizada e desgaseificação de tanques de produtos pesados","m³",694.35,"5.1.2","A medição dos Serviços de limpeza se dará por metro cúbico (m³) de produto transferido e/ou removido, medido após a conclusão da “raspagem”, antes da adição de diluentes, devendo estar incluído no valor do item todos os recursos (equipamentos, materiais, serviços etc.) inerentes à sua execução, inclusive fornecimento de caminhão auto vácuo. Este serviço corresponde aos itens abaixo da Planilha de Preços Unitários."],["1.4","Varrição e lavagem total ou parcial de tanques (fundo, teto e flutuadores)","m²",19.3,"5.1.3","A medição dos Serviços de varrição/lavagem se dará por metro quadrado (m²) de área efetivamente varrida/lavada, devendo estar incluído no valor do item todos os recursos (equipamentos, materiais, serviços etc.) inerentes à sua execução, inclusive fornecimento de caminhão auto vácuo. Este serviço corresponde aos itens abaixo da Planilha de Preços Unitários Serviços."],["1.5","Substituição de chapa do fundo","m²",986.06,"5.2.1","A medição será por metro quadrado (m²) de chapa ou quilograma (kg) de acessórios instalados, de acordo com as respectivas condições do projeto, estando incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.6","Substituição de chapa anular","m²",1084.67,"5.2.1","A medição será por metro quadrado (m²) de chapa ou quilograma (kg) de acessórios instalados, de acordo com as respectivas condições do projeto, estando incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.7","Substituição de bacia de drenagem ","kg",117.95,"5.2.1","A medição será por metro quadrado (m²) de chapa ou quilograma (kg) de acessórios instalados, de acordo com as respectivas condições do projeto, estando incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.8","Outros acessórios (exceto bacia de drenagem)","kg",221.17,"5.2.1","A medição será por metro quadrado (m²) de chapa ou quilograma (kg) de acessórios instalados, de acordo com as respectivas condições do projeto, estando incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.9","Sobreposição de chapa até espessura de 1/4\" inclusive","m²",986.06,"5.2.2","A medição será por metro quadrado (m²) de chapa efetivamente instalada, estando incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.10","Sobreposição de chapa com espessura acima de 1/4” até 3/8” inclusive","m²",1467.7,"5.2.2","A medição será por metro quadrado (m²) de chapa efetivamente instalada, estando incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.11","Sobreposição de chapa de espessura acima de 3/8” até 1/2” inclusive","m²",1863.92,"5.2.2","A medição será por metro quadrado (m²) de chapa efetivamente instalada, estando incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.12","Sobreposição de chapa com espessura acima de 1/2” até 5/8” inclusive","m²",2514.54,"5.2.2","A medição será por metro quadrado (m²) de chapa efetivamente instalada, estando incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.13","Sobreposição de chapa com espessura acima de 5/8” até 3/4” inclusive","m²",2796.17,"5.2.2","A medição será por metro quadrado (m²) de chapa efetivamente instalada, estando incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.14","Substituição ou instalação de dreno de fundo até 4\" inclusive","un",1503.97,"5.2.3","A medição será por unidade de dreno substituído, de acordo com as bitolas, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.15","Substituição ou instalação de dreno de fundo até 6\" inclusive","un",2027.4,"5.2.3","A medição será por unidade de dreno substituído, de acordo com as bitolas, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.16","Abertura ou fechamento de BV até 24\" inclusive","un",1437.61,"5.3.1","A medição será por unidade de BV ou PL, aberta ou fechada, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item, de acordo com as dimensões."],["1.17","Abertura ou fechamento de BV acima de 24” até 30\" inclusive","un",1621.93,"5.3.1","A medição será por unidade de BV ou PL, aberta ou fechada, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item, de acordo com as dimensões."],["1.18","Abertura ou fechamento de BV acima que 30” ","un",1843.1,"5.3.1","A medição será por unidade de BV ou PL, aberta ou fechada, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item, de acordo com as dimensões."],["1.19","Abertura ou fechamento de PL até 24\" de base inclusive ","un",2322.3,"5.3.1","A medição será por unidade de BV ou PL, aberta ou fechada, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item, de acordo com as dimensões."],["1.20","Abertura ou fechamento de PL acima de 24\" de base ","un",2967.39,"5.3.1","A medição será por unidade de BV ou PL, aberta ou fechada, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item, de acordo com as dimensões."],["1.21","Remoção, manutenção e instalação de agitadores","un",5676.74,"5.3.2","A medição será por unidade de agitador, removido, manutenido e instalado, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item, de acordo com o item 1.21 da Planilha de Preços Unitários de Serviços."],["1.22","Substituição de chapas de costados com espessura até 3/8\" inclusive","m²",1817.15,"5.3.3","A medição será por metro quadrado (m²) de chapa substituída, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.23","Substituição de chapas e/ou perfis do contraventamento","m²",1956.93,"5.3.4","A medição será por metro quadrado (m²) de chapas, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.24","Limpeza interna dos compartimentos de teto flutuante.","m²",214.96,"5.4.1","A medição será por metro quadrado (m²), devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.25","Substituição ou instalação de chapas de teto flutuante em aço carbono","m²",827.89,"5.4.2","A medição será por metro quadrado (m²) de chapa substituída ou instalada, devendo estar incluídos os serviços e equipamentos inerentes à execução deste item."],["1.26","Substituição ou instalação de vigas e perfis de teto flutuante","kg",110.58,"5.4.3","A medição será por quilograma (kg) de perfil substituída ou instalada, devendo estar incluídos os serviços e equipamentos inerentes à execução deste item."],["1.27","Substituição de roletes (guia anti-rotacional)","Cj",6635.08,"5.4.4","A medição será por conjunto substituído, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.28","Mudança do posicionamento de pernas de sustentação do teto flutuante","un",718.8,"5.4.5","A medição será por unidade de perna posicionada, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.29","Substituição de quebra vácuos, dispositivos de alívio de pressão, escotilha de medição, tubo camisa do antirrotacional, mesa de mediação e drenos emergenciais de tetos flutuantes/fixos","un",2985.81,"5.4.6","A medição será por unidade de componente substituído, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.30","Substituição ou manutenção de pinos trava, contra-pinos e correntes das pernas de apoio – teto flutuante","un",915.66,"5.4.7","A medição será por unidade de pino substituído, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.31","Substituição de caixas de drenagem de teto flutuante","un",7066.43,"5.4.8","A medição será por unidade substituída, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.32","Substituição de chapas de teto fixo - aço inox","m²",2235.27,"5.5.1","A medição será por metro quadrado (m²) de chapa substituída, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.33","Substituição de vigas radiais, transversais, colunas ou suportes de sustentação do teto fixo, para perfis ou tubos até 6\" inclusive","kg",88.47,"5.5.2","A medição será por quilo de estrutura substituída, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.34","Substituição de vigas radiais, transversais, colunas ou suportes de sustentação do teto fixo, para perfis ou tubos acima de 6\" até 12\" inclusive","kg",66.34,"5.5.2","A medição será por quilo de estrutura substituída, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.35","Substituição de vigas radiais, transversais, colunas ou suportes de sustentação do teto fixo, para perfis ou tubos acima de 12\"","kg",58.96,"5.5.2","A medição será por quilo de estrutura substituída, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.36","Substituição de cantoneiras de reforço de ligação teto x costado","kg",186.9,"5.5.3","A medição será por quilo de cantoneira substituída, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.37","Substituição de selo PW","m",1238.56,"5.6.1","A medição será por metro linear (m) de selo montado, medido na circunferência do teto, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.38","Manutenção de selo de vedação periféria de teto flutuante","m",884.68,"5.6.2","A medição será por metro linear (m) de selo reparado, medido na circunferência do teto, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.39","Desmontagem de dreno flexível","un",12385.59,"5.7.1","A medição será por unidade de dreno flexível desmontado, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item, de acordo com o item 1.39 da Planilha de Preço Unitários de Serviços."],["1.40","Instalação de dreno flexível","un",28310,"5.7.2","A medição será por unidade de dreno flexível instalado, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item, de acordo com o item 1.40 da Planilha de Preços Unitários de Serviços."],["1.41","Teste hidrostático executado e aprovado","un",36861.99,"5.8.1","A medição será por unidade de Teste Hidrostático (TH) efetuado e aprovado com emissão de relatório, devendo estar incluídos todos os serviços, equipamentos e dispositivos inerentes à execução deste item."],["1.42","Substituição de aquecedores","un",14744.77,"5.8.2","A medição será por unidade substituída, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.43","Instalação ou substituição de traço de vapor","m",368.62,"5.8.3","A medição será por metro linear (m) substituído e instalado, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.44","Teste hidrostático de esferas ","un",15924.38,"5.9.1","A medição será por unidade de teste efetuado e aprovado, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.45","Teste flutuabilidade de teto de tanques acima de 31m até 55m inclusive","un",12164.45,"5.9.1","A medição será por unidade de teste efetuado e aprovado, dependendo do diâmetro do tanque, devendo estar incluídos todos os serviços e equipamentos inerentes à execução destes itens."],["1.46","Teste flutuabilidade de tanques acima de 55m","un",36861.99,"5.9.1","A medição será por unidade de teste efetuado e aprovado, dependendo do diâmetro do tanque, devendo estar incluídos todos os serviços e equipamentos inerentes à execução destes itens."],["1.47","Reparo de solda","m",527.12,"5.10.1","A medição será por metro linear (m) de solda reparada, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.48","Enchimento de alvéolos com solda","cent",1437.61,"5.10.2","A medição será por centena ou fração de alvéolos preenchidos, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.49","Remoção ou instalação de válvulas e acessórios flangeados DN até 6\" inclusive","un",973.16,"5.11.1","A medição será por unidade de acessório ou válvula removida ou instalada, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.50","Remoção ou instalação de válvulas e acessórios flangeados DN acima de 6\" até 12\" inclusive ","un",1843.1,"5.11.1","A medição será por unidade de acessório ou válvula removida ou instalada, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.51","Remoção ou instalação de válvulas e acessórios flangeados DN acima de 12\" até 20\" inclusive ","un",2948.96,"5.11.1","A medição será por unidade de acessório ou válvula removida ou instalada, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.52","Remoção ou instalação de válvulas e acessórios flangeados DN acima de 20\" até 30\" inclusive ","un",4054.82,"5.11.1","A medição será por unidade de acessório ou válvula removida ou instalada, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.53","Remoção ou instalação de válvulas e acessórios flangeados DN acima de 30\"","un",5897.92,"5.11.1","A medição será por unidade de acessório ou válvula removida ou instalada, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.54","Substituição ou instalação de válvulas soldadas DN até 2\"","un",1238.53,"5.11.2","A medição será por unidade de válvula substituída/instalada devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.55","Manutenção de válvulas de pressão e vácuo e corta chamas DN acima que 4\" até 10\" inclusive","un",4423.44,"5.11.3","A medição será por unidade de válvula submetida à manutenção, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução deste item."],["1.56","Manutenção de válvulas de bloqueio e retenção DN até 4\" inclusive","un",1843.1,"5.11.4","A medição será por unidade de válvula submetida à manutenção, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução destes itens."],["1.57","Manutenção de válvulas de bloqueio e retenção DN acima que 4\" até 10\" inclusive ","un",4054.82,"5.11.4","A medição será por unidade de válvula submetida à manutenção, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução destes itens."],["1.58","Manutenção de válvulas de bloqueio e retenção DN acima que 10\" até 16\" inclusive ","un",4792.06,"5.11.4","A medição será por unidade de válvula submetida à manutenção, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução destes itens."],["1.59","Manutenção de válvulas de bloqueio e retenção DN acima que 16\" ","un",8625.7,"5.11.4","A medição será por unidade de válvula submetida à manutenção, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução destes itens."],["1.60","Raqueteamento ou desraqueteamento de conexões flangeadas DN até 2.1/2\" inclusive","un",589.79,"5.12.1","A medição será por unidade instalada ou removida, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.61","Raqueteamento ou desraqueteamento de conexões flangeadas DN acima de 2.1/2” até 6” inclusive ","un",1474.48,"5.12.1","A medição será por unidade instalada ou removida, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.62","Raqueteamento ou desraqueteamento de conexões flangeadas DN acima de 6” até 10” inclusive ","un",2580.34,"5.12.1","A medição será por unidade instalada ou removida, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.63","Raqueteamento ou desraqueteamento de conexões flangeadas DN acima de 10”  até 16\" inclusive","un",5160.67,"5.12.1","A medição será por unidade instalada ou removida, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.64","Raqueteamento ou desraqueteamento de conexões flangeadas DN acima de 16\"","un",7003.77,"5.12.1","A medição será por unidade instalada ou removida, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.65","Fabricação e instalação ou substituição de turcos nas portas de limpeza (PL) e bocas de visita","un",3243.85,"5.13.1","A medição será por unidade de turco fabricado e instalado ou substituído, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.66","Fabricação e instalação ou substituição de BV’s e bocais em tetos DN até 6\" (inclusive) em aço carbono ","un",1474.48,"5.13.2","A medição será por unidade de BV ou bocal fabricado e instalado ou substituído, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.67","Fabricação e instalação ou substituição de BV’s e bocais em tetos DN acima de 6\" até 20\" (inclusive) em aço carbono","un",7519.83,"5.13.2","A medição será por unidade de BV ou bocal fabricado e instalado ou substituído, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.68","Fabricação e instalação ou substituição de BV’s e bocais em tetos DN acima de 20\" em aço carbono","un",9161.67,"5.13.2","A medição será por unidade de BV ou bocal fabricado e instalado ou substituído, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.69","Fabricação e instalação ou substituição de BV’s e bocais em tetos DN até 6\" (inclusive) em aço inox","un",5897.92,"5.13.2","A medição será por unidade de BV ou bocal fabricado e instalado ou substituído, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.70","Fabricação e instalação ou substituição de BV’s e bocais em tetos DN acima de 6\" até 20\" (inclusive) em aço inox","un",10026.46,"5.13.2","A medição será por unidade de BV ou bocal fabricado e instalado ou substituído, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.71","Fabricação e instalação ou substituição de BV’s e bocais em tetos DN acima de 20\" em aço inox","un",17044.98,"5.13.2","A medição será por unidade de BV ou bocal fabricado e instalado ou substituído, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.72","Fabricação e instalação ou substituição de BV’s e bocais em costados DN até 6\" (inclusive)","un",2654.05,"5.13.2","A medição será por unidade de BV ou bocal fabricado e instalado ou substituído, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.73","Fabricação e instalação ou substituição de BV’s e bocais em costados DN de 6\" até 20\" (inclusive)","un",7895.82,"5.13.2","A medição será por unidade de BV ou bocal fabricado e instalado ou substituído, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.74","Fabricação e instalação ou substituição de BV’s e bocais em costados DN acima de 20\" ","un",9587.81,"5.13.2","A medição será por unidade de BV ou bocal fabricado e instalado ou substituído, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.75","Desmontagem de estruturas metálicas","Kg",20.12,"5.13.3","A medição será por quilograma (kg) de componente desmontado, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.76","Preparação e instalação ou substituição de escadas, plataformas, guarda–corpos, estruturas, suportes e outros utilizando perfis, chapas e tubos em aço carbono ","Kg",49.77,"5.13.4","A medição será por quilograma (kg) de estrutura fabricada e instalada, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.77","Preparação e instalação ou substituição de amostradores de costado","un",4423.44,"5.13.5","A medição será por unidade de amostrador instalado, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.78","Preparação e instalação ou substituição de sucção flutuante","un",8846.88,"5.13.6","A medição será por unidade de sucção flutuante fabricada e instalada ou substituída, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.79","Remoção ou instalação de PSV no topo da esfera","un",3543.54,"5.14.1","A medição será por unidade de PSV removida ou instalada, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.80","Abertura ou fechamento de BV de esfera","un",4128.54,"5.14.2","A medição será por unidade de BV aberta ou fechada, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.81","Concreto aplicado na instalação de fire-proof ","m³",11703.5,"5.14.3","A medição será por metro cúbico (m³) de concreto aplicado, devendo estar inclusos todos os serviços e equipamentos inerentes à execução deste item."],["1.82","Inertização de esferas de GLP / Butano","un",44234.36,"5.14.4","A medição será por unidade de esfera inertizada, independente do porte da esfera e/ou quantidade de gases existente, devendo estar incluídos todos os serviços para a execução deste item."],["1.83","Instalação de chapa de reforço (limitado a 2 m2)","m²",3589.25,"5.15.1","A medição será por metro quadrado (m²) de chapa instalada, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.84","Manutenção em câmaras de espuma","un",5160.67,"5.15.2","A medição será por unidade de câmara reparada, incluindo–se também o reparo ou confecção do aerador, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.85","Instalação ou substituição de câmara de espuma ","un",6266.54,"5.15.3","A medição será por unidade de câmara instalada ou substituída, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.86","Preparação de superfície para inspeção","m",287.53,"5.15.4","A medição será por metro linear (m) de cordão de solda preparado, quando houver a preparação de ponto, será considerado um comprimento de 200 mm, estando incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.87","Aplicação ou substituição de isolamento térmico em poliuretano","m³",9874.83,"5.15.5","Os serviços serão medidos por metro cúbico (m³) de isolamento aplicado, devendo estar incluídos todos os serviços, equipamentos e acessórios de fixação inerentes à execução deste item."],["1.88","Aplicação ou substituição de isolamento térmico em lã de rocha, silicato de cálcio ou perlita expandida","m³",9874.83,"5.15.6","Os serviços de remoção e instalação de isolamento serão medidos por metro cúbico (m3), devendo estar incluídos todos os serviços, equipamentos e acessórios de fixação inerentes à execução deste item."],["1.89","Aplicação ou substituição de isolamento térmico pirogel","m³",8777.62,"5.15.7","Os serviços serão medidos por metro cúbico (m³) de isolamento aplicado, devendo estar incluídos todos os serviços, equipamentos e acessórios de fixação inerentes à execução deste item."],["1.90","Aplicação de camada protetora (Chapas corrugadas, lisas, telhas etc.) ","m²",914.34,"5.15.8","Os serviços serão medidos por m² (metro quadrado) de camada protetora efetivamente aplicada, conforme descrito no item 1.90 da Planilha de Preços Unitários Serviços. Para o caso de equipamentos irregulares, será calculada a área, considerando-se a superfície de um prisma reto envolvendo o equipamento. O fornecimento de material será remunerado através do item 4.3 da Planilha de Preços Unitários Materiais."],["1.91","Confecção e instalação de caixas de inspeção ","un",438.88,"5.15.9","Os serviços serão medidos por unidade de caixa fabricada e efetivamente instalada, conforme descrito no item 1.91 da Planilha de Preços Unitários de Serviços, e em casos de reaproveitamento do material ou material ser fornecido pela PETROBRAS, será devido 50% do valor do item."],["1.92","Revestimento com fitas plásticas conforme N-2238","m²",566.9,"5.15.10","A medição será por metro quadrado (m²) de área revestida, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução deste item."],["1.93","Substituição ou instalação de eletroduto aparente ","m",239.51,"5.15.11","Será medido por metro linear (m) de eletroduto substituído ou instalado, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.94","Manutenção e/ou instalação do aterramento elétrico do tanque","un",1768.73,"5.15.12","Será medido por unidade de aterramento substituído ou instalado, devendo estar incluídos todos os serviços e equipamentos inerentes à execução deste item."],["1.95","Limpeza externa de tanques com utilização de robô","m²",33.92,"5.15.13","A medição será por metro quadrado (m²) de área limpa, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução deste item."],["1.96","Limpeza de superfície de aço, com lixamento leve para ancoragem na repintura","m²",28.93,"5.16","A medição será por metro quadrado (m²) de superfície preparada / limpa / isenta de óleos, de acordo com as normas aplicáveis a cada caso, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução dos itens."],["1.97","Limpeza de superfície com solvente ","m²",24.31,"5.16","A medição será por metro quadrado (m²) de superfície preparada / limpa / isenta de óleos, de acordo com as normas aplicáveis a cada caso, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução dos itens."],["1.98","Limpeza de superfície com ferramenta manual ","m²",50.92,"5.16","A medição será por metro quadrado (m²) de superfície preparada / limpa / isenta de óleos, de acordo com as normas aplicáveis a cada caso, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução dos itens."],["1.99","Limpeza de superfície com ferramenta mecânica ","m²",84.99,"5.16","A medição será por metro quadrado (m²) de superfície preparada / limpa / isenta de óleos, de acordo com as normas aplicáveis a cada caso, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução dos itens."],["1.100","Limpeza de superfície com jato abrasivo, grau Sa 1 ","m²",54.71,"5.16","A medição será por metro quadrado (m²) de superfície preparada / limpa / isenta de óleos, de acordo com as normas aplicáveis a cada caso, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução dos itens."],["1.101","Limpeza de superfície com jato abrasivo, grau Sa 2 ","m²",87.78,"5.16","A medição será por metro quadrado (m²) de superfície preparada / limpa / isenta de óleos, de acordo com as normas aplicáveis a cada caso, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução dos itens."],["1.102","Limpeza de superfície com jato abrasivo, grau Sa 2 ½ ","m²",131.66,"5.16","A medição será por metro quadrado (m²) de superfície preparada / limpa / isenta de óleos, de acordo com as normas aplicáveis a cada caso, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução dos itens."],["1.103","Limpeza de superfície com Hidrojato de ultra alta pressão, padrão grau WJ 1 ","m²",190.18,"5.16","A medição será por metro quadrado (m²) de superfície preparada / limpa / isenta de óleos, de acordo com as normas aplicáveis a cada caso, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução dos itens."],["1.104","Limpeza de superfície com Hidrojato de ultra alta pressão, padrão grau WJ 2 ","m²",206.27,"5.16","A medição será por metro quadrado (m²) de superfície preparada / limpa / isenta de óleos, de acordo com as normas aplicáveis a cada caso, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução dos itens."],["1.105","Limpeza de superfície com Hidrojato de ultra alta pressão, padrão grau WJ 3 ","m²",146.29,"5.16","A medição será por metro quadrado (m²) de superfície preparada / limpa / isenta de óleos, de acordo com as normas aplicáveis a cada caso, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução dos itens."],["1.106","Limpeza de superfície com Hidrojato de ultra alta pressão, padrão grau WJ 4","m²",146.15,"5.16","A medição será por metro quadrado (m²) de superfície preparada / limpa / isenta de óleos, de acordo com as normas aplicáveis a cada caso, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução dos itens."],["1.107","Limpeza de superfície com Hidrojato de ultra alta pressão, padrão grau WAB 1 (NACE)","m²",165.92,"5.16","A medição será por metro quadrado (m²) de superfície preparada / limpa / isenta de óleos, de acordo com as normas aplicáveis a cada caso, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução dos itens."],["1.108","– Limpeza de superfície com Hidrojato de ultra alta pressão, padrão grau WAB 2 (NACE)","m²",251.12,"5.16","A medição será por metro quadrado (m²) de superfície preparada / limpa / isenta de óleos, de acordo com as normas aplicáveis a cada caso, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução dos itens."],["1.109","Limpeza de superfície com Hidrojato de ultra alta pressão, padrão grau WAB 3 com flocos de vidro ","m²",89.09,"5.16","A medição será por metro quadrado (m²) de superfície preparada / limpa / isenta de óleos, de acordo com as normas aplicáveis a cada caso, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução dos itens."],["1.110","Limpeza de superfície com Hidrojato de ultra alta pressão, padrão grau WAB 4 com flocos de vidro ","m²",72.58,"5.16","A medição será por metro quadrado (m²) de superfície preparada / limpa / isenta de óleos, de acordo com as normas aplicáveis a cada caso, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução dos itens."],["1.111","Pintura de superfície conforme norma PETROBRAS N-2677 ","m²",72.23,"5.17","A medição será por demão em metro quadrado (m²) de superfície pintada, de acordo com as normas aplicáveis, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução dos itens."],["1.112","Pintura de superfície conforme norma PETROBRAS N-2288 ","m²",65.38,"5.17","A medição será por demão em metro quadrado (m²) de superfície pintada, de acordo com as normas aplicáveis, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução dos itens."],["1.113","Pintura de superfície conforme norma PETROBRAS N-2680","m²",83.69,"5.17","A medição será por demão em metro quadrado (m²) de superfície pintada, de acordo com as normas aplicáveis, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução dos itens."],["1.114","Pintura de superfície conforme norma PETROBRAS N–2231","m²",68.37,"5.17","A medição será por demão em metro quadrado (m²) de superfície pintada, de acordo com as normas aplicáveis, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução dos itens."],["1.115","Pintura de superfície conforme norma PETROBRAS N–1661","m²",72.89,"5.17","A medição será por demão em metro quadrado (m²) de superfície pintada, de acordo com as normas aplicáveis, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução dos itens."],["1.116","Pintura de superfície conforme norma PETROBRAS N–2628","m²",77.05,"5.17","A medição será por demão em metro quadrado (m²) de superfície pintada, de acordo com as normas aplicáveis, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução dos itens."],["1.117","Pintura de superfície conforme norma PETROBRAS N–2629","m²",111.93,"5.17","A medição será por demão em metro quadrado (m²) de superfície pintada, de acordo com as normas aplicáveis, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução dos itens."],["1.118","Pintura de superfície conforme norma PETROBRAS N–2630","m²",102.43,"5.17","A medição será por demão em metro quadrado (m²) de superfície pintada, de acordo com as normas aplicáveis, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução dos itens."],["1.119","Pintura de superfície conforme norma PETROBRAS N-2912 tipo I com espessura de filme seco de 200 μm;","m²",112.66,"5.17","A medição será por demão em metro quadrado (m²) de superfície pintada, de acordo com as normas aplicáveis, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução dos itens."],["1.120","Pintura de superfície conforme norma PETROBRAS N-2912 tipo II com espessura de filme seco de 150 μm;","m²",137.75,"5.17","A medição será por demão em metro quadrado (m²) de superfície pintada, de acordo com as normas aplicáveis, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução dos itens."],["1.121","Pintura de superfície conforme norma PETROBRAS N-2912 tipo II com espessura de filme seco de 300 μm;","m²",141.92,"5.17","A medição será por demão em metro quadrado (m²) de superfície pintada, de acordo com as normas aplicáveis, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução dos itens."],["1.122","Pintura de superfície conforme norma PETROBRAS N-2912 tipo II com espessura de filme seco de 450 μm;","m²",171.4,"5.17","A medição será por demão em metro quadrado (m²) de superfície pintada, de acordo com as normas aplicáveis, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução dos itens."],["1.123","Pintura de superfície conforme norma PETROBRAS N-2912 tipo III com espessura de filme seco de 500 μm;","m²",186.47,"5.17","A medição será por demão em metro quadrado (m²) de superfície pintada, de acordo com as normas aplicáveis, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução dos itens."],["1.124","Pintura de superfície com tinta Epóxi Poliaspártico conforme norma PETROBRAS N-2913","m²",217.04,"5.17","A medição será por demão em metro quadrado (m²) de superfície pintada, de acordo com as normas aplicáveis, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução dos itens."],["1.125","Pintura de uma unidade de identificação de logotipo BR","un",5700.66,"5.17.1","A medição será por unidade executada, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução dos itens."],["1.126","Pintura de uma unidade de identificação de TAG.","un",3872.12,"5.17.1","A medição será por unidade executada, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução dos itens."],["1.127","Aplicação reforço estrutural em fibra para tanques","m²",548.61,"5.17.2.1","A medição será por metro quadrado (m2) de camada aplicada, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução deste item."],["1.128","Inspeção de fundo de tanque pelo método MFL convencional complementado por ultra som C-Scan","Diária",6800.16,"5.18.1","A medição será por diária de 8,8 horas, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução deste item."],["1.129","Serviços de estanqueidade por pressão negativa (caixa de vácuo)","Diária",1909.31,"5.18.2","A medição será por diária de 8,8 horas, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução deste item."],["1.130","Serviço de ultrassom","Diária",2615.45,"5.18.3","A medição será por diária de 8,8 horas, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução deste item."],["1.131","Serviço de ensaio de dureza","Diária",2210.51,"5.18.4","A medição será por diária de 8,8 horas, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução deste item."],["1.132","Escavação mecânica ","m³",175.9,"5.19.1","A medição será por metro cúbico (m³) de escavação (calculado pelo volume da figura geométrica resultante da escavação) de acordo com o tipo, devendo estar incluídos todos os serviços, equipamentos e materiais, inerentes à execução deste item."],["1.133","Escavação manual ","m³",542.07,"5.19.1","A medição será por metro cúbico (m³) de escavação (calculado pelo volume da figura geométrica resultante da escavação) de acordo com o tipo, devendo estar incluídos todos os serviços, equipamentos e materiais, inerentes à execução deste item."],["1.134","Preparação de acesso à bacia de tanque","m³",979.37,"5.19.2","A medição será por metro cúbico (m³) de acesso construído (calculado pelo volume da figura geométrica resultante da construção), devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução deste item."],["1.135","Pintura em tinta acrílica","m²",66.93,"5.19.3","A medição será por metro quadrado (m²) de superfície pintada, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução deste item."],["1.136","Limpeza mecânica de canaleta, dique e mini dique","m³",449.13,"5.19.4","A medição será por metro cúbico (m³) de resíduo retirado, devendo estar inclusos todos os serviços e equipamentos inerentes à execução deste item."],["1.137","Limpeza manual de canaleta e dique e mini dique","m³",906.1,"5.19.4","A medição será por metro cúbico (m³) de resíduo retirado, devendo estar inclusos todos os serviços e equipamentos inerentes à execução deste item."],["1.138","Recomposição do solo do dique","m³",542.07,"5.19.5","A medição será por metro cúbico (m³) de solo retirado, devendo estar inclusos todos os serviços, equipamentos e materiais inerentes à execução deste item."],["1.139","Roçada de vegetação","m²",14.72,"5.19.6","Os serviços de roçada mecânica, com remoção de resíduos serão medidos pelo item 1.139 da Planilha de Preços Unitários Serviços, tendo por unidade de medição metro quadrado de área roçada."],["1.140","Construção em concreto simples","m³",1177.46,"5.19.7","A medição será por metro cúbico (m³) da figura geométrica resultante da concretagem, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução deste item."],["1.141","Serviços de topografia","Diária",3571.73,"5.19.8","A medição será por diária de 8,8 horas, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução deste item."],["1.142","Mobilização - limitado a 1,5% do valor total do contrato","Vb",3499101.92,"5.20.1","A medição será por verba (vb)."],["1.143","Desmobilização - limitado a 0,5% do valor total do contrato","Vb",1166351.74,"5.20.2","A medição será por verba (vb)."],["1.144","HS I - Atividade técinica de planejamento","Hs",127.98,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.145","HS I - Atividade técinica de documentação","Hs",78.86,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.146","HS I - Inspeção de equipamentos","Hs",160.23,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.147","HS I - Inspeção de liquido penetrante","Hs",160.23,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.148","HS I - Inspeção de solda N1 / pintura N1","Hs",160.52,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.149","HS I - Atividade de desenho industrial","Hs",108.05,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.150","HS I - Atividade técnica de segurança e meio ambiente","Hs",99.64,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.151","HS I - Surpevisão geral de caldeiraria / complementar","Hs",168.48,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.152","HS I - Surpevisão de caldeiraria / tubulação / soldagem / complementar","Hs",122.25,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.153","HS I - Atividade de caldeiraria","Hs",100.83,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.154","HS I - Atividade de eletricidade","Hs",100.83,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.155","HS I - Atividade de soldagem 6G","Hs",122.27,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.156","HS I - Atividade de soldagem TIG","Hs",122.27,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.157","HS I - Atividade de isolamento / funilaria / montagem de andaime","Hs",118.54,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.158","HS I - Atividade de pintura / jateamento / hidrojateamento","Hs",121.68,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.159","HS I - Atividade de manutenção complementar (qualificação meio oficial / auxiliar de serviços gerais)","Hs",65.46,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.160","HS II - Atividade técinica de planejamento","Hs",180.03,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.161","HS II - Atividade técinica de documentação","Hs",110.93,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.162","HS II - Inspeção de equipamentos","Hs",225.39,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.163","HS II - Inspeção de liquido penetrante","Hs",225.39,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.164","HS II - Inspeção de solda N1 / pintura N1","Hs",225.8,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.165","HS II - Atividade de desenho industrial","Hs",151.99,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.166","HS II - Atividade técinica de segurança e meio ambiente","Hs",140.16,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.167","HS II - Surpevisão geral de caldeiraria / complementar","Hs",237,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.168","HS II - Surpevisão de caldeiraria / tubulação / soldagem / complementar","Hs",171.97,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.169","HS II - Atividade de caldeiraria","Hs",141.84,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.170","HS II - Atividade de eletricidade","Hs",141.84,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.171","HS II - Atividade de soldagem 6G","Hs",172,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.172","HS II - Atividade de soldagem TIG","Hs",172,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.173","HS II - Atividade de isolamento / funilaria / montagem de andaime","Hs",166.75,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.174","HS II - Atividade de pintura / jateamento / hidrojateamento","Hs",171.17,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.175","HS II - Atividade de manutenção complementar (qualificação meio oficial / auxiliar de serviços gerais)","Hs",92.08,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.176","HS III - Atividade técnica de planejamento","Hs",208.05,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.177","HS III - Atividade técnica de documentação","Hs",128.2,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.178","HS III - Inspeção de equipamentos","Hs",260.48,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.179","HS III - Inspeção de liquido penetrante","Hs",260.48,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.180","HS III - Inspeção de solda N1 / pintura N1","Hs",260.95,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.181","HS III - Atividade de desenho industrial","Hs",175.65,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.182","HS III - Atividade técinica de segurança e meio ambiente","Hs",161.98,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.183","HS III - Surpevisão geral de caldeiraria / complementar","Hs",273.89,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.184","HS III - Surpevisão de caldeiraria / tubulação / soldagem / complementar","Hs",198.74,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.185","HS III - Atividade de caldeiraria","Hs",163.92,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.186","HS III - Atividade de eletricidade","Hs",163.92,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.187","HS III - Atividade de soldagem 6G","Hs",198.77,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.188","HS III - Atividade de soldagem TIG","Hs",198.77,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.189","HS III - Atividade de isolamento / funilaria / montagem de andaime","Hs",192.71,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.190","HS III - Atividade de pintura / jateamento / hidrojateamento","Hs",197.81,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.191","HS III - Atividade de manutenção complementar (qualificação meio oficial / auxiliar de serviços geraisi)","Hs",106.42,"5.21","Serviços específicos não contemplados nos itens 1.1 a 1.141, quantificados em Horas de Serviço (HS) conforme itens 1.144 a 1.191, justificados em memória de cálculo. HS I: itens 1.144–1.159; HS II: 1.160–1.175; HS III: 1.176–1.191."],["1.192","Caminhão guindauto","Diária",2526.62,"6.9.1","A medição será por diária de 8,8 horas, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução deste item."],["1.193","Guindaste sobre pneus, cap. 30 TON","Diária",3923.17,"6.9.1","A medição será por diária de 8,8 horas, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução deste item."],["1.194","Guindaste sobre pneus, cap. 70 TON","Diária",6800.16,"6.9.1","A medição será por diária de 8,8 horas, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução deste item."],["1.195","Guindaste sobre pneus, cap. 100 TON","Diária",7061.71,"6.9.1","A medição será por diária de 8,8 horas, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução deste item."],["1.196","Guindaste sobre pneus, cap. 220 TON","Diária",14384.95,"6.9.1","A medição será por diária de 8,8 horas, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução deste item."],["1.197","Caminhão á vácuo","Diária",2467.64,"6.9.1","A medição será por diária de 8,8 horas, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução deste item."],["1.198","Retroescavadeira","Diária",2354.99,"6.9.1","A medição será por diária de 8,8 horas, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução deste item."],["1.199","Caminhão poliguindaste","Diária",1648.49,"6.9.1","A medição será por diária de 8,8 horas, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução deste item."],["1.200","Equipamento para torque controlado","Diária",1023.72,"6.9.1","A medição será por diária de 8,8 horas, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução deste item."],["1.201","Compressoar de ar com capacidade de 550 PCM","Diária",784.63,"6.10","A medição será por diária de 24 horas, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução deste item."],["1.202","Compressoar de ar com capacidade de 750 PCM","Diária",1002.59,"6.10","A medição será por diária de 24 horas, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução deste item."],["1.203","Gerador a dieses 100 KVA","Diária",359.15,"6.10","A medição será por diária de 24 horas, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução deste item."],["1.204","Gerador a dieses 250 KVA","Diária",876.18,"6.10","A medição será por diária de 24 horas, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução deste item."],["1.205","Bomba de recalque a diesel","Diária",2527.89,"6.10","A medição será por diária de 24 horas, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução deste item."],["1.206","Motobomba a Diesel, com Sistema a Vácuo de Escorva 720 m3/h","Diária",2347.05,"6.10","A medição será por diária de 24 horas, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução deste item."],["1.207","Plataforma elevatória até 16m","Diária",1544.54,"6.10","A medição será por diária de 24 horas, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução deste item."],["1.208","Plataforma elevatória 17 até 26m","Diária",1824.29,"6.10","A medição será por diária de 24 horas, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução deste item."],["1.209","Plataforma elevatória 27 até 46m","Diária",2666.5,"6.10","A medição será por diária de 24 horas, devendo estar incluídos todos os serviços, equipamentos e materiais inerentes à execução deste item."]],"etapas":{"1.22":[["Conclusão do escoramento, acesso e corte das chapas",0.3],["Preparação e instalação das chapas",0.3],["Conclusão da soldagem",0.3],["Conclusão da inspeção e emissão do laudo ou relatório",0.1]],"1.23":[["Conclusão do escoramento, acesso e corte das chapas",0.3],["Preparação e instalação das chapas",0.3],["Conclusão da soldagem",0.3],["Conclusão da inspeção e emissão do laudo ou relatório",0.1]],"1.25":[["Remoção e descarte",0.3],["Montagem e ponteamento",0.3],["Conclusão da solda",0.3],["Conclusão da inspeção e emissão de laudo ou relatório",0.1]],"1.26":[["Remoção e descarte",0.3],["Montagem e ponteamento",0.3],["Conclusão da solda",0.3],["Conclusão da inspeção e emissão de laudo ou relatório",0.1]],"1.29":[["Remoção",0.3],["Fabricação",0.3],["Instalação",0.4]],"1.31":[["Remoção",0.2],["Preparação / teste",0.5],["Instalação",0.3]],"1.32":[["Remoção e descarte das chapas",0.3],["Montagem e ponteamento",0.3],["Conclusão da solda",0.3],["Conclusão da inspeção e emissão de laudo ou relatório",0.1]],"1.33":[["Remoção, limpeza e descarte se necessário",0.3],["Preparação e reparos",0.2],["Instalação",0.35],["Inspeção/fiscalização",0.15]],"1.34":[["Remoção, limpeza e descarte se necessário",0.3],["Preparação e reparos",0.2],["Instalação",0.35],["Inspeção/fiscalização",0.15]],"1.35":[["Remoção, limpeza e descarte se necessário",0.3],["Preparação e reparos",0.2],["Instalação",0.35],["Inspeção/fiscalização",0.15]],"1.37":[["Remoção e descarte do selo antigo",0.3],["Preparação e montagem",0.4],["Instalação selo novo",0.2],["Inspeção",0.1]],"1.38":[["Remoção",0.4],["Instalação",0.6]],"1.40":[["Preparação / pré-preparação. (detalhar item)",0.4],["Instalação",0.4],["Aprovação do teste hidrostático",0.2]],"1.42":[["Remoção/limpeza e destinação",0.35],["Instalação/teste hidrostático",0.55],["Aprovação da inspeção/fiscalização",0.1]],"1.55":[["Remoção da válvula",0.3],["Manutenção e apresentação de relatório",0.4],["Reinstalação da válvula",0.3]],"1.56":[["Remoção da válvula",0.3],["Manutenção e apresentação de relatório",0.4],["Reinstalação da válvula",0.3]],"1.57":[["Remoção da válvula",0.3],["Manutenção e apresentação de relatório",0.4],["Reinstalação da válvula",0.3]],"1.58":[["Remoção da válvula",0.3],["Manutenção e apresentação de relatório",0.4],["Reinstalação da válvula",0.3]],"1.59":[["Remoção da válvula",0.3],["Manutenção e apresentação de relatório",0.4],["Reinstalação da válvula",0.3]],"1.65":[["Remoção, limpeza e destinação",0.3],["Preparação/confecção",0.4],["Instalação e inspeção",0.3]],"1.66":[["Remoção / Demarcação do Local",0.2],["Pré-preparação do pescoço e transporte para Pintura",0.2],["Pré-preparação da BVs e Flanges e transporte para Pintura",0.35],["Montagem (ponteamento e soldagem)",0.2],["Conclusão da inspeção/Relatório",0.05]],"1.67":[["Remoção / Demarcação do Local",0.2],["Pré-preparação do pescoço e transporte para Pintura",0.2],["Pré-preparação da BVs e Flanges e transporte para Pintura",0.35],["Montagem (ponteamento e soldagem)",0.2],["Conclusão da inspeção/Relatório",0.05]],"1.68":[["Remoção / Demarcação do Local",0.2],["Pré-preparação do pescoço e transporte para Pintura",0.2],["Pré-preparação da BVs e Flanges e transporte para Pintura",0.35],["Montagem (ponteamento e soldagem)",0.2],["Conclusão da inspeção/Relatório",0.05]],"1.69":[["Remoção / Demarcação do Local",0.2],["Pré-preparação do pescoço e transporte para Pintura",0.2],["Pré-preparação da BVs e Flanges e transporte para Pintura",0.35],["Montagem (ponteamento e soldagem)",0.2],["Conclusão da inspeção/Relatório",0.05]],"1.70":[["Remoção / Demarcação do Local",0.2],["Pré-preparação do pescoço e transporte para Pintura",0.2],["Pré-preparação da BVs e Flanges e transporte para Pintura",0.35],["Montagem (ponteamento e soldagem)",0.2],["Conclusão da inspeção/Relatório",0.05]],"1.71":[["Remoção / Demarcação do Local",0.2],["Pré-preparação do pescoço e transporte para Pintura",0.2],["Pré-preparação da BVs e Flanges e transporte para Pintura",0.35],["Montagem (ponteamento e soldagem)",0.2],["Conclusão da inspeção/Relatório",0.05]],"1.72":[["Remoção / Demarcação do Local",0.2],["Pré-preparação do pescoço e transporte para Pintura",0.2],["Pré-preparação da BVs e Flanges e transporte para Pintura",0.35],["Montagem (ponteamento e soldagem)",0.2],["Conclusão da inspeção/Relatório",0.05]],"1.73":[["Remoção / Demarcação do Local",0.2],["Pré-preparação do pescoço e transporte para Pintura",0.2],["Pré-preparação da BVs e Flanges e transporte para Pintura",0.35],["Montagem (ponteamento e soldagem)",0.2],["Conclusão da inspeção/Relatório",0.05]],"1.74":[["Remoção / Demarcação do Local",0.2],["Pré-preparação do pescoço e transporte para Pintura",0.2],["Pré-preparação da BVs e Flanges e transporte para Pintura",0.35],["Montagem (ponteamento e soldagem)",0.2],["Conclusão da inspeção/Relatório",0.05]],"1.76":[["Remoção",0.2],["Preparação e fabricação",0.4],["Instalação",0.3],["Conclusão da inspeção/Relatório",0.1]],"1.77":[["Remoção, limpeza e destinação",0.4],["Preparação, instalação e inspeção",0.6]],"1.78":[["Remoção, limpeza e destinação",0.2],["Preparação/fabricação",0.3],["Instalação e inspeção",0.5]],"1.79":[["Remoção",0.4],["Instalação",0.6]],"1.81":[["Remoção e destinação",0.4],["Aplicação do concreto e inspeção",0.6]],"1.84":[["Remoção",0.3],["Conclusão do reparo e pintura",0.4],["Instalação",0.3]],"1.85":[["Remoção",0.4],["Instalação",0.6]],"1.87":[["Remoção",0.3],["Instalação",0.7]],"1.88":[["Remoção",0.3],["Instalação",0.7]],"1.89":[["Remoção",0.3],["Instalação",0.7]],"1.94":[["Remoção",0.2],["Fabricação do suporte",0.3],["Instalação do suporte",0.3],["Instalação do cabo terra e conectores",0.2]]}};
+const PI = 3.1416, NI = 6, CONTRATO = "5900.0128196.24.2";
+const OBJETO = "SERVIÇOS DE MANUTENÇÃO DE TANQUES DE ARMAZENAMENTO E ESFERAS NA REFINARIA ABREU E LIMA - RNEST";
+const PPU = {}; DATA.ppu.forEach(([it,d,u,p,s,c]) => PPU[it] = {d,u,p,s,c});
+const ITENS = DATA.ppu.map(r => r[0]);
+const TIPOS = [
+  ["Valor direto (área/qtd já calculada)",1,"direto"],
+  ["Retângulo (A × B)",1,"ret"],
+  ["Cilindro / perímetro (π × D × h)",1,"cil"],
+  ["Círculo – fundo/teto (π × D² ÷ 4)",1,"circ"],
+  ["Coroa circular (π × (D² − d²) ÷ 4)",1,"coroa"],
+  ["Coroa circular – face inferior (+30%)",1.3,"coroa"],
+  ["Escada inclinada – face superior (+10%)",1.1,"ret"],
+  ["Escada inclinada – face inferior (+30%)",1.3,"ret"],
+  ["Guarda-corpo / treliça / escada vertical (÷ 2)",0.5,"ret"],
+  ["Plataforma / piso vazado – grelha (× 3)",3,"ret"],
+  ["Plataforma – face inferior c/ vigamento (+30%)",1.3,"ret"],
+  ["Piso fechado liso ou xadrez (por face)",1,"ret"],
+  ["Tubulação até 26\" (comprimento × m²/m)",1,"bit"],
+  ["Perfil metálico (comprimento × m²/m)",1,"bit"],
+  ["Retoque de pintura (0,15 m² cada)",0.15,"un"],
+  ["Unidade",1,"un"],
+  ["Diária",1,"un"]];
+const BITOLAS = [["½\"",.08],["¾\"",.10],["1\"",.13],["1 ½\"",.16],["2\"",.21],["2 ½\"",.25],["3\"",.31],["4\"",.39],["6\"",.57],["8\"",.73],["10\"",.90],["12\"",1.07],["14\"",1.18],["16\"",1.36],["18\"",1.52],["20\"",1.68],["24\"",2.00],["26\"",2.18],
+ ["Viga I 3\" x 2 3/8\"",.38],["Viga I 4\" x 2 5/8\"",.46],["Viga I 5\" x 3\"",.54],["Viga I 6\" x 3 3/8\"",.63],["Viga I 8\" x 4\"",.80],["Viga I 10\" x 4 5/8\"",.96],["Viga I 12\" x 5 1/4\"",1.11],["Viga I 15\" x 5 1/2\"",1.30],["Viga I 18\" x 6\"",1.50],["Viga I 20\" x 7\"",1.70],
+ ["Viga H 4\" x 4\"",.60],["Viga H 5\" x 5\"",.75],["Viga H 6\" x 6\"",.90],["Viga U 3\" x 1 1/2\"",.32],["Viga U 4\" x 1 5/8\"",.38],["Viga U 6\" x 2\"",.56],["Viga U 8\" x 2 1/4\"",.68],["Viga U 10\" x 2 5/8\"",.84],["Viga U 12\" x 3\"",.96],["Viga U 15\" x 3 3/8\"",1.15],
+ ["Cantoneira 2 1/2\" x 2 1/2\"",.25],["Cantoneira 3\" x 3\"",.30],["Cantoneira 4\" x 4\"",.41],["Cantoneira 5\" x 5\"",.51],["Cantoneira 6\" x 6\"",.61],["Cantoneira 8\" x 8\"",.81],["Cantoneira 3 1/2\" x 2 1/2\"",.30],["Cantoneira 4\" x 3\"",.36],["Cantoneira 4\" x 3 1/2\"",.38],["Cantoneira 5\" x 3 1/2\"",.43],["Cantoneira 6\" x 4\"",.51],["Cantoneira 7\" x 4\"",.56],["Cantoneira 8\" x 4\"",.61]];
+const M2M = Object.fromEntries(BITOLAS);
+const METODOS = [["",1,"Não informado (preço cheio)"],["robo",1,"Robotizado / remoto"],["conv",0.7,"Convencional (−30%)"]];
+const LOTE_TIPOS = ["","Substituição","Sobreposição","Instalação","Remoção"];
+
+/* ---------- utilidades ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function num(v){ if(v===""||v==null) return null; if(typeof v==="number") return v;
+  let s=String(v).trim().replace(/\s/g,""); if(s.includes(",")) s=s.replace(/\./g,"").replace(",",".");
+  const n=Number(s); return isFinite(n)?n:null; }
+const r3 = x => Math.round(x*1000)/1000, r2 = x => Math.round(x*100)/100;
+const fmt = (x,d=2) => x==null||!isFinite(x) ? "" : x.toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d});
+const fdim = x => x==null ? "?" : (r2(x)===x ? fmt(x,2) : fmt(x,3));
+const brl = x => "R$ " + fmt(x,2);
+const pctf = x => x==null||!isFinite(x) ? "" : fmt(x*100,1)+"%";
+function periodo(bm){ const a=new Date(2024,10+bm-1,26), b=new Date(2024,10+bm,25); return [a,b]; }
+const dbr = d => d.toLocaleDateString("pt-BR");
+const itNum = it => { const m=/^1\.(\d+)$/.exec(it||""); return m?+m[1]:0; };
+let toastT; function toast(m){ const t=$("#toast"); t.textContent=m; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true,3500); }
+
+/* ---------- modelo ---------- */
+function novaMC(bm){ return {bm, mc:"", tanque:"", ro:"", servico:"", itens:Array.from({length:NI},()=>({item:"",metodo:"",demaos:""})),
+  elems:Array.from({length:4},()=>novoElem()), quadro:Array.from({length:NI},()=>({ant:"",pct:"",man:""})),
+  etapa:{item:"",lotes:[novoLote(),novoLote()]}, obs:"", fotos:[], updatedAt:Date.now()}; }
+function novoElem(){ return {desc:"",tipo:"",a:"",b:"",bit:"",qtd:"",pct:"",fl:[false,false,false,false,false,false]}; }
+function novoLote(){ return {desc:"",tipo:"",area:"",bms:["","","","",""]}; }
+function normaliza(m){ const n=novaMC(m.bm||23); const o=Object.assign(n,m);
+  o.itens=Array.from({length:NI},(_,i)=>Object.assign({item:"",metodo:"",demaos:""},(m.itens||[])[i]||{}));
+  o.quadro=Array.from({length:NI},(_,i)=>Object.assign({ant:"",pct:"",man:""},(m.quadro||[])[i]||{}));
+  o.elems=(m.elems&&m.elems.length?m.elems:[novoElem()]).map(e=>Object.assign(novoElem(),e,{fl:Array.from({length:NI},(_,i)=>!!(e.fl||[])[i])}));
+  o.etapa=Object.assign({item:"",lotes:[]},m.etapa||{}); o.etapa.lotes=(o.etapa.lotes.length?o.etapa.lotes:[novoLote()]).map(l=>Object.assign(novoLote(),l,{bms:Array.from({length:5},(_,i)=>(l.bms||[])[i]??"")}));
+  o.fotos=m.fotos||[]; return o; }
+
+function tipoDe(nome){ return TIPOS.find(t=>t[0]===nome); }
+function calcElem(e){
+  const t=tipoDe(e.tipo); if(!t) return null;
+  const A=num(e.a)||0, B=num(e.b)||0, q=num(e.qtd)??1, p=(num(e.pct)??100)/100, f=t[1];
+  let base;
+  switch(t[2]){ case "direto": base=A; break; case "ret": base=A*B; break; case "cil": base=PI*A*B; break;
+    case "circ": base=PI*A*A/4; break; case "coroa": base=PI*(A*A-B*B)/4; break; case "bit": base=A*(M2M[e.bit]||0); break; default: base=1; }
+  return r3(base*f*q*p);
+}
+function textoElem(e){
+  const t=tipoDe(e.tipo); if(!t) return ""; const A=num(e.a), B=num(e.b), q=num(e.qtd), p=num(e.pct);
+  let s;
+  switch(t[2]){ case "direto": s=fdim(A); break; case "ret": s=fdim(A)+" × "+fdim(B); break; case "cil": s="π × "+fdim(A)+" × "+fdim(B); break;
+    case "circ": s="π × "+fdim(A)+"² ÷ 4"; break; case "coroa": s="π × ("+fdim(A)+"² − "+fdim(B)+"²) ÷ 4"; break;
+    case "bit": s=fdim(A)+" m × "+fmt(M2M[e.bit]||0,2)+" m²/m ("+(e.bit||"escolha a bitola")+")"; break;
+    default: s= t[0]==="Diária" ? "1 diária" : t[0].startsWith("Retoque") ? "0,15 m²" : "1 un"; }
+  if(t[1]!==1 && !t[0].startsWith("Retoque")) s+=" × "+fmt(t[1],2);
+  if(q!=null && q!==1) s+=" × "+fmt(q,q%1?2:0)+(t[2]==="un"?"":" pç");
+  if(p!=null && p!==100) s+=" × "+fmt(p,0)+"%";
+  const v=calcElem(e); return s+" = "+fmt(v,3);
+}
+function etapasDe(it){ return DATA.etapas[it]||null; }
+function calcEtapas(m){
+  const et=etapasDe(m.etapa.item); const res={bm:0,acum:0,lotes:[]};
+  m.etapa.lotes.forEach(l=>{ const a=num(l.area); let pb=0,pa=0;
+    if(et && a!=null) et.forEach(([n,pc],k)=>{ const b=num(l.bms[k]); if(b!=null){ if(b===m.bm) pb+=pc; if(b<=m.bm) pa+=pc; } });
+    const q={pb,pa,qb:a!=null?r3(a*pb):null,qa:a!=null?r3(a*pa):null}; res.lotes.push(q); res.bm+=q.qb||0; res.acum+=q.qa||0; });
+  res.bm=r3(res.bm); res.acum=r3(res.acum); return res;
+}
+function calcMC(m){
+  const el=m.elems.map(calcElem);
+  const et=calcEtapas(m);
+  const linhas=m.itens.map((it,i)=>{
+    if(!it.item||!PPU[it.item]) return null; const P=PPU[it.item];
+    const n=itNum(it.item), faixa=n>=96&&n<=124;
+    const met=METODOS.find(x=>x[0]===it.metodo)||METODOS[0]; const fat=faixa?met[1]:1;
+    const precoAp=r2(P.p*fat), dem=num(it.demaos)||1;
+    const mem=r3(m.elems.reduce((s,e,k)=>s+(e.fl[i]&&el[k]!=null?el[k]:0),0));
+    const prev=r3(mem*dem); const q=m.quadro[i]; const isEt=m.etapa.item===it.item&&!!etapasDe(it.item);
+    let ant=num(q.ant)||0, bm;
+    if(isEt){ bm=et.bm; ant=r3(et.acum-et.bm); }
+    else if(num(q.man)!=null) bm=num(q.man);
+    else if(num(q.pct)!=null) bm=r3(prev*num(q.pct)/100);
+    else bm=0;
+    const acum=r3(ant+bm);
+    return {i,item:it.item,P,faixa,fat,precoAp,dem,mem,prev,ant,bm,acum,pa:prev?acum/prev:null,valor:r2(bm*precoAp),isEt,metodo:it.metodo};
+  });
+  const total=r2(linhas.reduce((s,l)=>s+(l?l.valor:0),0));
+  const alerts=[];
+  linhas.forEach(l=>{ if(!l) return;
+    if(l.acum>l.prev+0.0005) alerts.push(["bad",`Item ${l.item}: o acumulado (${fmt(l.acum,3)}) passa da quantidade prevista (${fmt(l.prev,3)}).`]);
+    if(l.faixa && !l.metodo) alerts.push(["",`Item ${l.item}: informe o método. Se for convencional (operador no bico/pistola), o preço cai 30%.`]);
+    if(l.faixa && l.prev>1000 && l.metodo==="conv") alerts.push(["",`Item ${l.item}: área acima de 1.000 m² exige robô (Esclarecimento, resposta 07).`]);
+    if(l.mem===0 && !l.isEt) alerts.push(["",`Item ${l.item}: nenhuma linha da memória está marcada para este item.`]);
+  });
+  m.elems.forEach((e,k)=>{ const p=num(e.pct); if(e.tipo && p!=null && p!==100 && !e.desc) alerts.push(["",`Linha ${k+1} da memória usa ${fmt(p,0)}% sem descrição do motivo.`]);
+    if(e.tipo && el[k]!=null && !e.fl.some(Boolean)) alerts.push(["",`Linha ${k+1} da memória não está marcada para nenhum item.`]); });
+  if(!m.mc) alerts.push(["","Informe o número da MC."]);
+  return {el,et,linhas,total,alerts};
+}
+
+/* ---------- estado e persistência ---------- */
+const BLOBS={}, FOTOS={};
+let db=null, assets=null, downloads=null, MCS={}, cur=null, curId=null, saveT=null, filtroBM=null;
+const BM_ATUAL_PADRAO = 24;
+function status(s){ $("#status").textContent=s; }
+
+async function boot(){
+  renderList(); renderEditor();
+  const to=setTimeout(()=>{ if(!db){ status("Sem conexão com o armazenamento"); $("#list").innerHTML='<div class="empty">Não foi possível carregar as MCs salvas. Você pode montar e baixar uma MC, mas ela não ficará salva.</div>'; } },10000);
+  db = await claude.use("db");
+  try{ assets = await claude.use("assets"); }catch(e){ assets=null; }
+  try{ downloads = await claude.use("downloads"); }catch(e){ downloads=null; }
+  if(!db){ clearTimeout(to); status("Modo sem salvamento"); return; }
+  db.collection("mcs").onSnapshot(snap=>{
+    clearTimeout(to); MCS={}; snap.docs.forEach(d=>{ MCS[d.id]=normaliza(d.data()); });
+    status(snap.size+" MC(s) salvas");
+    if(curId && MCS[curId] && !saveT && !document.activeElement?.closest("#ed")) { cur=MCS[curId]; renderEditor(); }
+    renderList();
+    if(!cur && snap.size){ const ids=idsFiltrados(); if(ids.length) abrir(ids[0]); }
+  }, err=>{ clearTimeout(to); status("Erro ao ler: "+err.code); });
+}
+function idsFiltrados(){ return Object.keys(MCS).filter(id=>filtroBM==null||MCS[id].bm===filtroBM)
+  .sort((a,b)=>(MCS[a].mc||"").localeCompare(MCS[b].mc||"","pt-BR",{numeric:true})); }
+function salvar(){
+  if(!cur) return; cur.updatedAt=Date.now();
+  if(!db){ status("Não salvo (sem conexão)"); return; }
+  clearTimeout(saveT); status("Salvando…");
+  saveT=setTimeout(async()=>{ saveT=null;
+    try{ if(!curId) curId="mc"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+      await db.doc("mcs/"+curId).set(JSON.parse(JSON.stringify(cur))); MCS[curId]=cur; status("Salvo às "+new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})); renderList(); }
+    catch(e){ status(e.code==="not_granted"?"Você não tem permissão para salvar":"Erro ao salvar: "+(e.code||e.message)); }
+  },900);
+}
+function abrir(id){ curId=id; cur=MCS[id]; renderList(); renderEditor(); }
+
+/* ---------- lista ---------- */
+function renderList(){
+  const bms=[...new Set(Object.values(MCS).map(m=>m.bm))].sort((a,b)=>b-a);
+  if(filtroBM==null && bms.length) filtroBM=bms[0];
+  $("#fBM").innerHTML='<option value="">Todos</option>'+bms.map(b=>`<option value="${b}" ${b===filtroBM?"selected":""}>BM-${String(b).padStart(3,"0")}</option>`).join("");
+  const ids=idsFiltrados();
+  if(!ids.length){ $("#list").innerHTML=`<div class="empty">${Object.keys(MCS).length?"Nenhuma MC neste BM.":"Nenhuma MC salva ainda. Toque em <b>+ Nova MC</b> para montar a primeira."}</div>`; return; }
+  $("#list").innerHTML=ids.map(id=>{ const m=MCS[id]; const c=calcMC(m);
+    return `<button class="mcrow ${id===curId?"on":""}" data-id="${id}"><span class="n">${esc(m.mc||"MC sem nº")}</span><span class="t">${esc(m.tanque)} · BM-${String(m.bm).padStart(3,"0")}${m.exemplo?' <span class="tag">exemplo</span>':""}</span><span class="v">${brl(c.total)} · ${esc(m.servico||"sem serviço")}</span></button>`; }).join("");
+}
+$("#list").addEventListener("click",e=>{ const b=e.target.closest(".mcrow"); if(b) abrir(b.dataset.id); });
+$("#fBM").addEventListener("change",e=>{ filtroBM=e.target.value?+e.target.value:null; renderList(); });
+$("#bNova").addEventListener("click",()=>{ curId=null; cur=novaMC(filtroBM||BM_ATUAL_PADRAO); renderEditor(); renderList(); window.scrollTo({top:0}); });
+
+/* ---------- editor ---------- */
+const opt=(v,l,sel)=>`<option value="${esc(v)}" ${v===sel?"selected":""}>${esc(l)}</option>`;
+const itemOpts = sel => '<option value="">—</option>'+ITENS.map(it=>opt(it,it+" · "+PPU[it].d.slice(0,60),sel)).join("");
+function renderEditor(){
+  const ed=$("#ed");
+  if(!cur){ ed.innerHTML=`<section class="blk"><h2>Comece por aqui</h2><p>Escolha uma MC na lista ou toque em <b>+ Nova MC</b>. Você preenche as medidas, o site faz as contas pelas regras do contrato e gera a planilha da MC com fórmulas e fotos.</p></section>`; return; }
+  const m=cur, [ini,fim]=periodo(m.bm);
+  ed.innerHTML=`
+  <section class="blk"><h2><span class="num">MC</span> Cabeçalho <small>${esc(OBJETO)}</small></h2>
+    <div class="grid">
+      <label class="f">Nº da MC<input id="h_mc" data-k="mc" value="${esc(m.mc)}" placeholder="MC-001"></label>
+      <label class="f">BM<input id="h_bm" data-k="bm" inputmode="numeric" value="${m.bm}"></label>
+      <label class="f">Período<input class="ro" readonly value="${dbr(ini)} a ${dbr(fim)}"></label>
+      <label class="f">Tanque / equipamento<input id="h_tq" data-k="tanque" value="${esc(m.tanque)}" placeholder="TQ-62016"></label>
+      <label class="f">RO / RDO<input id="h_ro" data-k="ro" value="${esc(m.ro)}"></label>
+      <label class="f wide">Serviço<input id="h_sv" data-k="servico" value="${esc(m.servico)}" placeholder="Tratamento de superfície e pintura da escada helicoidal"></label>
+    </div>
+    <div class="total" style="margin-top:12px"><span>Valor da MC no BM</span><span class="big" id="o_total"></span></div>
+    <div class="alerts" id="o_alerts" style="margin-top:10px"></div>
+  </section>
+
+  <section class="blk"><h2><span class="num">1</span> Itens da PPU <small>Preço do Anexo 2A. Método só vale para os itens 1.96 a 1.124.</small></h2>
+    <div class="tblw"><table><thead><tr><th>Nº</th><th>Item</th><th>Unid.</th><th class="r">Preço PPU</th><th>Método</th><th class="r">Preço aplicado</th><th class="c">Demãos</th></tr></thead><tbody>
+    ${m.itens.map((it,i)=>`<tr><td class="c">${i+1}</td><td><select id="it_${i}" data-it="${i}" data-f="item" style="min-width:240px">${itemOpts(it.item)}</select></td>
+      <td id="o_u${i}"></td><td class="r"><span class="out" id="o_p${i}"></span></td>
+      <td><select id="mt_${i}" data-it="${i}" data-f="metodo">${METODOS.map(x=>opt(x[0],x[2],it.metodo)).join("")}</select></td>
+      <td class="r"><span class="out" id="o_pa${i}"></span></td>
+      <td class="c"><input id="dm_${i}" class="sm num" data-it="${i}" data-f="demaos" inputmode="numeric" value="${esc(it.demaos)}" placeholder="1"></td></tr>`).join("")}
+    </tbody></table></div>
+    <div class="crit" id="o_crit" style="margin-top:10px"></div>
+  </section>
+
+  <section class="blk"><h2><span class="num">2</span> Memória de cálculo <small>Uma linha por elemento. Marque os itens a que a área se aplica.</small></h2>
+    <div class="tblw"><table><thead><tr><th>Nº</th><th>Descrição / origem da medida</th><th>Tipo de cálculo (Anexo 1, f)</th><th class="r">Dim. A (D/comp.)</th><th class="r">Dim. B (h/larg./d)</th><th>Bitola/perfil</th><th class="r">Qtd</th><th class="r">% consid.</th>
+      ${m.itens.map((it,i)=>`<th class="c" id="o_fh${i}">${esc(it.item||"Item "+(i+1))}</th>`).join("")}<th class="r">Resultado</th><th>Cálculo</th><th></th></tr></thead><tbody>
+    ${m.elems.map((e,k)=>`<tr><td class="c">${k+1}</td>
+      <td><input id="e${k}_desc" data-el="${k}" data-f="desc" value="${esc(e.desc)}" style="min-width:220px"></td>
+      <td><select id="e${k}_tipo" data-el="${k}" data-f="tipo" style="min-width:220px">${'<option value="">—</option>'+TIPOS.map(t=>opt(t[0],t[0],e.tipo)).join("")}</select></td>
+      <td><input id="e${k}_a" class="num" data-el="${k}" data-f="a" inputmode="decimal" value="${esc(e.a)}"></td>
+      <td><input id="e${k}_b" class="num" data-el="${k}" data-f="b" inputmode="decimal" value="${esc(e.b)}"></td>
+      <td><select id="e${k}_bit" data-el="${k}" data-f="bit">${'<option value="">—</option>'+BITOLAS.map(b=>opt(b[0],b[0],e.bit)).join("")}</select></td>
+      <td><input id="e${k}_q" class="sm num" data-el="${k}" data-f="qtd" inputmode="decimal" value="${esc(e.qtd)}" placeholder="1"></td>
+      <td><input id="e${k}_p" class="sm num" data-el="${k}" data-f="pct" inputmode="decimal" value="${esc(e.pct)}" placeholder="100"></td>
+      ${e.fl.map((f,i)=>`<td class="c"><input type="checkbox" id="e${k}_f${i}" data-el="${k}" data-fl="${i}" ${f?"checked":""} aria-label="Aplica ao item ${i+1}"></td>`).join("")}
+      <td class="r"><span class="out" id="o_e${k}"></span></td><td><span class="txt" id="o_t${k}"></span></td>
+      <td><button class="ghost" data-del-el="${k}" aria-label="Remover linha">✕</button></td></tr>`).join("")}
+    </tbody><tfoot><tr><td colspan="8" class="r">Quantidade por item</td>${m.itens.map((_,i)=>`<td class="c"><span class="out" id="o_fs${i}"></span></td>`).join("")}<td colspan="3"></td></tr></tfoot></table></div>
+    <div class="row" style="margin-top:8px"><button id="bAddEl">+ Linha</button><span class="hint">Use vírgula ou ponto nos decimais. Fatores do contrato: escada +10%/+30%, guarda-corpo ÷2, grelha ×3, face inferior +30%, tubos e perfis em m²/m.</span></div>
+  </section>
+
+  <section class="blk"><h2><span class="num">3</span> Quadro de medição <small>Digite o acumulado até o BM anterior e o % (ou a quantidade) deste BM.</small></h2>
+    <div class="tblw"><table><thead><tr><th>Item</th><th class="r">Qtd memória</th><th class="c">Demãos</th><th class="r">Previsto</th><th class="r">Acum. anterior</th><th class="r">% no BM</th><th class="r">Qtd no BM (opcional)</th><th class="r">Medido no BM</th><th class="r">Acumulado</th><th class="r">% acum.</th><th class="r">Valor no BM</th></tr></thead><tbody>
+    ${m.quadro.map((q,i)=>`<tr id="qr${i}"><td><span class="out" id="o_qi${i}"></span></td><td class="r"><span class="out" id="o_qm${i}"></span></td><td class="c"><span class="out" id="o_qd${i}"></span></td><td class="r"><span class="out" id="o_qp${i}"></span></td>
+      <td><input id="q${i}_ant" class="num" data-q="${i}" data-f="ant" inputmode="decimal" value="${esc(q.ant)}"></td>
+      <td><input id="q${i}_pct" class="sm num" data-q="${i}" data-f="pct" inputmode="decimal" value="${esc(q.pct)}" placeholder="%"></td>
+      <td><input id="q${i}_man" class="num" data-q="${i}" data-f="man" inputmode="decimal" value="${esc(q.man)}"></td>
+      <td class="r"><span class="out" id="o_qb${i}"></span></td><td class="r"><span class="out" id="o_qa${i}"></span></td><td class="r"><span class="out" id="o_qpa${i}"></span></td><td class="r"><b class="out" id="o_qv${i}"></b></td></tr>`).join("")}
+    </tbody><tfoot><tr><td colspan="10" class="r">Total da MC no BM</td><td class="r"><span class="out" id="o_qt"></span></td></tr></tfoot></table></div>
+  </section>
+
+  <section class="blk"><h2><span class="num">4</span> Medição por etapas <small>Para itens como 1.22, 1.23 e 1.25. Em cada etapa digite o nº do BM em que ela foi concluída, ou N/A.</small></h2>
+    <div class="grid" style="max-width:520px"><label class="f">Item com etapas<select id="et_item" data-k2="item"><option value="">— nenhum —</option>${Object.keys(DATA.etapas).map(it=>opt(it,it+" · "+PPU[it].d.slice(0,50),m.etapa.item)).join("")}</select></label></div>
+    <div id="et_box"></div>
+  </section>
+
+  <section class="blk"><h2><span class="num">5</span> Desenhos de referência e observações</h2>
+    <textarea id="obs" data-k="obs" placeholder="DE-5290.00-6312-511-DEI-011 …">${esc(m.obs)}</textarea>
+  </section>
+
+  <section class="blk"><h2><span class="num">6</span> Registro fotográfico <small>As fotos entram na planilha da MC.</small></h2>
+    <div class="drop" id="drop"><p style="margin:0 0 8px">Arraste as fotos aqui ou</p><label class="btn" style="display:inline-block"><input type="file" id="fFoto" accept="image/*" multiple class="vh">Escolher fotos</label><p class="hint" id="fotoMsg"></p></div>
+    <div class="photos" id="photos" style="margin-top:10px"></div>
+  </section>
+
+  <section class="blk"><div class="row" style="justify-content:space-between">
+    <div class="row"><button class="pri" id="bXls">Baixar a MC (.xlsx)</button><button id="bProx">Copiar para o próximo BM</button><button id="bDup">Duplicar</button></div>
+    <div class="confirm" id="delBox"><button id="bDel">Excluir MC</button></div></div>
+  </section>`;
+  renderEtapas(); renderFotos(); updateOut();
+}
+function renderEtapas(){
+  const m=cur, et=etapasDe(m.etapa.item), box=$("#et_box");
+  if(!et){ box.innerHTML=`<p class="hint">${m.etapa.item?"Este item não tem etapas no Anexo 1.":"Nenhum item com etapas nesta MC."}</p>`; return; }
+  box.innerHTML=`<div class="tblw" style="margin-top:10px"><table><thead><tr><th>Lote / descrição</th><th>Tipo</th><th class="r">Área / qtd</th>${et.map(([n,p])=>`<th class="c" title="${esc(n)}">${esc(n.length>22?n.slice(0,20)+"…":n)}<br>${fmt(p*100,0)}%</th>`).join("")}<th class="r">% no BM</th><th class="r">Equiv. no BM</th><th class="r">% acum.</th><th class="r">Equiv. acum.</th><th></th></tr></thead><tbody>
+  ${m.etapa.lotes.map((l,k)=>`<tr><td><input id="l${k}_d" data-lo="${k}" data-f="desc" value="${esc(l.desc)}" style="min-width:200px"></td>
+    <td><select id="l${k}_t" data-lo="${k}" data-f="tipo">${LOTE_TIPOS.map(t=>opt(t,t||"—",l.tipo)).join("")}</select></td>
+    <td><input id="l${k}_a" class="num" data-lo="${k}" data-f="area" inputmode="decimal" value="${esc(l.area)}"></td>
+    ${et.map((_,j)=>`<td class="c"><input id="l${k}_b${j}" class="sm" style="text-align:center" data-lo="${k}" data-bm="${j}" value="${esc(l.bms[j])}" placeholder="BM"></td>`).join("")}
+    <td class="r"><span class="out" id="o_lpb${k}"></span></td><td class="r"><span class="out" id="o_lqb${k}"></span></td><td class="r"><span class="out" id="o_lpa${k}"></span></td><td class="r"><span class="out" id="o_lqa${k}"></span></td>
+    <td><button class="ghost" data-del-lo="${k}" aria-label="Remover lote">✕</button></td></tr>`).join("")}
+  </tbody><tfoot><tr><td colspan="${3+et.length+1}" class="r">Total (vai para o quadro de medição)</td><td class="r"><span class="out" id="o_ltb"></span></td><td></td><td class="r"><span class="out" id="o_lta"></span></td><td></td></tr></tfoot></table></div>
+  <div class="row" style="margin-top:8px"><button id="bAddLo">+ Lote</button><span class="hint">Sobreposição sem remoção: digite N/A na etapa de remoção e descarte.</span></div>`;
+}
+function renderFotos(){
+  const box=$("#photos"); if(!box) return;
+  box.innerHTML=cur.fotos.map((f,k)=>`<div class="ph"><img src="${esc(fotoSrc(f)||"")}" data-fsrc="${k}" alt="${esc(f.legenda||"Foto "+(k+1))}" loading="lazy"><input id="ft${k}" data-ft="${k}" value="${esc(f.legenda)}" placeholder="Legenda da foto ${k+1}"><button class="ghost rm" data-del-ft="${k}">Remover</button></div>`).join("");
+  cur.fotos.forEach((f,k)=>{ if(f.db && !FOTOS[f.id]) carregaFotoDb(f.id).then(u=>{ const im=box.querySelector(`img[data-fsrc="${k}"]`); if(u&&im) im.src=u; }); });
+  const msg=$("#fotoMsg"); if(!db && !assets && !msg.classList.contains("err")) msg.textContent="Sem conexão: as fotos não ficarão salvas agora.";
+}
+function fotoSrc(f){ return f.db ? FOTOS[f.id] : f.url; }
+async function carregaFotoDb(id){
+  if(FOTOS[id]) return FOTOS[id]; if(!db) return null;
+  try{ const d=await db.doc("fotos/"+id).get(); const v=d&&d.exists!==false&&d.data(); if(v&&v.data){ FOTOS[id]=v.data; return v.data; } }catch(e){}
+  return null;
+}
+function updateOut(){
+  const m=cur, c=calcMC(m), set=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
+  set("o_total",brl(c.total)); set("o_qt",brl(c.total));
+  $("#o_alerts").innerHTML=c.alerts.slice(0,8).map(([k,t])=>`<div class="alert ${k}">${esc(t)}</div>`).join("");
+  m.itens.forEach((it,i)=>{ const P=PPU[it.item]; const l=c.linhas[i];
+    set("o_u"+i,P?P.u:""); set("o_p"+i,P?brl(P.p):""); set("o_pa"+i,l?brl(l.precoAp)+(l.fat<1?" (−30%)":""):"");
+    set("o_fh"+i,it.item||"Item "+(i+1));
+    set("o_fs"+i,l?fmt(l.mem,3):"");
+    const tr=document.getElementById("qr"+i); if(tr){ tr.hidden=!l; tr.classList.toggle("over",!!l&&l.acum>l.prev+0.0005); }
+    if(l){ set("o_qi"+i,l.item); set("o_qm"+i,fmt(l.mem,3)); set("o_qd"+i,l.dem); set("o_qp"+i,fmt(l.prev,3)); set("o_qb"+i,fmt(l.bm,3)); set("o_qa"+i,fmt(l.acum,3)); set("o_qpa"+i,pctf(l.pa)); set("o_qv"+i,brl(l.valor));
+      const ant=document.getElementById(`q${i}_ant`); if(ant){ ant.disabled=l.isEt; document.getElementById(`q${i}_pct`).disabled=l.isEt; document.getElementById(`q${i}_man`).disabled=l.isEt; if(l.isEt) ant.value=fmt(l.ant,3); } }
+  });
+  m.elems.forEach((e,k)=>{ set("o_e"+k,c.el[k]==null?"":fmt(c.el[k],3)); set("o_t"+k,textoElem(e)); });
+  $("#o_crit").innerHTML=m.itens.filter(it=>PPU[it.item]).map(it=>{ const P=PPU[it.item]; const et=etapasDe(it.item);
+    return `<div><b>${esc(it.item)}</b> (seção ${esc(P.s)}): ${esc(P.c)}${et?" Etapas: "+et.map(([n,p])=>fmt(p*100,0)+"% "+n).join("; ")+".":""}</div>`; }).join("");
+  if(etapasDe(m.etapa.item)){ m.etapa.lotes.forEach((l,k)=>{ const q=c.et.lotes[k]; set("o_lpb"+k,num(l.area)!=null?pctf(q.pb):""); set("o_lqb"+k,q.qb!=null?fmt(q.qb,3):""); set("o_lpa"+k,num(l.area)!=null?pctf(q.pa):""); set("o_lqa"+k,q.qa!=null?fmt(q.qa,3):""); });
+    set("o_ltb",fmt(c.et.bm,3)); set("o_lta",fmt(c.et.acum,3)); }
+}
+const ED=$("#ed");
+ED.addEventListener("input",e=>{
+  const t=e.target, d=t.dataset; if(!cur) return; let estrutura=false;
+  if(d.k){ cur[d.k]= d.k==="bm" ? (parseInt(t.value)||cur.bm) : t.value; if(d.k==="bm") estrutura=true; }
+  else if(d.it!=null){ cur.itens[+d.it][d.f]=t.value; if(d.f==="item") estrutura=false; }
+  else if(d.el!=null&&d.fl!=null){ cur.elems[+d.el].fl[+d.fl]=t.checked; }
+  else if(d.el!=null){ cur.elems[+d.el][d.f]=t.value; }
+  else if(d.q!=null){ cur.quadro[+d.q][d.f]=t.value; }
+  else if(d.k2){ cur.etapa.item=t.value; renderEtapas(); }
+  else if(d.lo!=null&&d.bm!=null){ cur.etapa.lotes[+d.lo].bms[+d.bm]=t.value; }
+  else if(d.lo!=null){ cur.etapa.lotes[+d.lo][d.f]=t.value; }
+  else if(d.ft!=null){ cur.fotos[+d.ft].legenda=t.value; }
+  else return;
+  if(estrutura && t.id!=="h_bm") renderEditor(); else updateOut();
+  salvar();
+});
+ED.addEventListener("change",e=>{ if(e.target.id==="h_bm"){ renderEditor(); } });
+ED.addEventListener("click",async e=>{
+  const t=e.target.closest("button,[data-del-el],[data-del-lo],[data-del-ft]"); if(!t||!cur) return;
+  if(t.dataset.delEl!=null){ cur.elems.splice(+t.dataset.delEl,1); if(!cur.elems.length) cur.elems.push(novoElem()); renderEditor(); salvar(); }
+  else if(t.dataset.delLo!=null){ cur.etapa.lotes.splice(+t.dataset.delLo,1); if(!cur.etapa.lotes.length) cur.etapa.lotes.push(novoLote()); renderEtapas(); updateOut(); salvar(); }
+  else if(t.dataset.delFt!=null){ cur.fotos.splice(+t.dataset.delFt,1); renderFotos(); salvar(); }
+  else if(t.id==="bAddEl"){ cur.elems.push(novoElem()); renderEditor(); document.getElementById(`e${cur.elems.length-1}_desc`)?.focus(); salvar(); }
+  else if(t.id==="bAddLo"){ cur.etapa.lotes.push(novoLote()); renderEtapas(); updateOut(); salvar(); }
+  else if(t.id==="bXls"){ await baixar([cur], nomeArq(cur)); }
+  else if(t.id==="bDup"){ const c=normaliza(JSON.parse(JSON.stringify(cur))); c.mc=(cur.mc||"MC")+" (cópia)"; delete c.exemplo; curId=null; cur=c; renderEditor(); salvar(); toast("Cópia criada"); }
+  else if(t.id==="bProx"){ const calc=calcMC(cur); const c=normaliza(JSON.parse(JSON.stringify(cur))); c.bm=cur.bm+1; delete c.exemplo;
+    c.quadro=c.quadro.map((q,i)=>({ant:calc.linhas[i]?String(calc.linhas[i].acum).replace(".",","):"",pct:"",man:""})); c.fotos=[];
+    curId=null; cur=c; filtroBM=c.bm; renderEditor(); salvar(); toast(`MC copiada para o BM-${String(c.bm).padStart(3,"0")} com o acumulado atualizado`); }
+  else if(t.id==="bDel"){ $("#delBox").innerHTML=`<span>Excluir esta MC de vez?</span><button id="bDelSim">Sim, excluir</button><button id="bDelNao">Cancelar</button>`; }
+  else if(t.id==="bDelNao"){ $("#delBox").innerHTML=`<button id="bDel">Excluir MC</button>`; }
+  else if(t.id==="bDelSim"){ if(curId&&db){ try{ await db.doc("mcs/"+curId).delete(); }catch(err){ toast("Não foi possível excluir: "+(err.code||err.message)); return; } }
+    delete MCS[curId]; curId=null; cur=null; renderEditor(); renderList(); toast("MC excluída"); }
+});
+
+/* ---------- fotos ---------- */
+const ehImagem = f => (f.type||"").startsWith("image/") || /\.(jpe?g|png|gif|webp|bmp|heic|heif)$/i.test(f.name||"");
+async function abreImagem(file){
+  try{ if(window.createImageBitmap){ const b=await createImageBitmap(file); return {src:b,w:b.width,h:b.height,fim:()=>b.close&&b.close()}; } }catch(e){}
+  const url=URL.createObjectURL(file);
+  try{ const img=new Image(); img.src=url; await img.decode(); return {src:img,w:img.naturalWidth,h:img.naturalHeight,fim:()=>URL.revokeObjectURL(url)}; }
+  catch(e){ URL.revokeObjectURL(url); const er=new Error(/\.hei[cf]$/i.test(file.name||"")||/hei[cf]/i.test(file.type||"") ? "formato HEIC (iPhone) não é aberto pelo navegador. Mude a câmera para JPG (Ajustes > Câmera > Formatos > Mais compatível) ou envie um print/cópia em JPG." : "o navegador não conseguiu abrir esta imagem."); er.code="formato"; throw er; }
+}
+async function reduzir(file, maxLado=1600, q=0.82, im=null){
+  const own=!im; im = im || await abreImagem(file);
+  try{ const s=Math.min(1,maxLado/Math.max(im.w,im.h)); const c=document.createElement("canvas");
+    c.width=Math.max(1,Math.round(im.w*s)); c.height=Math.max(1,Math.round(im.h*s)); c.getContext("2d").drawImage(im.src,0,0,c.width,c.height);
+    const blob=await new Promise(r=>c.toBlob(r,"image/jpeg",q)); if(!blob) throw new Error("não foi possível converter a imagem.");
+    return {blob,w:c.width,h:c.height,canvas:c}; }
+  finally{ if(own) im.fim(); }
+}
+async function salvaFotoDb(file, im){
+  if(!db) throw new Error("sem conexão com o armazenamento.");
+  let r=null, data="";
+  for(const [lado,q] of [[1280,0.72],[1024,0.62],[800,0.55],[640,0.5]]){ r=await reduzir(file,lado,q,im); data=r.canvas.toDataURL("image/jpeg",q); if(data.length<=230000) break; }
+  if(data.length>240000) throw new Error("foto grande demais para salvar.");
+  const id="f"+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+  await db.doc("fotos/"+id).set({data,w:r.w,h:r.h,criado:new Date().toISOString()});
+  FOTOS[id]=data; return {id,db:true,legenda:"",w:r.w,h:r.h};
+}
+async function enviarFotos(files){
+  const msg=$("#fotoMsg"); msg.classList.remove("err");
+  if(!cur){ msg.textContent="Abra ou crie uma MC antes de anexar fotos."; msg.classList.add("err"); return; }
+  const lista=files.filter(ehImagem); const erros=[]; let n=0, ok=0;
+  if(!lista.length){ msg.textContent=files.length?"Nenhum arquivo de imagem foi reconhecido.":""; if(files.length) msg.classList.add("err"); return; }
+  for(const f of lista){ msg.textContent=`Enviando ${++n} de ${lista.length}…`;
+    let im=null;
+    try{ im=await abreImagem(f); }catch(e){ erros.push(`${f.name}: ${e.message}`); continue; }
+    try{
+      let foto=null, errA=null;
+      if(assets){ try{ const {blob,w,h}=await reduzir(f,1600,0.82,im); const up=await assets.upload(blob,{type:"image/jpeg"}); BLOBS[up.id]=blob; foto={id:up.id,url:up.url,legenda:"",w,h}; }catch(e){ errA=e; } }
+      if(!foto){ try{ foto=await salvaFotoDb(f,im); }catch(e){ throw (errA||e); } }
+      cur.fotos.push(foto); ok++; renderFotos(); salvar();
+    }catch(e){ erros.push(`${f.name}: ${e.code==="quota_or_state"?"espaço de fotos cheio":(e.message||e.code||"erro desconhecido")}`); }
+    finally{ im&&im.fim(); }
+  }
+  msg.textContent=(ok?`${ok} foto(s) anexada(s).`:"Nenhuma foto foi anexada.")+(erros.length?"\nProblemas:\n"+erros.join("\n"):"");
+  if(erros.length) msg.classList.add("err");
+}
+ED.addEventListener("change",e=>{ if(e.target.id==="fFoto"){ enviarFotos([...e.target.files]); e.target.value=""; } });
+ED.addEventListener("dragover",e=>{ const d=e.target.closest("#drop"); if(d){ e.preventDefault(); d.classList.add("hot"); } });
+ED.addEventListener("dragleave",e=>{ const d=e.target.closest("#drop"); if(d) d.classList.remove("hot"); });
+ED.addEventListener("drop",e=>{ const d=e.target.closest("#drop"); if(d){ e.preventDefault(); d.classList.remove("hot"); enviarFotos([...e.dataTransfer.files]); } });
+
+/* ---------- Excel ---------- */
+const nomeArq = m => `${(m.mc||"MC").replace(/[^\w\-]+/g,"_")}_BM-${String(m.bm).padStart(3,"0")}_${(m.tanque||"").replace(/[^\w\-]+/g,"")}.xlsx`;
+$("#bBM").addEventListener("click",()=>{ const ids=idsFiltrados(); if(!ids.length){ toast("Nenhuma MC neste BM."); return; }
+  baixar(ids.map(id=>MCS[id]), `MCs_BM-${String(filtroBM??"todos").padStart(3,"0")}_TANQUES.xlsx`); });
+async function fotoBuf(f){
+  if(BLOBS[f.id]) return await BLOBS[f.id].arrayBuffer();
+  if(f.db){ const u=await carregaFotoDb(f.id); if(!u) return null; const b=atob(u.split(",")[1]); const a=new Uint8Array(b.length); for(let i=0;i<b.length;i++) a[i]=b.charCodeAt(i); return a.buffer; }
+  try{ const r=await fetch(f.url); if(r.ok) return await r.arrayBuffer(); }catch(e){}
+  try{ const img=new Image(); img.crossOrigin="anonymous"; img.src=f.url; await img.decode(); const c=document.createElement("canvas"); c.width=img.naturalWidth; c.height=img.naturalHeight; c.getContext("2d").drawImage(img,0,0);
+    const b=await new Promise(r=>c.toBlob(r,"image/jpeg",0.85)); return await b.arrayBuffer(); }catch(e){ return null; }
+}
+async function baixar(lista, nome){
+  if(typeof ExcelJS==="undefined"){ toast("A biblioteca de planilhas não carregou. Recarregue a página."); return; }
+  toast("Montando a planilha…");
+  const wb=new ExcelJS.Workbook(); wb.creator="Gerador de MC"; const usados=new Set();
+  for(const m of lista){ let n=(m.mc||"MC").slice(0,28).replace(/[\\\/\?\*\[\]:]/g,"-"); let k=2; while(usados.has(n)) n=(m.mc||"MC").slice(0,25)+" ("+k+++")"; usados.add(n);
+    await folhaMC(wb, n, m); }
+  const buf=await wb.xlsx.writeBuffer();
+  const blob=new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+  if(!downloads){ toast("Este navegador não permite baixar arquivos daqui."); return; }
+  try{ await downloads.save({filename:nome,data:blob}); toast("Planilha pronta: "+nome); }
+  catch(e){ toast(e.code==="declined"?"Download cancelado.":"Não foi possível baixar: "+(e.code||e.message)); }
+}
+async function folhaMC(wb, nome, m){
+  const c=calcMC(m), ws=wb.addWorksheet(nome,{pageSetup:{orientation:"landscape",paperSize:9,fitToPage:true,fitToWidth:1,fitToHeight:0,margins:{left:.3,right:.3,top:.4,bottom:.4,header:.2,footer:.2}},views:[{showGridLines:false}]});
+  const W=[5,32,30,11,11,16,8,7,8,9,12,8,8,8,8,8,8,40]; W.forEach((w,i)=>ws.getColumn(i+1).width=w);
+  const C=i=>String.fromCharCode(64+i);
+  const thin={style:"thin",color:{argb:"FF808080"}}, BOX={top:thin,left:thin,bottom:thin,right:thin};
+  const AZ={type:"pattern",pattern:"solid",fgColor:{argb:"FF1F4E78"}}, SEC={type:"pattern",pattern:"solid",fgColor:{argb:"FFDDEBF7"}}, INP={type:"pattern",pattern:"solid",fgColor:{argb:"FFFFF2CC"}}, TOT={type:"pattern",pattern:"solid",fgColor:{argb:"FFE2EFDA"}};
+  const put=(ref,v,o={})=>{ if(o.m) ws.mergeCells(ref+":"+o.m); const cell=ws.getCell(ref); cell.value=v;
+    const rng=o.m?ws.getCell(o.m):cell; const [r1,c1,r2,c2]=[cell.row,cell.col,rng.row,rng.col];
+    for(let r=r1;r<=r2;r++) for(let cc=c1;cc<=c2;cc++){ const x=ws.getCell(r,cc); x.border=BOX; if(o.fill) x.fill=o.fill; }
+    cell.font={name:"Arial",size:o.sz||9,bold:!!o.b,italic:!!o.i,color:o.w?{argb:"FFFFFFFF"}:undefined};
+    cell.alignment={horizontal:o.h||"left",vertical:"middle",wrapText:true}; if(o.f) cell.numFmt=o.f; return cell; };
+  const F=(f,result)=>({formula:f,result});
+  const sec=(r,t)=>{ put("A"+r,t,{m:"R"+r,fill:SEC,b:1,sz:10}); ws.getRow(r).height=18; };
+  const head=(r,cols)=>{ cols.forEach(([ref,t,mg])=>put(ref+r,t,{m:mg?mg+r:null,fill:AZ,w:1,b:1,sz:8,h:"center"})); ws.getRow(r).height=32; };
+  const [ini,fim]=periodo(m.bm);
+  put("A1","MEMÓRIA DE CÁLCULO",{m:"M2",b:1,sz:16,h:"center"}); put("N1","CONTRATO Nº",{m:"R1",b:1,sz:8,h:"center"}); put("N2",CONTRATO,{m:"R2",b:1,sz:11,h:"center"});
+  put("A3","OBJETO:",{m:"B3",b:1}); put("C3",OBJETO,{m:"R3"});
+  put("A4","REFINARIA:",{m:"B4",b:1}); put("C4","RNEST"); put("D4","TANQUE / EQUIP.:",{m:"E4",b:1}); put("F4",m.tanque,{m:"H4",b:1,h:"center",fill:INP});
+  put("I4","RO / RDO:",{m:"J4",b:1}); put("K4",m.ro,{m:"M4",b:1,h:"center",fill:INP}); put("N4","Nº DA MC:",{m:"O4",b:1}); put("P4",m.mc,{m:"R4",b:1,sz:11,h:"center",fill:INP});
+  put("A5","BM:",{m:"B5",b:1}); put("C5","BM-"+String(m.bm).padStart(3,"0"),{b:1,sz:11}); put("D5","PERÍODO:",{m:"E5",b:1});
+  put("F5",ini,{b:1,h:"center",f:"dd/mm/yyyy"}); put("G5","a",{h:"center"}); put("H5",fim,{m:"I5",b:1,h:"center",f:"dd/mm/yyyy"});
+  put("J5","VALOR DA MC NO BM (R$):",{m:"N5",b:1,h:"right"});
+  put("A6","SERVIÇO:",{m:"B6",b:1}); put("C6",m.servico,{m:"R6",b:1,fill:INP});
+  ws.getCell("A7").value="Células amarelas = valores informados. As demais são fórmulas."; ws.getCell("A7").font={name:"Arial",size:8,italic:true,color:{argb:"FF595959"}};
+  // 1 itens
+  const RI=10; sec(RI-1,"1. ITENS DA PPU MEDIDOS NESTA MC");
+  head(RI,[["A","Nº"],["B","ITEM PPU"],["C","DESCRIÇÃO (PPU DO CONTRATO)","H"],["I","UNID."],["J","PREÇO PPU (R$)"],["K","MÉTODO","L"],["M","FATOR"],["N","PREÇO APLICADO (R$)","O"],["P","DEMÃOS"],["Q","SEÇÃO ANEXO 1","R"]]);
+  const L=c.linhas.filter(Boolean); const row1={}; // i -> linha excel
+  L.forEach((l,k)=>{ const r=RI+1+k; row1[l.i]=r; const met=METODOS.find(x=>x[0]===l.metodo)||METODOS[0];
+    put("A"+r,k+1,{h:"center",b:1}); put("B"+r,l.item,{h:"center",b:1,sz:10,fill:INP}); put("C"+r,l.P.d,{m:"H"+r}); put("I"+r,l.P.u,{h:"center"});
+    put("J"+r,l.P.p,{h:"right",f:"#,##0.00"}); put("K"+r,l.faixa?met[2]:"Não se aplica",{m:"L"+r,h:"center",sz:8,fill:INP}); put("M"+r,l.fat,{h:"center",f:"0.00",b:1});
+    put("N"+r,F(`ROUND(J${r}*M${r},2)`,l.precoAp),{m:"O"+r,h:"right",f:"#,##0.00",b:1}); put("P"+r,l.dem,{h:"center",fill:INP}); put("Q"+r,l.P.s,{m:"R"+r,h:"center"}); ws.getRow(r).height=26; });
+  let r=RI+1+Math.max(L.length,1)+1;
+  // critério
+  sec(r,"CRITÉRIO DE MEDIÇÃO (Anexo 1 – resumo)"); r++;
+  const crit=L.map(l=>{ const et=etapasDe(l.item); return `Item ${l.item} (seção ${l.P.s}): ${l.P.c}`+(et?" Etapas: "+et.map(([n,p])=>Math.round(p*100)+"% "+n).join("; ")+".":""); }).join("\n");
+  put("A"+r,crit,{m:"R"+r,sz:8}); ws.getRow(r).height=Math.min(400,22+L.length*30); r+=2;
+  // 2 memória
+  sec(r,"2. MEMÓRIA DE CÁLCULO"); r++;
+  head(r,[["A","Nº"],["B","DESCRIÇÃO DO ELEMENTO / ORIGEM"],["C","TIPO DE CÁLCULO (Anexo 1, f)"],["D","DIM. A (m)"],["E","DIM. B (m)"],["F","BITOLA / PERFIL"],["G","m²/m"],["H","QTD"],["I","FATOR"],["J","% CONSID."],["K","RESULTADO"]]);
+  L.forEach((l,k)=>put(C(12+k)+r,l.item,{fill:AZ,w:1,b:1,sz:8,h:"center"})); for(let k=L.length;k<6;k++) put(C(12+k)+r,"",{fill:AZ}); put("R"+r,"CÁLCULO (por extenso)",{fill:AZ,w:1,b:1,sz:8,h:"center"});
+  const M0=r+1; const els=m.elems.map((e,k)=>({e,k,v:c.el[k]})).filter(x=>x.e.tipo);
+  els.forEach((x,j)=>{ const e=x.e, rr=M0+j, t=tipoDe(e.tipo);
+    put("A"+rr,j+1,{h:"center"}); put("B"+rr,e.desc,{fill:INP,sz:8}); put("C"+rr,e.tipo,{fill:INP,sz:8});
+    put("D"+rr,num(e.a),{fill:INP,h:"right",f:"#,##0.00##"}); put("E"+rr,num(e.b),{fill:INP,h:"right",f:"#,##0.00##"}); put("F"+rr,e.bit||null,{fill:INP,sz:8,h:"center"});
+    put("G"+rr,t[2]==="bit"?(M2M[e.bit]||0):null,{h:"center",f:"0.00"}); put("H"+rr,num(e.qtd)??1,{fill:INP,h:"center",f:"#,##0.##"}); put("I"+rr,t[1],{h:"center",f:"0.00"}); put("J"+rr,(num(e.pct)??100)/100,{fill:INP,h:"center",f:"0%"});
+    const base={direto:`D${rr}`,ret:`D${rr}*E${rr}`,cil:`${PI}*D${rr}*E${rr}`,circ:`${PI}*D${rr}^2/4`,coroa:`${PI}*(D${rr}^2-E${rr}^2)/4`,bit:`D${rr}*G${rr}`,un:"1"}[t[2]];
+    put("K"+rr,F(`ROUND(${base}*I${rr}*H${rr}*J${rr},3)`,x.v),{h:"right",f:"#,##0.000",b:1});
+    L.forEach((l,k)=>put(C(12+k)+rr,e.fl[l.i]?"x":null,{fill:INP,h:"center",b:1})); for(let k=L.length;k<6;k++) put(C(12+k)+rr,null,{});
+    put("R"+rr,textoElem(e),{sz:8}); });
+  const ME=M0+Math.max(els.length,1)-1; r=ME+1;
+  put("A"+r,"QUANTIDADE DA MEMÓRIA POR ITEM →",{m:"K"+r,fill:TOT,b:1,h:"right"});
+  const memCell={}; L.forEach((l,k)=>{ const col=C(12+k); memCell[l.i]=col+r; put(col+r,F(`SUMIF(${col}${M0}:${col}${ME},"x",$K$${M0}:$K$${ME})`,l.mem),{fill:TOT,b:1,sz:8,h:"center",f:"#,##0.00"}); });
+  for(let k=L.length;k<6;k++) put(C(12+k)+r,null,{fill:TOT}); put("R"+r,null,{fill:TOT}); r+=2;
+  // 4 etapas (antes do quadro para as referências) -> posicionado depois; calculamos linhas
+  const et=etapasDe(m.etapa.item); const lotes=et?m.etapa.lotes.filter(l=>num(l.area)!=null):[];
+  // 3 quadro
+  sec(r,"3. QUADRO DE MEDIÇÃO E AVANÇO POR ITEM"); r++;
+  head(r,[["A","Nº"],["B","ITEM"],["C","DESCRIÇÃO"],["D","UNID."],["E","QTD MEMÓRIA"],["F","DEMÃOS"],["G","PREVISTO","H"],["I","ACUM. ATÉ BM ANTERIOR"],["J","% NO BM"],["K","MEDIDO NO BM","L"],["M","ACUMULADO","N"],["O","% ACUM."],["P","PREÇO APLICADO"],["Q","VALOR NO BM (R$)","R"]]);
+  const Q0=r+1; const QE=Q0+Math.max(L.length,1)-1;
+  const ETR0 = QE+6; // linha do 1º lote (seção, item, cabeçalho)
+  const ETT = ETR0+Math.max(lotes.length,1); // linha do total de etapas
+  L.forEach((l,k)=>{ const rr=Q0+k, ri=row1[l.i], q=m.quadro[l.i];
+    put("A"+rr,k+1,{h:"center",b:1}); put("B"+rr,F(`B${ri}`,l.item),{h:"center",b:1}); put("C"+rr,l.P.d,{sz:7}); put("D"+rr,l.P.u,{h:"center"});
+    put("E"+rr,F(memCell[l.i],l.mem),{h:"right",f:"#,##0.000"}); put("F"+rr,F(`P${ri}`,l.dem),{h:"center"});
+    put("G"+rr,F(`ROUND(E${rr}*F${rr},3)`,l.prev),{m:"H"+rr,h:"right",f:"#,##0.000",b:1});
+    if(l.isEt){ put("I"+rr,F(`M${ETT}-K${ETT}`,l.ant),{h:"right",f:"#,##0.000"}); put("J"+rr,F(`IF(G${rr}=0,0,K${rr}/G${rr})`,l.prev?l.bm/l.prev:0),{h:"center",f:"0.0%"}); put("K"+rr,F(`K${ETT}`,l.bm),{m:"L"+rr,h:"right",f:"#,##0.000",b:1}); }
+    else if(num(q.man)!=null){ put("I"+rr,l.ant,{fill:INP,h:"right",f:"#,##0.000"}); put("J"+rr,F(`IF(G${rr}=0,0,K${rr}/G${rr})`,l.prev?l.bm/l.prev:0),{h:"center",f:"0.0%"}); put("K"+rr,l.bm,{m:"L"+rr,h:"right",f:"#,##0.000",b:1,fill:INP}); }
+    else { put("I"+rr,l.ant,{fill:INP,h:"right",f:"#,##0.000"}); put("J"+rr,(num(q.pct)||0)/100,{fill:INP,h:"center",f:"0.0%"}); put("K"+rr,F(`ROUND(G${rr}*J${rr},3)`,l.bm),{m:"L"+rr,h:"right",f:"#,##0.000",b:1}); }
+    put("M"+rr,F(`I${rr}+K${rr}`,l.acum),{m:"N"+rr,h:"right",f:"#,##0.000"}); put("O"+rr,F(`IF(G${rr}=0,"",M${rr}/G${rr})`,l.pa??""),{h:"center",f:"0.0%",b:1});
+    put("P"+rr,F(`N${ri}`,l.precoAp),{h:"right",f:"#,##0.00"}); put("Q"+rr,F(`ROUND(K${rr}*P${rr},2)`,l.valor),{m:"R"+rr,h:"right",f:"#,##0.00",b:1}); ws.getRow(rr).height=26; });
+  r=QE+1; put("A"+r,"TOTAL DA MC NO BM (R$)",{m:"P"+r,fill:TOT,b:1,sz:10,h:"right"}); put("Q"+r,F(`SUM(Q${Q0}:Q${QE})`,c.total),{m:"R"+r,fill:TOT,b:1,sz:11,h:"right",f:"#,##0.00"});
+  put("O5",F(`Q${r}`,c.total),{m:"R5",fill:TOT,b:1,sz:12,h:"center",f:"#,##0.00"});
+  r+=2;
+  // 4 etapas
+  sec(r,"4. ITEM COM MEDIÇÃO POR ETAPAS (nº do BM em que cada etapa foi concluída)"); r++;
+  put("A"+r,"ITEM:",{m:"B"+r,b:1,h:"right"}); put("C"+r,et?m.etapa.item:"—",{b:1,h:"center",fill:INP}); put("D"+r,"BM ATUAL:",{b:1,h:"right"}); const BMC="$E$"+r; put("E"+r,m.bm,{b:1,h:"center"});
+  put("F"+r,"% de cada etapa →",{m:"G"+r,sz:8,h:"right"}); const PR=r; (et||[]).forEach(([n,p],j)=>put(C(8+j)+r,p,{b:1,h:"center",f:"0%"})); r++;
+  head(r,[["A","LOTE"],["B","DESCRIÇÃO"],["C","TIPO"],["D","ÁREA / QTD"],["E","",null],["F","",null],["G","",null]]);
+  ["E","F","G"].forEach(x=>ws.getCell(x+r).value=null);
+  (et||[]).forEach(([n],j)=>put(C(8+j)+r,n,{fill:AZ,w:1,b:1,sz:7,h:"center"})); ws.getRow(r).height=46;
+  put("M"+r,"% NO BM",{fill:AZ,w:1,b:1,sz:8,h:"center"}); put("N"+r,"EQUIV. NO BM",{fill:AZ,w:1,b:1,sz:8,h:"center"}); put("O"+r,"% ACUM.",{fill:AZ,w:1,b:1,sz:8,h:"center"}); put("P"+r,"EQUIV. ACUM.",{m:"Q"+r,fill:AZ,w:1,b:1,sz:8,h:"center"}); put("R"+r,"",{fill:AZ});
+  r++; if(r!==ETR0) console.warn("linha etapas", r, ETR0);
+  const cres=calcEtapas(m);
+  lotes.forEach((l,k)=>{ const rr=r+k, q=cres.lotes[m.etapa.lotes.indexOf(l)];
+    put("A"+rr,k+1,{h:"center"}); put("B"+rr,l.desc,{fill:INP,sz:8}); put("C"+rr,l.tipo,{fill:INP,sz:8,h:"center"}); put("D"+rr,num(l.area),{fill:INP,h:"right",f:"#,##0.000"});
+    ["E","F","G"].forEach(x=>put(x+rr,null,{}));
+    const parts=[], partsA=[];
+    et.forEach((_,j)=>{ const col=C(8+j), v=num(l.bms[j]); put(col+rr, v??(l.bms[j]||null),{fill:INP,h:"center",b:1});
+      parts.push(`${col}$${PR}*IF(ISNUMBER(${col}${rr}),--(${col}${rr}=${BMC}),0)`); partsA.push(`${col}$${PR}*IF(ISNUMBER(${col}${rr}),--(${col}${rr}<=${BMC}),0)`); });
+    put("M"+rr,F(parts.join("+"),q.pb),{h:"center",f:"0%"}); put("N"+rr,F(`ROUND(D${rr}*M${rr},3)`,q.qb),{h:"right",f:"#,##0.000",b:1});
+    put("O"+rr,F(partsA.join("+"),q.pa),{h:"center",f:"0%"}); put("P"+rr,F(`ROUND(D${rr}*O${rr},3)`,q.qa),{m:"Q"+rr,h:"right",f:"#,##0.000"}); put("R"+rr,null,{}); });
+  const LE=r+Math.max(lotes.length,1)-1; r=LE+1;
+  // a linha ETT precisa coincidir com r
+  put("A"+r,"TOTAL",{m:"C"+r,fill:TOT,b:1,h:"right"}); put("D"+r,F(`SUM(D${ETR0}:D${LE})`,lotes.reduce((s,l)=>s+num(l.area),0)),{fill:TOT,b:1,h:"right",f:"#,##0.000"});
+  put("E"+r,null,{m:"J"+r,fill:TOT});
+  put("K"+r,F(`SUM(N${ETR0}:N${LE})`,cres.bm),{m:"L"+r,fill:TOT,b:1,h:"right",f:"#,##0.000"});
+  put("M"+r,F(`SUM(P${ETR0}:P${LE})`,cres.acum),{m:"N"+r,fill:TOT,b:1,h:"right",f:"#,##0.000"}); put("O"+r,"← equiv. no BM | acumulado",{m:"R"+r,fill:TOT,sz:8,i:1});
+  if(r!==ETT) console.warn("total etapas", r, ETT);
+  r+=2;
+  // 5 obs
+  sec(r,"5. DESENHOS DE REFERÊNCIA E OBSERVAÇÕES"); r++;
+  put("A"+r,m.obs||"",{m:"R"+r,sz:9,fill:INP}); ws.getRow(r).height=Math.max(30,16*((m.obs||"").split("\n").length+1)); r+=2;
+  // 6 fotos
+  sec(r,"6. REGISTRO FOTOGRÁFICO"); r++;
+  const fotos=m.fotos||[]; const POR=3; const ALT=200;
+  for(let k=0;k<fotos.length;k++){ const f=fotos[k], col=[0,6,12][k%POR], linha=r+Math.floor(k/POR)*14;
+    const buf=await fotoBuf(f); if(!buf) continue;
+    const id=wb.addImage({buffer:buf,extension:"jpeg"}); const ratio=(f.w&&f.h)?f.w/f.h:4/3; const h=ALT, w=Math.min(330,h*ratio);
+    ws.addImage(id,{tl:{col:col+0.1,row:linha-1+0.2},ext:{width:w,height:h}});
+    const cap=ws.getCell(linha+12,col+1); cap.value=f.legenda||("Foto "+(k+1)); cap.font={name:"Arial",size:8,italic:true}; }
+  ws.pageSetup.printArea=`A1:R${r+Math.ceil(fotos.length/POR)*14+1}`;
+}
+
+/* ---------- início ---------- */
+cur=null; boot();
+</script>
+
+</body></html>
