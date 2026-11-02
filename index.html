@@ -10,6 +10,8 @@
 <script>/* GitHub Pages: MCs na nuvem (Firebase, login Google). Sem login: salva no aparelho (IndexedDB). */
 (function(){
   if(window.claude) return;
+  const EQUIPE="equipes/rnest/";
+  let equipeAtiva=false;
   const CFG={apiKey:"AIzaSyAfJ-JvVzBbACDe-woWivQBQ5s89wVq9M0",authDomain:"gerador-mc.firebaseapp.com",projectId:"gerador-mc",storageBucket:"gerador-mc.firebasestorage.app",messagingSenderId:"4121049572",appId:"1:4121049572:web:41329bbe804b2897f32ff1"};
   const LS={get:k=>{try{return localStorage.getItem(k);}catch(e){return null;}},set:(k,v)=>{try{localStorage.setItem(k,v);}catch(e){}},del:k=>{try{localStorage.removeItem(k);}catch(e){}}};
   /* ---- armazenamento local (IndexedDB) ---- */
@@ -42,7 +44,7 @@
   const onDom=f=>document.readyState==="loading"?document.addEventListener("DOMContentLoaded",f):f();
   function barra(){ onDom(()=>{
     if(!bar){ bar=document.createElement("div"); bar.className="bkbar"; document.body.appendChild(bar); }
-    const quem = modo==="nuvem" ? `☁️ Na nuvem: <b>${(usuario&&(usuario.email||usuario.displayName))||"conectado"}</b>` : "💾 Salvo só neste aparelho";
+    const quem = modo==="nuvem" ? (equipeAtiva?"👥 Espaço da equipe · ":"☁️ Na nuvem: ")+`<b>${(usuario&&(usuario.email||usuario.displayName))||"conectado"}</b>` : "💾 Salvo só neste aparelho";
     bar.innerHTML=`<span>${quem}</span>`+(modo==="nuvem"?'<button type="button" id="bkSair">Sair</button>':(auth?'<button type="button" id="bkEntrar">Entrar com Google</button>':""))+
       '<button type="button" id="bkOut">Baixar backup</button><label class="bkbtn">Restaurar backup<input type="file" accept=".json,application/json" id="bkIn" style="position:absolute;width:1px;height:1px;opacity:0"></label><span id="bkMsg"></span>';
     const q=s=>bar.querySelector(s);
@@ -72,6 +74,10 @@
     let r=[]; try{ r=await todos(""); }catch(e){ return 0; }
     let n=0; for(const [k,v] of r){ try{ const ref=nuvem.doc(k); const s=await ref.get(); if(!s.exists){ await ref.set(v); if(k.startsWith("mcs/")) n++; } }catch(e){ console.warn("migração",k,e); } }
     LS.set(flag,"1"); return n; }
+  /* ---- 1º acesso ao espaço da equipe: leva as MCs pessoais que ainda não estão lá ---- */
+  async function copiaPessoal(de,para,uid){ const flag="mc_equipe_copiado_"+uid; if(LS.get(flag)) return 0; let n=0;
+    try{ for(const c of ["fotos","mcs"]){ const s=await de.collection(c).get(); for(const d of s.docs){ const ref=para.doc(c+"/"+d.id); const x=await ref.get(); if(!x.exists){ await ref.set(d.data()); if(c==="mcs") n++; } } } LS.set(flag,"1"); }
+    catch(e){ console.warn("cópia para equipe",e); } return n; }
   /* ---- backup ---- */
   async function backup(){ const o={}; for(const c of ["mcs","fotos"]){ const s=await atual.collection(c).get(); s.docs.forEach(d=>o[c+"/"+d.id]=d.data()); }
     baixa(new Blob([JSON.stringify({app:"gerador-mc",versao:1,data:new Date().toISOString(),docs:o})],{type:"application/json"}),"backup_MCs_"+new Date().toISOString().slice(0,10)+".json"); }
@@ -88,12 +94,19 @@
       if(atual && modo==="nuvem"){ if(!u) location.reload(); return; }
       if(!u){ if(primeiro && LS.get("mc_local")){ pronto(local,"local"); } else if(!atual) telaLogin(); primeiro=false; return; }
       primeiro=false; usuario=u; if(ov) ov.hidden=true;
-      const base="usuarios/"+u.uid+"/";
-      const nuvem={ doc:p=>fs.doc(base+p), collection:c=>fs.collection(base+c) };
       if(atual && modo==="local"){ location.reload(); return; }
       LS.del("mc_local");
-      const n=await migra(nuvem,u.uid);
-      pronto(nuvem,"nuvem"); if(n) setTimeout(()=>msg(n+" MC(s) deste aparelho foram enviadas para a nuvem."),500);
+      const espaco=b=>({ doc:p=>fs.doc(b+p), collection:c=>fs.collection(b+c) });
+      const pessoal=espaco("usuarios/"+u.uid+"/"), equipe=espaco(EQUIPE);
+      /* tem acesso ao espaço da equipe? (e-mail liberado nas regras do Firestore) */
+      const kEq="mc_equipe_"+u.uid; let naEquipe=LS.get(kEq)==="1";
+      try{ await equipe.collection("mcs").get({source:"server"}); naEquipe=true; }
+      catch(e){ if(e&&e.code==="permission-denied") naEquipe=false; }
+      LS.set(kEq,naEquipe?"1":"0"); equipeAtiva=naEquipe;
+      const nuvem=naEquipe?equipe:pessoal;
+      let n=await migra(pessoal,u.uid);
+      if(naEquipe) n+=await copiaPessoal(pessoal,equipe,u.uid);
+      pronto(nuvem,"nuvem"); if(n) setTimeout(()=>msg(n+" MC(s) foram enviadas para "+(naEquipe?"o espaço da equipe.":"a nuvem.")),500);
     });
   }
   inicia();
