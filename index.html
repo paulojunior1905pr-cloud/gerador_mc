@@ -115,6 +115,8 @@ td.c,th.c{text-align:center}
 td input,td select{padding:4px 6px}
 td input.num{text-align:right;width:90px}
 td input.sm{width:62px}
+td.na{color:var(--muted);text-align:center}
+td input[type=date]{width:140px}
 td .out{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
 td .txt{font-family:var(--f-mono);font-size:12px;color:var(--muted);white-space:nowrap}
 td input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
@@ -173,24 +175,6 @@ const PI = 3.1416, NI = 6, CONTRATO = "5900.0128196.24.2";
 const OBJETO = "SERVIÇOS DE MANUTENÇÃO DE TANQUES DE ARMAZENAMENTO E ESFERAS NA REFINARIA ABREU E LIMA - RNEST";
 const PPU = {}; DATA.ppu.forEach(([it,d,u,p,s,c]) => PPU[it] = {d,u,p,s,c});
 const ITENS = DATA.ppu.map(r => r[0]);
-const TIPOS = [
-  ["Valor direto (área/qtd já calculada)",1,"direto"],
-  ["Retângulo (A × B)",1,"ret"],
-  ["Cilindro / perímetro (π × D × h)",1,"cil"],
-  ["Círculo – fundo/teto (π × D² ÷ 4)",1,"circ"],
-  ["Coroa circular (π × (D² − d²) ÷ 4)",1,"coroa"],
-  ["Coroa circular – face inferior (+30%)",1.3,"coroa"],
-  ["Escada inclinada – face superior (+10%)",1.1,"ret"],
-  ["Escada inclinada – face inferior (+30%)",1.3,"ret"],
-  ["Guarda-corpo / treliça / escada vertical (÷ 2)",0.5,"ret"],
-  ["Plataforma / piso vazado – grelha (× 3)",3,"ret"],
-  ["Plataforma – face inferior c/ vigamento (+30%)",1.3,"ret"],
-  ["Piso fechado liso ou xadrez (por face)",1,"ret"],
-  ["Tubulação até 26\" (comprimento × m²/m)",1,"bit"],
-  ["Perfil metálico (comprimento × m²/m)",1,"bit"],
-  ["Retoque de pintura (0,15 m² cada)",0.15,"un"],
-  ["Unidade",1,"un"],
-  ["Diária",1,"un"]];
 const BITOLAS = [["½\"",.08],["¾\"",.10],["1\"",.13],["1 ½\"",.16],["2\"",.21],["2 ½\"",.25],["3\"",.31],["4\"",.39],["6\"",.57],["8\"",.73],["10\"",.90],["12\"",1.07],["14\"",1.18],["16\"",1.36],["18\"",1.52],["20\"",1.68],["24\"",2.00],["26\"",2.18],
  ["Viga I 3\" x 2 3/8\"",.38],["Viga I 4\" x 2 5/8\"",.46],["Viga I 5\" x 3\"",.54],["Viga I 6\" x 3 3/8\"",.63],["Viga I 8\" x 4\"",.80],["Viga I 10\" x 4 5/8\"",.96],["Viga I 12\" x 5 1/4\"",1.11],["Viga I 15\" x 5 1/2\"",1.30],["Viga I 18\" x 6\"",1.50],["Viga I 20\" x 7\"",1.70],
  ["Viga H 4\" x 4\"",.60],["Viga H 5\" x 5\"",.75],["Viga H 6\" x 6\"",.90],["Viga U 3\" x 1 1/2\"",.32],["Viga U 4\" x 1 5/8\"",.38],["Viga U 6\" x 2\"",.56],["Viga U 8\" x 2 1/4\"",.68],["Viga U 10\" x 2 5/8\"",.84],["Viga U 12\" x 3\"",.96],["Viga U 15\" x 3 3/8\"",1.15],
@@ -215,39 +199,107 @@ const dbr = d => d.toLocaleDateString("pt-BR");
 const itNum = it => { const m=/^1\.(\d+)$/.exec(it||""); return m?+m[1]:0; };
 let toastT; function toast(m){ const t=$("#toast"); t.textContent=m; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true,3500); }
 
+/* ---------- tipos de MC e formas de cálculo ---------- */
+const TUBOS = BITOLAS.filter(b=>!/Viga|Cantoneira/.test(b[0]));
+const PERFIS = BITOLAS.filter(b=>/Viga|Cantoneira/.test(b[0]));
+const B_RET=["a×b",(a,b)=>a*b,"D*E"], B_CIL=["π×a×b",(a,b)=>PI*a*b,"PI*D*E"];
+// chave: [nome, fator, campos usados, tipo de base]
+const FORMAS = {
+  direto:["Área / quantidade informada (explicar a origem)",1,"a","direto"],
+  ret:["Retângulo (C × L)",1,"ab","ret"],
+  tri:["Triângulo (b × h ÷ 2)",1,"ab","tri"],
+  trap:["Trapézio ((B + b) ÷ 2 × h)",1,"abc","trap"],
+  cil:["Cilindro / perímetro (π × D × h)",1,"ab","cil"],
+  anel:["Anel do costado (π × DN × altura do anel)",1,"ab","cil"],
+  faixa:["Faixa circular (π × D × largura)",1,"ab","cil"],
+  circ:["Círculo – teto / fundo / lençol (π × D² ÷ 4)",1,"a","circ"],
+  coroa:["Coroa circular (π × (D² − d²) ÷ 4)",1,"ab","coroa"],
+  coroaInf:["Coroa circular – face inferior (+30%)",1.3,"ab","coroa"],
+  raios:["Coroa pelos raios (π × (R² − r²))",1,"ab","raios"],
+  escSup:["Escada inclinada – face superior (C × L, +10%)",1.1,"ab","ret"],
+  escInf:["Escada inclinada – face inferior (C × L, +30%)",1.3,"ab","ret"],
+  gcReto:["Guarda-corpo / corrimão / treliça (C × h ÷ 2)",0.5,"ab","ret"],
+  gcCirc:["Guarda-corpo circular (π × D × h ÷ 2)",0.5,"ab","cil"],
+  grelha:["Plataforma / piso de grelha (C × L × 3)",3,"ab","ret"],
+  platInf:["Plataforma – face inferior com vigamento (+30%)",1.3,"ab","ret"],
+  piso:["Piso fechado liso ou xadrez (C × L, por face)",1,"ab","ret"],
+  tubo:["Tubulação (comprimento × m²/m do diâmetro)",1,"a","bit"],
+  perfil:["Perfil / viga / cantoneira (comprimento × m²/m)",1,"a","bit"],
+  retoque:["Retoque de pintura (0,15 m² cada)",1,"","retoque"],
+  chapa:["Chapa (C × L × nº de chapas)",1,"ab","ret"],
+  un:["Unidade",1,"","un"],
+  diaria:["Diárias pelo período (fim − início + 1)",1,"ab","diaria"],
+  diasQ:["Diárias (número de dias)",1,"","dias"],
+};
+const TMC = {
+  geral:{n:"Geral (todas as formas)",f:Object.keys(FORMAS),lab:{a:"Dim. 1 (C / D / B)",b:"Dim. 2 (L / h / d)",c:"Dim. 3 (altura h)",bit:"Bitola / perfil",q:"Qtd"},modelo:[]},
+  costado:{n:"Costado (anéis do tanque)",f:["anel","cil","direto","retoque"],lab:{a:"DN do tanque (m)",b:"Altura do anel (m)",q:"Nº de anéis"},modelo:[["Anel do costado","anel"]]},
+  teto:{n:"Teto, fundo, lençol e contraventamento",f:["circ","coroa","coroaInf","cil","ret","direto","retoque"],lab:{a:"Diâmetro D (m)",b:"Diâmetro interno d / altura (m)",q:"Qtd"},modelo:[["Contraventamento – face inferior","coroaInf"]]},
+  estrutura:{n:"Escadas, plataformas e guarda-corpos",f:["escSup","escInf","gcReto","gcCirc","grelha","platInf","piso","ret","cil","perfil","retoque"],lab:{a:"Comprimento ou DN (m)",b:"Largura ou altura (m)",bit:"Perfil",q:"Qtd"},modelo:[["Escada – face superior","escSup"],["Escada – face inferior","escInf"],["Corrimão / guarda-corpo","gcReto"],["Plataforma (grelha)","grelha"]]},
+  tubulacao:{n:"Tubulação e suportes",f:["tubo","perfil","retoque","direto"],lab:{a:"Comprimento (m)",bit:"Diâmetro / perfil",q:"Qtd de peças"},modelo:[["Linha","tubo"],["Suporte","perfil"]]},
+  civil:{n:"Rota de fuga, minidique, muros e muretas",f:["faixa","ret","raios","trap","tri","cil","direto"],lab:{a:"C / D / B (m)",b:"Largura / d / b (m)",c:"Altura h (m)",q:"Qtd"},modelo:[["Rota de fuga no perímetro do tanque","faixa"],["Acesso à rota de fuga","ret"],["Parede interna","faixa"],["Parede externa","faixa"],["Faixa amarela","faixa"]]},
+  chapas:{n:"Chapas (substituição / sobreposição)",f:["chapa","ret","direto"],lab:{a:"Comprimento (m)",b:"Largura (m)",q:"Nº de chapas"},modelo:[["Chapas","chapa"]]},
+  unidade:{n:"Unidades (raquetes, peças)",f:["un"],lab:{q:"Quantidade"},modelo:[["","un"]]},
+  diaria:{n:"Diárias de equipamento",f:["diaria","diasQ"],lab:{a:"Início",b:"Fim",q:"Qtd de equipamentos"},modelo:[["","diaria"]]},
+};
+const FORMA_ANTIGA = {"Valor direto (área/qtd já calculada)":"direto","Retângulo (A × B)":"ret","Cilindro / perímetro (π × D × h)":"cil","Círculo – fundo/teto (π × D² ÷ 4)":"circ",
+  "Coroa circular (π × (D² − d²) ÷ 4)":"coroa","Coroa circular – face inferior (+30%)":"coroaInf","Escada inclinada – face superior (+10%)":"escSup","Escada inclinada – face inferior (+30%)":"escInf",
+  "Guarda-corpo / treliça / escada vertical (÷ 2)":"gcReto","Plataforma / piso vazado – grelha (× 3)":"grelha","Plataforma – face inferior c/ vigamento (+30%)":"platInf","Piso fechado liso ou xadrez (por face)":"piso",
+  "Tubulação até 26\" (comprimento × m²/m)":"tubo","Perfil metálico (comprimento × m²/m)":"perfil","Retoque de pintura (0,15 m² cada)":"retoque","Unidade":"un","Diária":"diasQ"};
+const tipoMC = m => TMC[m.tipoMC]||TMC.geral;
+const usaCampo = (tp,k) => tp.f.some(f=>FORMAS[f][2].includes(k)) || (k==="bit" && tp.f.some(f=>FORMAS[f][3]==="bit"));
+/* números com conta: "32,44+2*(3,30+0,40)" */
+const ehConta = v => typeof v==="string" && /[+*/×xX÷()π^]|\d\s*-|−/.test(v.trim().replace(/^[-−]/,""));
+function contaJS(v){ let s=String(v).trim().replace(/π|pi/gi,"(3.1416)").replace(/[×xX]/g,"*").replace(/÷/g,"/").replace(/−/g,"-").replace(/\^/g,"**").replace(/\s/g,"");
+  if(s.includes(",")) s=s.replace(/\.(?=\d{3}(?!\d))/g,"").replace(/,/g,".");
+  return /^[\d.+\-*/()]+$/.test(s.replace(/\*\*/g,"*")) ? s : null; }
+function numE(v){ if(v===""||v==null) return null; if(!ehConta(v)) return num(v); const s=contaJS(v); if(!s) return null;
+  try{ const r=Function('"use strict";return ('+s+")")(); return isFinite(r)?r:null; }catch(e){ return null; } }
+const contaXL = v => { const s=contaJS(v); return s ? s.replace(/\*\*/g,"^") : null; };
+const contaTxt = v => "("+String(v).trim().replace(/\s/g,"").replace(/\*\*|\^/g,"^").replace(/[*xX×]/g," × ").replace(/\//g," ÷ ").replace(/\+/g," + ").replace(/(\d|\))-/g,"$1 − ").replace(/pi/gi,"π")+")";
+const dimTxt = (raw,v) => ehConta(raw) ? contaTxt(raw) : fdim(v);
+function dataISO(s){ const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s||""); return m?new Date(Date.UTC(+m[1],+m[2]-1,+m[3])):null; }
+const dias = (a,b) => { const x=dataISO(a), y=dataISO(b); return x&&y ? Math.round((y-x)/864e5)+1 : null; };
+const dBR = s => { const d=dataISO(s); return d ? d.toISOString().slice(0,10).split("-").reverse().join("/") : "?"; };
+function formaDe(e){ return FORMAS[e.tipo] ? e.tipo : null; }
+function baseElem(e){
+  const k=formaDe(e); if(!k) return null; const F=FORMAS[k], A=numE(e.a)||0, B=numE(e.b)||0, C=numE(e.c)||0;
+  switch(F[3]){ case "direto": return A; case "ret": return A*B; case "tri": return A*B/2; case "trap": return (A+B)/2*C; case "cil": return PI*A*B;
+    case "circ": return PI*A*A/4; case "coroa": return PI*(A*A-B*B)/4; case "raios": return PI*(A*A-B*B); case "bit": return A*(M2M[e.bit]||0);
+    case "retoque": return 0.15; case "diaria": return dias(e.a,e.b)||0; default: return 1; }
+}
+
 /* ---------- modelo ---------- */
-function novaMC(bm){ return {bm, mc:"", tanque:"", ro:"", servico:"", itens:Array.from({length:NI},()=>({item:"",metodo:"",demaos:""})),
+function novaMC(bm){ return {bm, mc:"", tanque:"", ro:"", servico:"", tipoMC:"geral", itens:Array.from({length:NI},()=>({item:"",metodo:"",demaos:""})),
   elems:Array.from({length:4},()=>novoElem()), quadro:Array.from({length:NI},()=>({ant:"",pct:"",man:""})),
   etapa:{item:"",lotes:[novoLote(),novoLote()]}, obs:"", fotos:[], updatedAt:Date.now()}; }
-function novoElem(){ return {desc:"",tipo:"",a:"",b:"",bit:"",qtd:"",pct:"",fl:[false,false,false,false,false,false]}; }
+function novoElem(tipo=""){ return {desc:"",tipo,a:"",b:"",c:"",bit:"",qtd:"",pct:"",fl:[false,false,false,false,false,false]}; }
 function novoLote(){ return {desc:"",tipo:"",area:"",bms:["","","","",""]}; }
 function normaliza(m){ const n=novaMC(m.bm||23); const o=Object.assign(n,m);
   o.itens=Array.from({length:NI},(_,i)=>Object.assign({item:"",metodo:"",demaos:""},(m.itens||[])[i]||{}));
   o.quadro=Array.from({length:NI},(_,i)=>Object.assign({ant:"",pct:"",man:""},(m.quadro||[])[i]||{}));
   o.elems=(m.elems&&m.elems.length?m.elems:[novoElem()]).map(e=>Object.assign(novoElem(),e,{fl:Array.from({length:NI},(_,i)=>!!(e.fl||[])[i])}));
   o.etapa=Object.assign({item:"",lotes:[]},m.etapa||{}); o.etapa.lotes=(o.etapa.lotes.length?o.etapa.lotes:[novoLote()]).map(l=>Object.assign(novoLote(),l,{bms:Array.from({length:5},(_,i)=>(l.bms||[])[i]??"")}));
+  o.elems.forEach(e=>{ if(e.tipo && !FORMAS[e.tipo]) e.tipo=FORMA_ANTIGA[e.tipo]||"direto"; });
+  if(!TMC[o.tipoMC]) o.tipoMC="geral";
   o.fotos=m.fotos||[]; return o; }
 
-function tipoDe(nome){ return TIPOS.find(t=>t[0]===nome); }
 function calcElem(e){
-  const t=tipoDe(e.tipo); if(!t) return null;
-  const A=num(e.a)||0, B=num(e.b)||0, q=num(e.qtd)??1, p=(num(e.pct)??100)/100, f=t[1];
-  let base;
-  switch(t[2]){ case "direto": base=A; break; case "ret": base=A*B; break; case "cil": base=PI*A*B; break;
-    case "circ": base=PI*A*A/4; break; case "coroa": base=PI*(A*A-B*B)/4; break; case "bit": base=A*(M2M[e.bit]||0); break; default: base=1; }
-  return r3(base*f*q*p);
+  const k=formaDe(e); if(!k) return null; const base=baseElem(e); const q=numE(e.qtd)??1, p=(numE(e.pct)??100)/100;
+  return r3(base*FORMAS[k][1]*q*p);
 }
 function textoElem(e){
-  const t=tipoDe(e.tipo); if(!t) return ""; const A=num(e.a), B=num(e.b), q=num(e.qtd), p=num(e.pct);
-  let s;
-  switch(t[2]){ case "direto": s=fdim(A); break; case "ret": s=fdim(A)+" × "+fdim(B); break; case "cil": s="π × "+fdim(A)+" × "+fdim(B); break;
-    case "circ": s="π × "+fdim(A)+"² ÷ 4"; break; case "coroa": s="π × ("+fdim(A)+"² − "+fdim(B)+"²) ÷ 4"; break;
-    case "bit": s=fdim(A)+" m × "+fmt(M2M[e.bit]||0,2)+" m²/m ("+(e.bit||"escolha a bitola")+")"; break;
-    default: s= t[0]==="Diária" ? "1 diária" : t[0].startsWith("Retoque") ? "0,15 m²" : "1 un"; }
-  if(t[1]!==1 && !t[0].startsWith("Retoque")) s+=" × "+fmt(t[1],2);
-  if(q!=null && q!==1) s+=" × "+fmt(q,q%1?2:0)+(t[2]==="un"?"":" pç");
-  if(p!=null && p!==100) s+=" × "+fmt(p,0)+"%";
-  const v=calcElem(e); return s+" = "+fmt(v,3);
+  const k=formaDe(e); if(!k) return ""; const F=FORMAS[k]; const A=numE(e.a), B=numE(e.b), C=numE(e.c), q=numE(e.qtd), p=numE(e.pct);
+  const a=dimTxt(e.a,A), b=dimTxt(e.b,B), c=dimTxt(e.c,C); let s;
+  switch(F[3]){ case "direto": s=a; break; case "ret": s=a+" × "+b; break; case "tri": s=a+" × "+b+" ÷ 2"; break; case "trap": s="("+a+" + "+b+") ÷ 2 × "+c; break;
+    case "cil": s="π × "+a+" × "+b; break; case "circ": s="π × "+a+"² ÷ 4"; break; case "coroa": s="π × ("+a+"² − "+b+"²) ÷ 4"; break; case "raios": s="π × ("+a+"² − "+b+"²)"; break;
+    case "bit": s=a+" m × "+fmt(M2M[e.bit]||0,2)+" m²/m ("+(e.bit||"escolha")+")"; break; case "retoque": s="0,15 m²"; break;
+    case "diaria": s=`(${dBR(e.b)} − ${dBR(e.a)} + 1 dia)`; break;
+    case "dias": s="1 dia"; break; default: s="1 un"; }
+  const f=F[1]; if(f===0.5) s+=" ÷ 2"; else if(f!==1) s+=" × "+fmt(f,2);
+  if(q!=null && q!==1) s+=" × "+(ehConta(e.qtd)?contaTxt(e.qtd):fmt(q,q%1?2:0));
+  if(p!=null && p!==100) s+=" × "+fmt(p,p%1?1:0)+"%";
+  return s+" = "+fmt(calcElem(e),3);
 }
 function etapasDe(it){ return DATA.etapas[it]||null; }
 function calcEtapas(m){
@@ -344,10 +396,36 @@ $("#bNova").addEventListener("click",()=>{ curId=null; cur=novaMC(filtroBM||BM_A
 /* ---------- editor ---------- */
 const opt=(v,l,sel)=>`<option value="${esc(v)}" ${v===sel?"selected":""}>${esc(l)}</option>`;
 const itemOpts = sel => '<option value="">—</option>'+ITENS.map(it=>opt(it,it+" · "+PPU[it].d.slice(0,60),sel)).join("");
+function colsMem(tp){ return [["a",tp.lab.a||"Dim. 1"],["b",tp.lab.b||"Dim. 2"],["c",tp.lab.c||"Dim. 3"],["bit",tp.lab.bit||"Bitola / perfil"]].filter(([k])=>usaCampo(tp,k)); }
+function linhaMem(e,k,tp){
+  const k0=formaDe(e), F=k0?FORMAS[k0]:null, usa=c=> F && (c==="bit" ? F[3]==="bit" : F[2].includes(c));
+  const lista=[...tp.f]; if(k0 && !lista.includes(k0)) lista.push(k0);
+  const cel=([c])=>{ if(!usa(c)) return `<td class="na">—</td>`;
+    if(c==="bit"){ const L=k0==="tubo"?TUBOS:k0==="perfil"?PERFIS:BITOLAS; return `<td><select id="e${k}_bit" data-el="${k}" data-f="bit">${'<option value="">—</option>'+L.map(b=>opt(b[0],b[0]+" ("+fmt(b[1],2)+" m²/m)",e.bit)).join("")}</select></td>`; }
+    if(F[3]==="diaria") return `<td><input type="date" id="e${k}_${c}" data-el="${k}" data-f="${c}" value="${esc(e[c])}"></td>`;
+    return `<td><input id="e${k}_${c}" class="num" data-el="${k}" data-f="${c}" inputmode="decimal" value="${esc(e[c])}"></td>`; };
+  return `<tr><td class="c">${k+1}</td>
+      <td><input id="e${k}_desc" data-el="${k}" data-f="desc" value="${esc(e.desc)}" style="min-width:200px"></td>
+      <td><select id="e${k}_tipo" data-el="${k}" data-f="tipo" style="min-width:220px">${'<option value="">—</option>'+lista.map(f=>opt(f,FORMAS[f][0],e.tipo)).join("")}</select></td>
+      ${colsMem(tp).map(cel).join("")}
+      <td><input id="e${k}_q" class="sm num" data-el="${k}" data-f="qtd" inputmode="decimal" value="${esc(e.qtd)}" placeholder="1"></td>
+      <td><input id="e${k}_p" class="sm num" data-el="${k}" data-f="pct" inputmode="decimal" value="${esc(e.pct)}" placeholder="100"></td>
+      ${e.fl.map((f,i)=>`<td class="c"><input type="checkbox" id="e${k}_f${i}" data-el="${k}" data-fl="${i}" ${f?"checked":""} aria-label="Aplica ao item ${i+1}"></td>`).join("")}
+      <td class="r"><span class="out" id="o_e${k}"></span></td><td><span class="txt" id="o_t${k}"></span></td>
+      <td><button class="ghost" data-del-el="${k}" aria-label="Remover linha">✕</button></td></tr>`;
+}
+function somaItens(m,c){
+  const els=m.elems.map((e,k)=>({e,v:c.el[k]})).filter(x=>formaDe(x.e));
+  return c.linhas.filter(Boolean).map(l=>{ const idx=[], vs=[]; els.forEach((x,j)=>{ if(x.e.fl[l.i]&&x.v!=null){ idx.push(j+1); vs.push(fmt(x.v,3)); } });
+    if(!vs.length) return null; return `Item ${l.item}: `+(vs.length>1?`linhas ${idx.join(" + ")} = ${vs.join(" + ")} = `:`linha ${idx[0]} = `)+`${fmt(l.mem,3)} ${l.P.u}`+(l.dem>1?` × ${l.dem} demãos = ${fmt(l.prev,3)} ${l.P.u}`:""); }).filter(Boolean).join("\n");
+}
+function memVazia(m){ return m.elems.every(e=>!e.desc && !e.a && !e.b && !e.c && !e.qtd); }
+function aplicaModelo(m){ const tp=tipoMC(m); if(!memVazia(m)) return;
+  const fl0=m.itens.map(it=>!!it.item); m.elems=(tp.modelo.length?tp.modelo:[["",tp.f[0]]]).map(([d,f])=>Object.assign(novoElem(f),{desc:d,fl:[...fl0]})); }
 function renderEditor(){
   const ed=$("#ed");
   if(!cur){ ed.innerHTML=`<section class="blk"><h2>Comece por aqui</h2><p>Escolha uma MC na lista ou toque em <b>+ Nova MC</b>. Você preenche as medidas, o site faz as contas pelas regras do contrato e gera a planilha da MC com fórmulas e fotos.</p></section>`; return; }
-  const m=cur, [ini,fim]=periodo(m.bm);
+  const m=cur, [ini,fim]=periodo(m.bm), tp=tipoMC(m);
   ed.innerHTML=`
   <section class="blk"><h2><span class="num">MC</span> Cabeçalho <small>${esc(OBJETO)}</small></h2>
     <div class="grid">
@@ -356,6 +434,7 @@ function renderEditor(){
       <label class="f">Período<input class="ro" readonly value="${dbr(ini)} a ${dbr(fim)}"></label>
       <label class="f">Tanque / equipamento<input id="h_tq" data-k="tanque" value="${esc(m.tanque)}" placeholder="TQ-62016"></label>
       <label class="f">RO / RDO<input id="h_ro" data-k="ro" value="${esc(m.ro)}"></label>
+      <label class="f">Tipo de MC<select id="h_tp" data-k="tipoMC">${Object.entries(TMC).map(([k,t])=>opt(k,t.n,m.tipoMC)).join("")}</select></label>
       <label class="f wide">Serviço<input id="h_sv" data-k="servico" value="${esc(m.servico)}" placeholder="Tratamento de superfície e pintura da escada helicoidal"></label>
     </div>
     <div class="total" style="margin-top:12px"><span>Valor da MC no BM</span><span class="big" id="o_total"></span></div>
@@ -373,22 +452,12 @@ function renderEditor(){
     <div class="crit" id="o_crit" style="margin-top:10px"></div>
   </section>
 
-  <section class="blk"><h2><span class="num">2</span> Memória de cálculo <small>Uma linha por elemento. Marque os itens a que a área se aplica.</small></h2>
-    <div class="tblw"><table><thead><tr><th>Nº</th><th>Descrição / origem da medida</th><th>Tipo de cálculo (Anexo 1, f)</th><th class="r">Dim. A (D/comp.)</th><th class="r">Dim. B (h/larg./d)</th><th>Bitola/perfil</th><th class="r">Qtd</th><th class="r">% consid.</th>
+  <section class="blk"><h2><span class="num">2</span> Memória de cálculo <small>${esc(tp.n)}. Uma linha por elemento; marque os itens a que a área se aplica.</small></h2>
+    <div class="tblw"><table><thead><tr><th>Nº</th><th>Descrição / origem da medida</th><th>Forma de cálculo</th>${colsMem(tp).map(([k,l])=>`<th class="${k==="bit"?"":"r"}">${esc(l)}</th>`).join("")}<th class="r">${esc(tp.lab.q||"Qtd")}</th><th class="r">% consid.</th>
       ${m.itens.map((it,i)=>`<th class="c" id="o_fh${i}">${esc(it.item||"Item "+(i+1))}</th>`).join("")}<th class="r">Resultado</th><th>Cálculo</th><th></th></tr></thead><tbody>
-    ${m.elems.map((e,k)=>`<tr><td class="c">${k+1}</td>
-      <td><input id="e${k}_desc" data-el="${k}" data-f="desc" value="${esc(e.desc)}" style="min-width:220px"></td>
-      <td><select id="e${k}_tipo" data-el="${k}" data-f="tipo" style="min-width:220px">${'<option value="">—</option>'+TIPOS.map(t=>opt(t[0],t[0],e.tipo)).join("")}</select></td>
-      <td><input id="e${k}_a" class="num" data-el="${k}" data-f="a" inputmode="decimal" value="${esc(e.a)}"></td>
-      <td><input id="e${k}_b" class="num" data-el="${k}" data-f="b" inputmode="decimal" value="${esc(e.b)}"></td>
-      <td><select id="e${k}_bit" data-el="${k}" data-f="bit">${'<option value="">—</option>'+BITOLAS.map(b=>opt(b[0],b[0],e.bit)).join("")}</select></td>
-      <td><input id="e${k}_q" class="sm num" data-el="${k}" data-f="qtd" inputmode="decimal" value="${esc(e.qtd)}" placeholder="1"></td>
-      <td><input id="e${k}_p" class="sm num" data-el="${k}" data-f="pct" inputmode="decimal" value="${esc(e.pct)}" placeholder="100"></td>
-      ${e.fl.map((f,i)=>`<td class="c"><input type="checkbox" id="e${k}_f${i}" data-el="${k}" data-fl="${i}" ${f?"checked":""} aria-label="Aplica ao item ${i+1}"></td>`).join("")}
-      <td class="r"><span class="out" id="o_e${k}"></span></td><td><span class="txt" id="o_t${k}"></span></td>
-      <td><button class="ghost" data-del-el="${k}" aria-label="Remover linha">✕</button></td></tr>`).join("")}
-    </tbody><tfoot><tr><td colspan="8" class="r">Quantidade por item</td>${m.itens.map((_,i)=>`<td class="c"><span class="out" id="o_fs${i}"></span></td>`).join("")}<td colspan="3"></td></tr></tfoot></table></div>
-    <div class="row" style="margin-top:8px"><button id="bAddEl">+ Linha</button><span class="hint">Use vírgula ou ponto nos decimais. Fatores do contrato: escada +10%/+30%, guarda-corpo ÷2, grelha ×3, face inferior +30%, tubos e perfis em m²/m.</span></div>
+    ${m.elems.map((e,k)=>linhaMem(e,k,tp)).join("")}
+    </tbody><tfoot><tr><td colspan="${5+colsMem(tp).length}" class="r">Quantidade por item</td>${m.itens.map((_,i)=>`<td class="c"><span class="out" id="o_fs${i}"></span></td>`).join("")}<td colspan="3"></td></tr></tfoot></table></div>
+    <div class="row" style="margin-top:8px"><button id="bAddEl">+ Linha</button><span class="hint">Nas medidas você pode digitar a conta, por exemplo <b>32,44+2*(3,30+0,40)</b>: ela aparece na MC e no Excel. Fatores do contrato já entram pela forma escolhida.</span></div>
   </section>
 
   <section class="blk"><h2><span class="num">3</span> Quadro de medição <small>Digite o acumulado até o BM anterior e o % (ou a quantidade) deste BM.</small></h2>
@@ -467,17 +536,17 @@ function updateOut(){
 const ED=$("#ed");
 ED.addEventListener("input",e=>{
   const t=e.target, d=t.dataset; if(!cur) return; let estrutura=false;
-  if(d.k){ cur[d.k]= d.k==="bm" ? (parseInt(t.value)||cur.bm) : t.value; if(d.k==="bm") estrutura=true; }
+  if(d.k){ cur[d.k]= d.k==="bm" ? (parseInt(t.value)||cur.bm) : t.value; if(d.k==="bm") estrutura=true; if(d.k==="tipoMC"){ aplicaModelo(cur); estrutura=true; } }
   else if(d.it!=null){ cur.itens[+d.it][d.f]=t.value; if(d.f==="item") estrutura=false; }
   else if(d.el!=null&&d.fl!=null){ cur.elems[+d.el].fl[+d.fl]=t.checked; }
-  else if(d.el!=null){ cur.elems[+d.el][d.f]=t.value; }
+  else if(d.el!=null){ cur.elems[+d.el][d.f]=t.value; if(d.f==="tipo") estrutura=true; }
   else if(d.q!=null){ cur.quadro[+d.q][d.f]=t.value; }
   else if(d.k2){ cur.etapa.item=t.value; renderEtapas(); }
   else if(d.lo!=null&&d.bm!=null){ cur.etapa.lotes[+d.lo].bms[+d.bm]=t.value; }
   else if(d.lo!=null){ cur.etapa.lotes[+d.lo][d.f]=t.value; }
   else if(d.ft!=null){ cur.fotos[+d.ft].legenda=t.value; }
   else return;
-  if(estrutura && t.id!=="h_bm") renderEditor(); else updateOut();
+  if(estrutura && t.id!=="h_bm"){ const id=t.id; renderEditor(); document.getElementById(id)?.focus(); } else updateOut();
   salvar();
 });
 ED.addEventListener("change",e=>{ if(e.target.id==="h_bm"){ renderEditor(); } });
@@ -486,7 +555,7 @@ ED.addEventListener("click",async e=>{
   if(t.dataset.delEl!=null){ cur.elems.splice(+t.dataset.delEl,1); if(!cur.elems.length) cur.elems.push(novoElem()); renderEditor(); salvar(); }
   else if(t.dataset.delLo!=null){ cur.etapa.lotes.splice(+t.dataset.delLo,1); if(!cur.etapa.lotes.length) cur.etapa.lotes.push(novoLote()); renderEtapas(); updateOut(); salvar(); }
   else if(t.dataset.delFt!=null){ cur.fotos.splice(+t.dataset.delFt,1); renderFotos(); salvar(); }
-  else if(t.id==="bAddEl"){ cur.elems.push(novoElem()); renderEditor(); document.getElementById(`e${cur.elems.length-1}_desc`)?.focus(); salvar(); }
+  else if(t.id==="bAddEl"){ const ult=cur.elems[cur.elems.length-1]; const n=novoElem(ult&&ult.tipo||tipoMC(cur).f[0]); if(ult) n.fl=[...ult.fl]; cur.elems.push(n); renderEditor(); document.getElementById(`e${cur.elems.length-1}_desc`)?.focus(); salvar(); }
   else if(t.id==="bAddLo"){ cur.etapa.lotes.push(novoLote()); renderEtapas(); updateOut(); salvar(); }
   else if(t.id==="bXls"){ await baixar([cur], nomeArq(cur)); }
   else if(t.id==="bPdf"){ await baixarPDF([cur], nomeArq(cur).replace(/\.xlsx$/,".pdf")); }
@@ -608,12 +677,13 @@ async function pdfMC(doc, m, VERT){
   const crit=L.map(l=>{ const et=etapasDe(l.item); return `Item ${l.item} (seção ${l.P.s}): ${l.P.c}`+(et?" Etapas: "+et.map(([n,p])=>Math.round(p*100)+"% "+n).join("; ")+".":""); }).join("\n");
   if(crit){ sub("Critério de medição (Anexo 1 – resumo)"); T({body:[[pdfTxt(crit)]],styles:{fontSize:FS-0.5}}); }
   // 2 memória
-  sec("MEMÓRIA DE CÁLCULO");
-  const els=m.elems.map((e,k)=>({e,v:c.el[k]})).filter(x=>x.e.tipo);
-  T({head:[["Nº","DESCRIÇÃO DO ELEMENTO / ORIGEM","TIPO DE CÁLCULO","CÁLCULO","RESULTADO",...L.map(l=>l.item)]],
-    body:els.map((x,j)=>[j+1,pdfTxt(x.e.desc),pdfTxt(x.e.tipo),pdfTxt(textoElem(x.e)),{content:fmt(x.v,3),styles:{fontStyle:"bold",halign:"right"}},...L.map(l=>({content:x.e.fl[l.i]?"x":"",styles:{halign:"center",fontStyle:"bold"}}))]),
+  sec("MEMÓRIA DE CÁLCULO – "+tipoMC(m).n.toUpperCase());
+  const els=m.elems.map((e,k)=>({e,v:c.el[k]})).filter(x=>formaDe(x.e));
+  T({head:[["Nº","DESCRIÇÃO DO ELEMENTO / ORIGEM","FORMA DE CÁLCULO","CÁLCULO DEMONSTRADO","RESULTADO",...L.map(l=>l.item)]],
+    body:els.map((x,j)=>[j+1,pdfTxt(x.e.desc),pdfTxt(FORMAS[formaDe(x.e)][0]),pdfTxt(textoElem(x.e)),{content:fmt(x.v,3),styles:{fontStyle:"bold",halign:"right"}},...L.map(l=>({content:x.e.fl[l.i]?"x":"",styles:{halign:"center",fontStyle:"bold"}}))]),
     foot:[[{content:"QUANTIDADE DA MEMÓRIA POR ITEM",colSpan:5,styles:{halign:"right"}},...L.map(l=>({content:fmt(l.mem,3),styles:{halign:"center"}}))]],
     columnStyles:Object.assign({0:{cellWidth:7,halign:"center"},2:{cellWidth:VERT?28:40},4:{cellWidth:20}},Object.fromEntries(L.map((_,k)=>[5+k,{cellWidth:VERT?13:16}])))});
+  const dem=somaItens(m,c); if(dem){ y-=2; T({body:[[pdfTxt(dem)]],styles:{fontSize:FS-0.5,fontStyle:"italic",fillColor:[248,248,248]}}); }
   // 3 quadro
   sec("QUADRO DE MEDIÇÃO E AVANÇO POR ITEM");
   T({head:[["ITEM","DESCRIÇÃO","UNID.","QTD MEMÓRIA","DEMÃOS","PREVISTO","ACUM. ANTERIOR","MEDIDO NO BM","ACUMULADO","% ACUM.","PREÇO APLIC.","VALOR NO BM (R$)"]],
@@ -698,22 +768,30 @@ async function folhaMC(wb, nome, m){
   const crit=L.map(l=>{ const et=etapasDe(l.item); return `Item ${l.item} (seção ${l.P.s}): ${l.P.c}`+(et?" Etapas: "+et.map(([n,p])=>Math.round(p*100)+"% "+n).join("; ")+".":""); }).join("\n");
   put("A"+r,crit,{m:"R"+r,sz:8}); ws.getRow(r).height=Math.min(400,22+L.length*30); r+=2;
   // 2 memória
-  sec(r,"2. MEMÓRIA DE CÁLCULO"); r++;
-  head(r,[["A","Nº"],["B","DESCRIÇÃO DO ELEMENTO / ORIGEM"],["C","TIPO DE CÁLCULO (Anexo 1, f)"],["D","DIM. A (m)"],["E","DIM. B (m)"],["F","BITOLA / PERFIL"],["G","m²/m"],["H","QTD"],["I","FATOR"],["J","% CONSID."],["K","RESULTADO"]]);
-  L.forEach((l,k)=>put(C(12+k)+r,l.item,{fill:AZ,w:1,b:1,sz:8,h:"center"})); for(let k=L.length;k<6;k++) put(C(12+k)+r,"",{fill:AZ}); put("R"+r,"CÁLCULO (por extenso)",{fill:AZ,w:1,b:1,sz:8,h:"center"});
-  const M0=r+1; const els=m.elems.map((e,k)=>({e,k,v:c.el[k]})).filter(x=>x.e.tipo);
-  els.forEach((x,j)=>{ const e=x.e, rr=M0+j, t=tipoDe(e.tipo);
-    put("A"+rr,j+1,{h:"center"}); put("B"+rr,e.desc,{fill:INP,sz:8}); put("C"+rr,e.tipo,{fill:INP,sz:8});
-    put("D"+rr,num(e.a),{fill:INP,h:"right",f:"#,##0.00##"}); put("E"+rr,num(e.b),{fill:INP,h:"right",f:"#,##0.00##"}); put("F"+rr,e.bit||null,{fill:INP,sz:8,h:"center"});
-    put("G"+rr,t[2]==="bit"?(M2M[e.bit]||0):null,{h:"center",f:"0.00"}); put("H"+rr,num(e.qtd)??1,{fill:INP,h:"center",f:"#,##0.##"}); put("I"+rr,t[1],{h:"center",f:"0.00"}); put("J"+rr,(num(e.pct)??100)/100,{fill:INP,h:"center",f:"0%"});
-    const base={direto:`D${rr}`,ret:`D${rr}*E${rr}`,cil:`${PI}*D${rr}*E${rr}`,circ:`${PI}*D${rr}^2/4`,coroa:`${PI}*(D${rr}^2-E${rr}^2)/4`,bit:`D${rr}*G${rr}`,un:"1"}[t[2]];
+  const tp=tipoMC(m);
+  sec(r,"2. MEMÓRIA DE CÁLCULO – "+tp.n.toUpperCase()); r++;
+  const hl=k=>(usaCampo(tp,k)?(tp.lab[k]||{a:"DIM. 1",b:"DIM. 2",c:"DIM. 3",bit:"BITOLA / PERFIL"}[k]):"—").toUpperCase();
+  head(r,[["A","Nº"],["B","DESCRIÇÃO DO ELEMENTO / ORIGEM"],["C","FORMA DE CÁLCULO (Anexo 1, f)"],["D",hl("a")],["E",hl("b")],["F",usaCampo(tp,"bit")?hl("bit"):hl("c")],["G","m²/m"],["H",(tp.lab.q||"QTD").toUpperCase()],["I","FATOR"],["J","% CONSID."],["K","RESULTADO"]]);
+  L.forEach((l,k)=>put(C(12+k)+r,l.item,{fill:AZ,w:1,b:1,sz:8,h:"center"})); for(let k=L.length;k<6;k++) put(C(12+k)+r,"",{fill:AZ}); put("R"+r,"CÁLCULO DEMONSTRADO",{fill:AZ,w:1,b:1,sz:8,h:"center"});
+  const M0=r+1; const els=m.elems.map((e,k)=>({e,k,v:c.el[k]})).filter(x=>formaDe(x.e));
+  const dimXL=(raw,usa)=>{ if(!usa) return null; if(ehConta(raw)){ const f=contaXL(raw); return f?F(f,numE(raw)):numE(raw); } return numE(raw)??0; };
+  els.forEach((x,j)=>{ const e=x.e, rr=M0+j, k0=formaDe(e), Fm=FORMAS[k0], kind=Fm[3], u=cc=>Fm[2].includes(cc);
+    put("A"+rr,j+1,{h:"center"}); put("B"+rr,e.desc,{fill:INP,sz:8}); put("C"+rr,Fm[0],{sz:8});
+    if(kind==="diaria"){ put("D"+rr,dataISO(e.a),{fill:INP,h:"center",f:"dd/mm/yyyy"}); put("E"+rr,dataISO(e.b),{fill:INP,h:"center",f:"dd/mm/yyyy"}); }
+    else { put("D"+rr,dimXL(e.a,u("a")),{fill:u("a")?INP:null,h:"right",f:"#,##0.00##"}); put("E"+rr,dimXL(e.b,u("b")),{fill:u("b")?INP:null,h:"right",f:"#,##0.00##"}); }
+    if(kind==="bit") put("F"+rr,e.bit||null,{fill:INP,sz:8,h:"center"}); else put("F"+rr,dimXL(e.c,u("c")),{fill:u("c")?INP:null,h:"right",f:"#,##0.00##"});
+    put("G"+rr,kind==="bit"?(M2M[e.bit]||0):null,{h:"center",f:"0.00"});
+    put("H"+rr,ehConta(e.qtd)&&contaXL(e.qtd)?F(contaXL(e.qtd),numE(e.qtd)):(numE(e.qtd)??1),{fill:INP,h:"center",f:"#,##0.##"}); put("I"+rr,Fm[1],{h:"center",f:"0.00"}); put("J"+rr,(numE(e.pct)??100)/100,{fill:INP,h:"center",f:"0%"});
+    const base={direto:`D${rr}`,ret:`D${rr}*E${rr}`,tri:`D${rr}*E${rr}/2`,trap:`(D${rr}+E${rr})/2*F${rr}`,cil:`${PI}*D${rr}*E${rr}`,circ:`${PI}*D${rr}^2/4`,coroa:`${PI}*(D${rr}^2-E${rr}^2)/4`,raios:`${PI}*(D${rr}^2-E${rr}^2)`,bit:`D${rr}*G${rr}`,retoque:"0.15",diaria:`(E${rr}-D${rr}+1)`,dias:"1",un:"1"}[kind];
     put("K"+rr,F(`ROUND(${base}*I${rr}*H${rr}*J${rr},3)`,x.v),{h:"right",f:"#,##0.000",b:1});
     L.forEach((l,k)=>put(C(12+k)+rr,e.fl[l.i]?"x":null,{fill:INP,h:"center",b:1})); for(let k=L.length;k<6;k++) put(C(12+k)+rr,null,{});
     put("R"+rr,textoElem(e),{sz:8}); });
   const ME=M0+Math.max(els.length,1)-1; r=ME+1;
   put("A"+r,"QUANTIDADE DA MEMÓRIA POR ITEM →",{m:"K"+r,fill:TOT,b:1,h:"right"});
   const memCell={}; L.forEach((l,k)=>{ const col=C(12+k); memCell[l.i]=col+r; put(col+r,F(`SUMIF(${col}${M0}:${col}${ME},"x",$K$${M0}:$K$${ME})`,l.mem),{fill:TOT,b:1,sz:8,h:"center",f:"#,##0.00"}); });
-  for(let k=L.length;k<6;k++) put(C(12+k)+r,null,{fill:TOT}); put("R"+r,null,{fill:TOT}); r+=2;
+  for(let k=L.length;k<6;k++) put(C(12+k)+r,null,{fill:TOT}); put("R"+r,null,{fill:TOT}); r++;
+  const dem=somaItens(m,c); if(dem){ put("A"+r,dem,{m:"R"+r,sz:8,i:1}); ws.getRow(r).height=Math.max(15,13*dem.split("\n").length); r++; }
+  r++;
   // 4 etapas (antes do quadro para as referências) -> posicionado depois; calculamos linhas
   const et=etapasDe(m.etapa.item); const lotes=et?m.etapa.lotes.filter(l=>num(l.area)!=null):[];
   // 3 quadro
