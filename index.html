@@ -4,7 +4,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<style>.bkbar{position:fixed;left:0;right:0;bottom:0;display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;padding:6px 12px;background:#1f2a37;color:#fff;font:13px system-ui;z-index:50}.bkbar button,.bkbar .bkbtn{position:relative;background:#fff;color:#1f2a37;border:0;border-radius:6px;padding:5px 10px;font:inherit;cursor:pointer}body{padding-bottom:44px}.loginov{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,32,.72)}.loginov[hidden]{display:none}.logincx{background:var(--panel,#fff);color:var(--ink,#1f2a37);max-width:420px;width:100%;border-radius:12px;padding:24px;box-shadow:0 10px 40px rgba(0,0,0,.35);font:15px system-ui;text-align:center}.logincx h2{margin:0 0 8px}.logincx p{line-height:1.45}.logincx #lgGoogle{font-size:16px;padding:10px 18px;cursor:pointer}.lgerro{color:#c0392b;min-height:1em;font-size:14px}.lglocal{background:none;border:0;color:inherit;opacity:.8;text-decoration:underline;cursor:pointer;font:inherit;font-size:14px}</style><script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<style>.bkbar{position:fixed;left:0;right:0;bottom:0;display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;padding:6px 12px;background:#1f2a37;color:#fff;font:13px system-ui;z-index:50}.bkbar button,.bkbar .bkbtn{position:relative;background:#fff;color:#1f2a37;border:0;border-radius:6px;padding:5px 10px;font:inherit;cursor:pointer}body{padding-bottom:44px}.loginov{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,32,.72)}.loginov[hidden]{display:none}.logincx{background:var(--panel,#fff);color:var(--ink,#1f2a37);max-width:420px;width:100%;border-radius:12px;padding:24px;box-shadow:0 10px 40px rgba(0,0,0,.35);font:15px system-ui;text-align:center}.logincx h2{margin:0 0 8px}.logincx p{line-height:1.45}.logincx #lgGoogle{font-size:16px;padding:10px 18px;cursor:pointer}.lgerro{color:#c0392b;min-height:1em;font-size:14px}.bkesp{display:inline-flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums}.bkesp i{display:inline-block;width:90px;height:8px;border-radius:4px;background:rgba(255,255,255,.25);overflow:hidden}.bkesp i b{display:block;height:100%;background:#6fcf8f}.bkesp.alto i b{background:#f0a94a}.bkesp.cheio i b{background:#ff8a80}.lglocal{background:none;border:0;color:inherit;opacity:.8;text-decoration:underline;cursor:pointer;font:inherit;font-size:14px}</style><script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>/* GitHub Pages: MCs na nuvem (Firebase, login Google). Sem login: salva no aparelho (IndexedDB). */
@@ -46,13 +46,21 @@
     if(!bar){ bar=document.createElement("div"); bar.className="bkbar"; document.body.appendChild(bar); }
     const quem = modo==="nuvem" ? (equipeAtiva?"👥 Espaço da equipe · ":"☁️ Na nuvem: ")+`<b>${(usuario&&(usuario.email||usuario.displayName))||"conectado"}</b>` : "💾 Salvo só neste aparelho";
     bar.innerHTML=`<span>${quem}</span>`+(modo==="nuvem"?'<button type="button" id="bkSair">Sair</button>':(auth?'<button type="button" id="bkEntrar">Entrar com Google</button>':""))+
-      '<button type="button" id="bkOut">Baixar backup</button><label class="bkbtn">Restaurar backup<input type="file" accept=".json,application/json" id="bkIn" style="position:absolute;width:1px;height:1px;opacity:0"></label><span id="bkMsg"></span>';
+      '<span class="bkesp" id="bkEsp"></span><button type="button" id="bkOut">Baixar backup</button><label class="bkbtn">Restaurar backup<input type="file" accept=".json,application/json" id="bkIn" style="position:absolute;width:1px;height:1px;opacity:0"></label><span id="bkMsg"></span>';
     const q=s=>bar.querySelector(s);
     if(q("#bkSair")) q("#bkSair").onclick=async()=>{ await auth.signOut(); LS.set("mc_local","1"); location.reload(); };
     if(q("#bkEntrar")) q("#bkEntrar").onclick=()=>{ LS.del("mc_local"); location.reload(); };
     q("#bkOut").onclick=()=>backup();
+    if(ultEsp) window.mcEspaco(ultEsp);
     q("#bkIn").onchange=async e=>{ const f=e.target.files[0]; if(!f) return; try{ const n=await restaura(f); alert(n+" MC(s) restauradas."); }catch(x){ alert("Não foi possível restaurar: "+x.message); } e.target.value=""; };
   }); }
+  let ultEsp=null;
+  window.mcEspaco=e=>{ ultEsp=e; const el=bar&&bar.querySelector("#bkEsp"); if(!el) return; if(modo!=="nuvem"){ el.hidden=true; return; } el.hidden=false;
+    const LIM=1024*1024*1024, pct=Math.min(100,e.bytes/LIM*100), mb=e.bytes/1048576;
+    const tx=mb<1024?mb.toLocaleString("pt-BR",{maximumFractionDigits:1})+" MB":(mb/1024).toLocaleString("pt-BR",{maximumFractionDigits:2})+" GB";
+    el.className="bkesp"+(pct>=90?" cheio":pct>=75?" alto":"");
+    el.title=e.mcs+" MC(s) e "+e.fotos+" foto(s). Estimativa; o valor oficial fica no Firebase em Firestore Database > Uso.";
+    el.innerHTML=`Espaço: ${tx} de 1 GB <i><b style="width:${Math.max(pct,0.5).toFixed(1)}%"></b></i> ${pct.toLocaleString("pt-BR",{maximumFractionDigits:pct<1?2:pct<10?1:0})}%`; };
   const msg=t=>{ const m=bar&&bar.querySelector("#bkMsg"); if(m) m.textContent=t; };
   function telaLogin(erro){ onDom(()=>{
     if(!ov){ ov=document.createElement("div"); ov.className="loginov"; document.body.appendChild(ov); }
@@ -469,7 +477,16 @@ function salvar(){
 function abrir(id){ curId=id; cur=MCS[id]; renderList(); renderEditor(); }
 
 /* ---------- lista ---------- */
-function renderList(){
+/* fotos no banco que nenhuma MC usa mais (MCs duplicadas compartilham a mesma foto) */
+function apagaOrfas(fts){ if(!db) return; for(const f of fts){ if(!f||!f.db||!f.id) continue;
+  const usada=Object.values(MCS).concat(cur?[cur]:[]).some(m=>(m.fotos||[]).some(x=>x.id===f.id));
+  if(!usada){ delete FOTOS[f.id]; db.doc("fotos/"+f.id).delete().catch(()=>{}); } } }
+/* estimativa do espaço ocupado (MCs + fotos únicas) para o medidor do site */
+function espacoUsado(){ const vistos=new Set(); let b=0;
+  for(const m of Object.values(MCS)){ b+=JSON.stringify(m).length;
+    for(const f of (m.fotos||[])){ if(!f.db||vistos.has(f.id)) continue; vistos.add(f.id); b+=((f.kb||(FOTOS[f.id]?Math.ceil(FOTOS[f.id].length/1024):200))+1)*1024; } }
+  return {bytes:b,fotos:vistos.size,mcs:Object.keys(MCS).length}; }
+function renderList(){ if(window.mcEspaco) try{ window.mcEspaco(espacoUsado()); }catch(e){}
   const bms=[...new Set(Object.values(MCS).map(m=>m.bm))].sort((a,b)=>b-a);
   if(filtroBM==null && bms.length) filtroBM=bms[0];
   $("#fBM").innerHTML='<option value="">Todos</option>'+bms.map(b=>`<option value="${b}" ${b===filtroBM?"selected":""}>BM-${String(b).padStart(3,"0")}</option>`).join("");
@@ -645,7 +662,7 @@ ED.addEventListener("click",async e=>{
   const t=e.target.closest("button,[data-del-el],[data-del-lo],[data-del-ft]"); if(!t||!cur) return;
   if(t.dataset.delEl!=null){ cur.elems.splice(+t.dataset.delEl,1); if(!cur.elems.length) cur.elems.push(novoElem()); renderEditor(); salvar(); }
   else if(t.dataset.delLo!=null){ cur.etapa.lotes.splice(+t.dataset.delLo,1); if(!cur.etapa.lotes.length) cur.etapa.lotes.push(novoLote()); renderEtapas(); updateOut(); salvar(); }
-  else if(t.dataset.delFt!=null){ cur.fotos.splice(+t.dataset.delFt,1); renderFotos(); salvar(); }
+  else if(t.dataset.delFt!=null){ const [f]=cur.fotos.splice(+t.dataset.delFt,1); renderFotos(); salvar(); apagaOrfas(f?[f]:[]); }
   else if(t.id==="bAddEl"){ const ult=cur.elems[cur.elems.length-1]; const n=novoElem(ult&&ult.tipo||tipoMC(cur).f[0]); if(ult) n.fl=[...ult.fl]; cur.elems.push(n); renderEditor(); document.getElementById(`e${cur.elems.length-1}_desc`)?.focus(); salvar(); }
   else if(t.id==="bAddLo"){ cur.etapa.lotes.push(novoLote()); renderEtapas(); updateOut(); salvar(); }
   else if(t.id==="bXls"){ await baixar([cur], nomeArq(cur)); }
@@ -656,8 +673,8 @@ ED.addEventListener("click",async e=>{
     curId=null; cur=c; filtroBM=c.bm; renderEditor(); salvar(); toast(`MC copiada para o BM-${String(c.bm).padStart(3,"0")} com o acumulado atualizado`); }
   else if(t.id==="bDel"){ $("#delBox").innerHTML=`<span>Excluir esta MC de vez?</span><button id="bDelSim">Sim, excluir</button><button id="bDelNao">Cancelar</button>`; }
   else if(t.id==="bDelNao"){ $("#delBox").innerHTML=`<button id="bDel">Excluir MC</button>`; }
-  else if(t.id==="bDelSim"){ if(curId&&db){ try{ await db.doc("mcs/"+curId).delete(); }catch(err){ toast("Não foi possível excluir: "+(err.code||err.message)); return; } }
-    delete MCS[curId]; curId=null; cur=null; renderEditor(); renderList(); toast("MC excluída"); }
+  else if(t.id==="bDelSim"){ const fts=(cur&&cur.fotos)||[]; if(curId&&db){ try{ await db.doc("mcs/"+curId).delete(); }catch(err){ toast("Não foi possível excluir: "+(err.code||err.message)); return; } }
+    delete MCS[curId]; curId=null; cur=null; renderEditor(); renderList(); toast("MC excluída"); apagaOrfas(fts); }
 });
 
 /* ---------- fotos ---------- */
@@ -683,7 +700,7 @@ async function salvaFotoDb(file, im){
   if(data.length>240000) throw new Error("foto grande demais para salvar.");
   const id="f"+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
   await db.doc("fotos/"+id).set({data,w:r.w,h:r.h,criado:new Date().toISOString()});
-  FOTOS[id]=data; return {id,db:true,legenda:"",w:r.w,h:r.h};
+  FOTOS[id]=data; return {id,db:true,legenda:"",w:r.w,h:r.h,kb:Math.ceil(data.length/1024)};
 }
 async function enviarFotos(files){
   const msg=$("#fotoMsg"); msg.classList.remove("err");
