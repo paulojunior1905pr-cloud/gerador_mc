@@ -82,6 +82,7 @@ button:disabled{opacity:.5;cursor:default}
 aside{display:flex;flex-direction:column;gap:10px;min-width:0}
 .listhead{display:flex;gap:8px;align-items:center}
 .listhead select{flex:1}
+.oriw{display:inline-flex;flex-direction:column;font-size:12px;margin:0 8px 6px 0}
 .mclist{display:flex;flex-direction:column;gap:6px;max-height:70vh;overflow:auto}
 @media (max-width:860px){.mclist{max-height:220px}}
 .mcrow{text-align:left;display:grid;grid-template-columns:auto 1fr;gap:2px 10px;padding:8px 10px;border-radius:6px;font-weight:400}
@@ -155,6 +156,7 @@ tfoot td{font-weight:700;background:var(--chip)}
       <label class="f" style="flex:1">BM<select id="fBM"></select></label>
     </div>
     <div class="mclist" id="list"><div class="empty">Carregando as MCs salvas…</div></div>
+    <label class="f oriw">Página do Excel<select class="selOri"><option value="landscape">Horizontal (deitada)</option><option value="portrait">Vertical (em pé)</option></select></label>
     <button id="bBM">Baixar todas as MCs deste BM (.xlsx)</button>
     <p class="hint">Cada MC vira uma aba, com fórmulas e fotos, no padrão do contrato.</p>
   </aside>
@@ -286,6 +288,9 @@ function calcMC(m){
 
 /* ---------- estado e persistência ---------- */
 const BLOBS={}, FOTOS={};
+let ORI=(()=>{ try{ return localStorage.getItem("mc_ori")||"landscape"; }catch(e){ return "landscape"; } })();
+function syncOri(){ document.querySelectorAll(".selOri").forEach(s=>s.value=ORI); }
+document.addEventListener("change",e=>{ if(e.target.classList&&e.target.classList.contains("selOri")){ ORI=e.target.value; try{ localStorage.setItem("mc_ori",ORI); }catch(x){} syncOri(); } });
 let db=null, assets=null, downloads=null, MCS={}, cur=null, curId=null, saveT=null, filtroBM=null;
 const BM_ATUAL_PADRAO = 24;
 function status(s){ $("#status").textContent=s; }
@@ -408,10 +413,10 @@ function renderEditor(){
   </section>
 
   <section class="blk"><div class="row" style="justify-content:space-between">
-    <div class="row"><button class="pri" id="bXls">Baixar a MC (.xlsx)</button><button id="bProx">Copiar para o próximo BM</button><button id="bDup">Duplicar</button></div>
+    <div class="row"><label class="f oriw">Página do Excel<select class="selOri"><option value="landscape">Horizontal (deitada)</option><option value="portrait">Vertical (em pé)</option></select></label><button class="pri" id="bXls">Baixar a MC (.xlsx)</button><button id="bProx">Copiar para o próximo BM</button><button id="bDup">Duplicar</button></div>
     <div class="confirm" id="delBox"><button id="bDel">Excluir MC</button></div></div>
   </section>`;
-  renderEtapas(); renderFotos(); updateOut();
+  renderEtapas(); renderFotos(); updateOut(); syncOri();
 }
 function renderEtapas(){
   const m=cur, et=etapasDe(m.etapa.item), box=$("#et_box");
@@ -564,15 +569,16 @@ async function baixar(lista, nome){
   catch(e){ toast(e.code==="declined"?"Download cancelado.":"Não foi possível baixar: "+(e.code||e.message)); }
 }
 async function folhaMC(wb, nome, m){
-  const c=calcMC(m), ws=wb.addWorksheet(nome,{pageSetup:{orientation:"landscape",paperSize:9,fitToPage:true,fitToWidth:1,fitToHeight:0,margins:{left:.3,right:.3,top:.4,bottom:.4,header:.2,footer:.2}},views:[{showGridLines:false}]});
-  const W=[5,32,30,11,11,16,8,7,8,9,12,8,8,8,8,8,8,40]; W.forEach((w,i)=>ws.getColumn(i+1).width=w);
+  const VERT=ORI==="portrait", HF=VERT?1.4:1.15;
+  const c=calcMC(m), ws=wb.addWorksheet(nome,{pageSetup:{orientation:VERT?"portrait":"landscape",paperSize:9,fitToPage:true,fitToWidth:1,fitToHeight:0,margins:{left:.3,right:.3,top:.4,bottom:.4,header:.2,footer:.2}},views:[{showGridLines:false}]});
+  const W=VERT?[4,22,20,10,10,11,7,7,7,8,11,8,8,8,8,8,8,24]:[5,32,30,12,12,16,8,8,8,9,13,9,9,9,9,9,9,40]; W.forEach((w,i)=>ws.getColumn(i+1).width=w);
   const C=i=>String.fromCharCode(64+i);
   const thin={style:"thin",color:{argb:"FF808080"}}, BOX={top:thin,left:thin,bottom:thin,right:thin};
   const AZ={type:"pattern",pattern:"solid",fgColor:{argb:"FF1F4E78"}}, SEC={type:"pattern",pattern:"solid",fgColor:{argb:"FFDDEBF7"}}, INP={type:"pattern",pattern:"solid",fgColor:{argb:"FFFFF2CC"}}, TOT={type:"pattern",pattern:"solid",fgColor:{argb:"FFE2EFDA"}};
   const put=(ref,v,o={})=>{ if(o.m) ws.mergeCells(ref+":"+o.m); const cell=ws.getCell(ref); cell.value=v;
     const rng=o.m?ws.getCell(o.m):cell; const [r1,c1,r2,c2]=[cell.row,cell.col,rng.row,rng.col];
     for(let r=r1;r<=r2;r++) for(let cc=c1;cc<=c2;cc++){ const x=ws.getCell(r,cc); x.border=BOX; if(o.fill) x.fill=o.fill; }
-    cell.font={name:"Arial",size:o.sz||9,bold:!!o.b,italic:!!o.i,color:o.w?{argb:"FFFFFFFF"}:undefined};
+    cell.font={name:"Arial",size:({7:9,8:9,9:10,10:11,11:12,12:13,16:18})[o.sz||9]||o.sz,bold:!!o.b,italic:!!o.i,color:o.w?{argb:"FFFFFFFF"}:undefined};
     cell.alignment={horizontal:o.h||"left",vertical:"middle",wrapText:true}; if(o.f) cell.numFmt=o.f; return cell; };
   const F=(f,result)=>({formula:f,result});
   let NS=0; const sec=(r,t)=>{ t=(/^\d\./.test(t)?(++NS)+"."+t.replace(/^\d\./,""):t); put("A"+r,t,{m:"R"+r,fill:SEC,b:1,sz:10}); ws.getRow(r).height=18; };
@@ -586,7 +592,7 @@ async function folhaMC(wb, nome, m){
   put("F5",ini,{b:1,h:"center",f:"dd/mm/yyyy"}); put("G5","a",{h:"center"}); put("H5",fim,{m:"I5",b:1,h:"center",f:"dd/mm/yyyy"});
   put("J5","VALOR DA MC NO BM (R$):",{m:"N5",b:1,h:"right"});
   put("A6","SERVIÇO:",{m:"B6",b:1}); put("C6",m.servico,{m:"R6",b:1,fill:INP});
-  ws.getCell("A7").value="Células amarelas = valores informados. As demais são fórmulas."; ws.getCell("A7").font={name:"Arial",size:8,italic:true,color:{argb:"FF595959"}};
+  ws.getCell("A7").value="Células amarelas = valores informados. As demais são fórmulas."; ws.getCell("A7").font={name:"Arial",size:9,italic:true,color:{argb:"FF595959"}};
   // 1 itens
   const RI=10; sec(RI-1,"1. ITENS DA PPU MEDIDOS NESTA MC");
   head(RI,[["A","Nº"],["B","ITEM PPU"],["C","DESCRIÇÃO (PPU DO CONTRATO)","H"],["I","UNID."],["J","PREÇO PPU (R$)"],["K","MÉTODO","L"],["M","FATOR"],["N","PREÇO APLICADO (R$)","O"],["P","DEMÃOS"],["Q","SEÇÃO ANEXO 1","R"]]);
@@ -671,18 +677,21 @@ async function folhaMC(wb, nome, m){
   put("A"+r,m.obs||"",{m:"R"+r,sz:9,fill:INP}); ws.getRow(r).height=Math.max(30,16*((m.obs||"").split("\n").length+1)); r+=2;
   }
   // 6 fotos (2 por linha, grandes)
+  for(let rr=1; rr<r; rr++){ const row=ws.getRow(rr); row.height=Math.min(409,(row.height||15)*HF); }
   const fotos=(m.fotos||[]); let fimP=r;
   if(fotos.length){
     if(r>1) ws.getRow(r-1).addPageBreak();
     sec(r,"6. REGISTRO FOTOGRÁFICO"); r++;
-    const POR=2, LMAX=760, HMAX=520, PXL=20, BLOCO=Math.ceil(HMAX/PXL)+3, COLS=[0,7];
+    const px=W.map(w=>w*7+5), tot=px.reduce((a,b)=>a+b,0); let acc=0, c2=0; while(acc+px[c2]<tot/2) acc+=px[c2++];
+    const POR=2, LMAX=Math.round(Math.min(acc,tot-acc)-24), HMAX=VERT?Math.min(680,Math.round(LMAX*1.05)):480, PXL=20, BLOCO=Math.ceil(HMAX/PXL)+3, COLS=[0,c2];
     for(let k=0;k<fotos.length;k++){ const f=fotos[k], col=COLS[k%POR], linha=r+Math.floor(k/POR)*BLOCO;
       const buf=await fotoBuf(f); if(!buf) continue;
       const id=wb.addImage({buffer:buf,extension:"jpeg"}); const ratio=(f.w&&f.h)?f.w/f.h:4/3;
       let w=LMAX, h=w/ratio; if(h>HMAX){ h=HMAX; w=h*ratio; }
       ws.addImage(id,{tl:{col:col+0.1,row:linha-1+0.2},ext:{width:w,height:h}});
-      const cr=linha+Math.ceil(h/PXL)+1; const cap=ws.getCell(cr,col+1); cap.value=(k+1)+". "+(f.legenda||"Foto "+(k+1)); cap.font={name:"Arial",size:9,italic:true}; }
+      const cr=linha+Math.ceil(h/PXL)+1; const cap=ws.getCell(cr,col+1); cap.value=(k+1)+". "+(f.legenda||"Foto "+(k+1)); cap.font={name:"Arial",size:10,italic:true}; }
     for(let rr=r; rr<r+Math.ceil(fotos.length/POR)*BLOCO; rr++) ws.getRow(rr).height=15;
+    for(let q=2; q<Math.ceil(fotos.length/POR); q+=2) ws.getRow(r+q*BLOCO-1).addPageBreak();
     fimP=r+Math.ceil(fotos.length/POR)*BLOCO;
   }
   ws.pageSetup.printArea=`A1:R${fimP}`;
