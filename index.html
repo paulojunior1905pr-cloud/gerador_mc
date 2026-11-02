@@ -449,7 +449,7 @@ function renderEditor(){
       <label class="f">BM<input id="h_bm" data-k="bm" inputmode="numeric" value="${m.bm}"></label>
       <label class="f">Período<input class="ro" readonly value="${dbr(ini)} a ${dbr(fim)}"></label>
       <label class="f">Tanque / equipamento<input id="h_tq" data-k="tanque" value="${esc(m.tanque)}" placeholder="TQ-62016"></label>
-      <label class="f">RO / RDO<input id="h_ro" data-k="ro" value="${esc(m.ro)}"></label>
+      <label class="f">RO<input id="h_ro" data-k="ro" value="${esc(m.ro)}"></label>
       <label class="f">Tipo de MC<select id="h_tp" data-k="tipoMC">${Object.entries(TMC).map(([k,t])=>opt(k,t.n,m.tipoMC)).join("")}</select></label>
       <label class="f wide">Serviço<input id="h_sv" data-k="servico" value="${esc(m.servico)}" placeholder="Tratamento de superfície e pintura da escada helicoidal"></label>
     </div>
@@ -680,7 +680,7 @@ async function pdfMC(doc, m, VERT){
   const lb={fontStyle:"bold",fillColor:[242,242,242]}, inp={fillColor:INP,fontStyle:"bold"};
   T({body:[
     [{content:"OBJETO:",styles:lb},{content:OBJETO,colSpan:5}],
-    [{content:"TANQUE / EQUIP.:",styles:lb},{content:pdfTxt(m.tanque),styles:inp},{content:"RO / RDO:",styles:lb},{content:pdfTxt(m.ro),styles:inp},{content:"Nº DA MC:",styles:lb},{content:pdfTxt(m.mc),styles:inp}],
+    [{content:"TANQUE / EQUIP.:",styles:lb},{content:pdfTxt(m.tanque),styles:inp},{content:"RO:",styles:lb},{content:pdfTxt(m.ro),styles:inp},{content:"Nº DA MC:",styles:lb},{content:pdfTxt(m.mc),styles:inp}],
     [{content:"BM / PERÍODO:",styles:lb},{content:"BM-"+String(m.bm).padStart(3,"0")+"   "+d(ini)+" a "+d(fim),colSpan:3,styles:{fontStyle:"bold"}},{content:"VALOR NO BM:",styles:lb},{content:brl(c.total),styles:{fillColor:TOT,fontStyle:"bold",fontSize:FS+2,halign:"center"}}],
     [{content:"SERVIÇO:",styles:lb},{content:pdfTxt(m.servico),colSpan:5,styles:inp}],
   ],columnStyles:{0:{cellWidth:28},2:{cellWidth:24},4:{cellWidth:24}}});
@@ -764,7 +764,7 @@ async function folhaMC(wb, nome, m){
   put("A1","MEMÓRIA DE CÁLCULO",{m:"M2",b:1,sz:16,h:"center"}); put("N1","CONTRATO Nº",{m:"R1",b:1,sz:8,h:"center"}); put("N2",CONTRATO,{m:"R2",b:1,sz:11,h:"center"});
   put("A3","OBJETO:",{m:"B3",b:1}); put("C3",OBJETO,{m:"R3"});
   put("A4","REFINARIA:",{m:"B4",b:1}); put("C4","RNEST"); put("D4","TANQUE / EQUIP.:",{m:"E4",b:1}); put("F4",m.tanque,{m:"H4",b:1,h:"center",fill:INP});
-  put("I4","RO / RDO:",{m:"J4",b:1}); put("K4",m.ro,{m:"M4",b:1,h:"center",fill:INP}); put("N4","Nº DA MC:",{m:"O4",b:1}); put("P4",m.mc,{m:"R4",b:1,sz:11,h:"center",fill:INP});
+  put("I4","RO:",{m:"J4",b:1}); put("K4",m.ro,{m:"M4",b:1,h:"center",fill:INP}); put("N4","Nº DA MC:",{m:"O4",b:1}); put("P4",m.mc,{m:"R4",b:1,sz:11,h:"center",fill:INP});
   put("A5","BM:",{m:"B5",b:1}); put("C5","BM-"+String(m.bm).padStart(3,"0"),{b:1,sz:11}); put("D5","PERÍODO:",{m:"E5",b:1});
   put("F5",ini,{b:1,h:"center",f:"dd/mm/yyyy"}); put("G5","a",{h:"center"}); put("H5",fim,{m:"I5",b:1,h:"center",f:"dd/mm/yyyy"});
   put("J5","VALOR DA MC NO BM (R$):",{m:"N5",b:1,h:"right"});
