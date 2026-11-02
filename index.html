@@ -633,10 +633,13 @@ async function pdfMC(doc, m, VERT){
   if((m.obs||"").trim()){ sec("DESENHOS DE REFERÊNCIA E OBSERVAÇÕES"); T({body:[[pdfTxt(m.obs)]],styles:{fillColor:INP}}); }
   // fotos
   const fotos=m.fotos||[];
-  if(fotos.length){ doc.addPage(); y=10; sec("REGISTRO FOTOGRÁFICO");
-    const gap=6, cw=(CW-gap)/2, hmax=VERT?(H-34)/2-10:(H-34)/2-10; let col=0, rowH=0;
+  if(fotos.length){
+    const gap=6, cw=(CW-gap)/2, hmax=(H-34)/2-10; let col=0, rowH=0;
+    const livre=H-12-y-7-8; let hPri=hmax;
+    if(livre<50){ doc.addPage(); y=10; } else hPri=Math.min(hmax,livre);
+    sec("REGISTRO FOTOGRÁFICO");
     for(let k=0;k<fotos.length;k++){ const f=fotos[k]; const buf=await fotoBuf(f); if(!buf) continue;
-      const ratio=(f.w&&f.h)?f.w/f.h:4/3; let w=cw, h=w/ratio; if(h>hmax){ h=hmax; w=h*ratio; }
+      const lim=k<2?hPri:hmax; const ratio=(f.w&&f.h)?f.w/f.h:4/3; let w=cw, h=w/ratio; if(h>lim){ h=lim; w=h*ratio; }
       if(col===0 && y+h+8>H-12){ doc.addPage(); y=10; }
       const x=ML+col*(cw+gap)+(cw-w)/2;
       doc.addImage(new Uint8Array(buf),"JPEG",x,y,w,h,undefined,"FAST");
@@ -768,7 +771,6 @@ async function folhaMC(wb, nome, m){
   for(let rr=1; rr<r; rr++){ const row=ws.getRow(rr); row.height=Math.min(409,(row.height||15)*HF); }
   const fotos=(m.fotos||[]); let fimP=r;
   if(fotos.length){
-    if(r>1) ws.getRow(r-1).addPageBreak();
     sec(r,"6. REGISTRO FOTOGRÁFICO"); r++;
     const px=W.map(w=>w*7+5), tot=px.reduce((a,b)=>a+b,0); let acc=0, c2=0; while(acc+px[c2]<tot/2) acc+=px[c2++];
     const POR=2, LMAX=Math.round(Math.min(acc,tot-acc)-24), HMAX=VERT?Math.min(680,Math.round(LMAX*1.05)):480, PXL=20, BLOCO=Math.ceil(HMAX/PXL)+3, COLS=[0,c2];
