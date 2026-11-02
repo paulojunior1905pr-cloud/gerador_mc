@@ -40,6 +40,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 </head><body>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <style>
 /* Layout: barra de ferramentas fixa + lista de MCs à esquerda + formulário em blocos numerados como a própria MC */
 :root{
@@ -158,6 +160,7 @@ tfoot td{font-weight:700;background:var(--chip)}
     <div class="mclist" id="list"><div class="empty">Carregando as MCs salvas…</div></div>
     <label class="f oriw">Página do Excel<select class="selOri"><option value="landscape">Horizontal (deitada)</option><option value="portrait">Vertical (em pé)</option></select></label>
     <button id="bBM">Baixar todas as MCs deste BM (.xlsx)</button>
+    <button id="bBMpdf">Baixar todas as MCs deste BM (PDF)</button>
     <p class="hint">Cada MC vira uma aba, com fórmulas e fotos, no padrão do contrato.</p>
   </aside>
   <main id="ed"></main>
@@ -413,7 +416,7 @@ function renderEditor(){
   </section>
 
   <section class="blk"><div class="row" style="justify-content:space-between">
-    <div class="row"><label class="f oriw">Página do Excel<select class="selOri"><option value="landscape">Horizontal (deitada)</option><option value="portrait">Vertical (em pé)</option></select></label><button class="pri" id="bXls">Baixar a MC (.xlsx)</button><button id="bProx">Copiar para o próximo BM</button><button id="bDup">Duplicar</button></div>
+    <div class="row"><label class="f oriw">Página do Excel<select class="selOri"><option value="landscape">Horizontal (deitada)</option><option value="portrait">Vertical (em pé)</option></select></label><button class="pri" id="bXls">Baixar a MC (.xlsx)</button><button class="pri" id="bPdf">Baixar a MC (PDF)</button><button id="bProx">Copiar para o próximo BM</button><button id="bDup">Duplicar</button></div>
     <div class="confirm" id="delBox"><button id="bDel">Excluir MC</button></div></div>
   </section>`;
   renderEtapas(); renderFotos(); updateOut(); syncOri();
@@ -486,6 +489,7 @@ ED.addEventListener("click",async e=>{
   else if(t.id==="bAddEl"){ cur.elems.push(novoElem()); renderEditor(); document.getElementById(`e${cur.elems.length-1}_desc`)?.focus(); salvar(); }
   else if(t.id==="bAddLo"){ cur.etapa.lotes.push(novoLote()); renderEtapas(); updateOut(); salvar(); }
   else if(t.id==="bXls"){ await baixar([cur], nomeArq(cur)); }
+  else if(t.id==="bPdf"){ await baixarPDF([cur], nomeArq(cur).replace(/\.xlsx$/,".pdf")); }
   else if(t.id==="bDup"){ const c=normaliza(JSON.parse(JSON.stringify(cur))); c.mc=(cur.mc||"MC")+" (cópia)"; delete c.exemplo; curId=null; cur=c; renderEditor(); salvar(); toast("Cópia criada"); }
   else if(t.id==="bProx"){ const calc=calcMC(cur); const c=normaliza(JSON.parse(JSON.stringify(cur))); c.bm=cur.bm+1; delete c.exemplo;
     c.quadro=c.quadro.map((q,i)=>({ant:calc.linhas[i]?String(calc.linhas[i].acum).replace(".",","):"",pct:"",man:""})); c.fotos=[];
@@ -547,6 +551,8 @@ ED.addEventListener("drop",e=>{ const d=e.target.closest("#drop"); if(d){ e.prev
 
 /* ---------- Excel ---------- */
 const nomeArq = m => `${(m.mc||"MC").replace(/[^\w\-]+/g,"_")}_BM-${String(m.bm).padStart(3,"0")}_${(m.tanque||"").replace(/[^\w\-]+/g,"")}.xlsx`;
+$("#bBMpdf").addEventListener("click",()=>{ const ids=idsFiltrados(); if(!ids.length){ toast("Nenhuma MC neste BM."); return; }
+  baixarPDF(ids.map(id=>MCS[id]), `MCs_BM-${String(filtroBM??"todos").padStart(3,"0")}_TANQUES.pdf`); });
 $("#bBM").addEventListener("click",()=>{ const ids=idsFiltrados(); if(!ids.length){ toast("Nenhuma MC neste BM."); return; }
   baixar(ids.map(id=>MCS[id]), `MCs_BM-${String(filtroBM??"todos").padStart(3,"0")}_TANQUES.xlsx`); });
 async function fotoBuf(f){
@@ -555,6 +561,88 @@ async function fotoBuf(f){
   try{ const r=await fetch(f.url); if(r.ok) return await r.arrayBuffer(); }catch(e){}
   try{ const img=new Image(); img.crossOrigin="anonymous"; img.src=f.url; await img.decode(); const c=document.createElement("canvas"); c.width=img.naturalWidth; c.height=img.naturalHeight; c.getContext("2d").drawImage(img,0,0);
     const b=await new Promise(r=>c.toBlob(r,"image/jpeg",0.85)); return await b.arrayBuffer(); }catch(e){ return null; }
+}
+/* ---------- PDF ---------- */
+const pdfTxt = s => String(s??"").replace(/π/g,"pi").replace(/[−–—]/g,"-").replace(/→/g,"->").replace(/←/g,"<-").replace(/[^\x00-\xFF\n]/g,"");
+async function baixarPDF(lista, nome){
+  if(!window.jspdf||!window.jspdf.jsPDF){ toast("A biblioteca de PDF não carregou. Recarregue a página."); return; }
+  toast("Montando o PDF…");
+  const VERT=ORI==="portrait"; const doc=new window.jspdf.jsPDF({orientation:VERT?"portrait":"landscape",unit:"mm",format:"a4"});
+  for(let k=0;k<lista.length;k++){ if(k) doc.addPage(); await pdfMC(doc, lista[k], VERT); }
+  const n=doc.getNumberOfPages(); for(let i=1;i<=n;i++){ doc.setPage(i); doc.setFontSize(8); doc.setTextColor(110);
+    const W=doc.internal.pageSize.getWidth(), H=doc.internal.pageSize.getHeight(); doc.text(`Página ${i} de ${n}`, W-10, H-5, {align:"right"}); doc.text("Contrato "+CONTRATO, 10, H-5); }
+  const blob=doc.output("blob");
+  if(!downloads){ toast("Este navegador não permite baixar arquivos daqui."); return; }
+  try{ await downloads.save({filename:nome,data:blob}); toast("PDF pronto: "+nome); }
+  catch(e){ toast(e.code==="declined"?"Download cancelado.":"Não foi possível baixar: "+(e.code||e.message)); }
+}
+async function pdfMC(doc, m, VERT){
+  const c=calcMC(m), W=doc.internal.pageSize.getWidth(), H=doc.internal.pageSize.getHeight(), ML=10, CW=W-2*ML;
+  const AZ=[31,78,120], SEC=[221,235,247], INP=[255,242,204], TOT=[226,239,218];
+  const FS=VERT?8:9, HS=VERT?7.5:8.5;
+  const base={theme:"grid",margin:{left:ML,right:ML,bottom:12},styles:{font:"helvetica",fontSize:FS,cellPadding:1.4,lineColor:[128,128,128],lineWidth:0.15,textColor:20,valign:"middle",overflow:"linebreak"},
+    headStyles:{fillColor:AZ,textColor:255,fontStyle:"bold",fontSize:HS,halign:"center",valign:"middle"},footStyles:{fillColor:TOT,textColor:20,fontStyle:"bold",fontSize:FS}};
+  let y=10; let NS=0;
+  const T=(o)=>{ doc.autoTable(Object.assign({},base,o,{startY:y,styles:Object.assign({},base.styles,o.styles||{})})); y=doc.lastAutoTable.finalY+4; };
+  const sec=t=>{ if(y>H-30){ doc.addPage(); y=10; } doc.setFillColor(...SEC); doc.rect(ML,y,CW,6,"F"); doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(20); doc.text(pdfTxt((++NS)+". "+t),ML+1.5,y+4.2); y+=7; };
+  const sub=t=>{ doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.text(pdfTxt(t),ML,y+3.5); y+=5; };
+  const [ini,fim]=periodo(m.bm); const d=x=>x.toLocaleDateString("pt-BR");
+  // cabeçalho
+  doc.setFont("helvetica","bold"); doc.setFontSize(16); doc.setTextColor(20); doc.text("MEMÓRIA DE CÁLCULO",ML,y+6);
+  doc.setFontSize(9); doc.text("CONTRATO Nº "+CONTRATO,W-ML,y+2.5,{align:"right"});
+  doc.setFontSize(12); doc.text(pdfTxt(m.mc||"MC"),W-ML,y+8,{align:"right"}); y+=12;
+  const lb={fontStyle:"bold",fillColor:[242,242,242]}, inp={fillColor:INP,fontStyle:"bold"};
+  T({body:[
+    [{content:"OBJETO:",styles:lb},{content:OBJETO,colSpan:5}],
+    [{content:"TANQUE / EQUIP.:",styles:lb},{content:pdfTxt(m.tanque),styles:inp},{content:"RO / RDO:",styles:lb},{content:pdfTxt(m.ro),styles:inp},{content:"Nº DA MC:",styles:lb},{content:pdfTxt(m.mc),styles:inp}],
+    [{content:"BM / PERÍODO:",styles:lb},{content:"BM-"+String(m.bm).padStart(3,"0")+"   "+d(ini)+" a "+d(fim),colSpan:3,styles:{fontStyle:"bold"}},{content:"VALOR NO BM:",styles:lb},{content:brl(c.total),styles:{fillColor:TOT,fontStyle:"bold",fontSize:FS+2,halign:"center"}}],
+    [{content:"SERVIÇO:",styles:lb},{content:pdfTxt(m.servico),colSpan:5,styles:inp}],
+  ],columnStyles:{0:{cellWidth:28},2:{cellWidth:24},4:{cellWidth:24}}});
+  // 1 itens
+  const L=c.linhas.filter(Boolean);
+  sec("ITENS DA PPU MEDIDOS NESTA MC");
+  T({head:[["Nº","ITEM","DESCRIÇÃO (PPU DO CONTRATO)","UNID.","PREÇO PPU (R$)","MÉTODO","FATOR","PREÇO APLICADO (R$)","DEMÃOS","SEÇÃO"]],
+    body:L.map((l,k)=>{ const met=METODOS.find(x=>x[0]===l.metodo)||METODOS[0]; return [k+1,{content:l.item,styles:{fontStyle:"bold",halign:"center"}},pdfTxt(l.P.d),l.P.u,fmt(l.P.p),l.faixa?pdfTxt(met[2]):"Não se aplica",fmt(l.fat),{content:fmt(l.precoAp),styles:{fontStyle:"bold"}},l.dem,l.P.s]; }),
+    columnStyles:{0:{cellWidth:7,halign:"center"},1:{cellWidth:13},3:{cellWidth:11,halign:"center"},4:{cellWidth:18,halign:"right"},5:{cellWidth:VERT?22:30,halign:"center"},6:{cellWidth:13,halign:"center"},7:{cellWidth:20,halign:"right"},8:{cellWidth:15,halign:"center"},9:{cellWidth:13,halign:"center"}}});
+  // critério
+  const crit=L.map(l=>{ const et=etapasDe(l.item); return `Item ${l.item} (seção ${l.P.s}): ${l.P.c}`+(et?" Etapas: "+et.map(([n,p])=>Math.round(p*100)+"% "+n).join("; ")+".":""); }).join("\n");
+  if(crit){ sub("Critério de medição (Anexo 1 – resumo)"); T({body:[[pdfTxt(crit)]],styles:{fontSize:FS-0.5}}); }
+  // 2 memória
+  sec("MEMÓRIA DE CÁLCULO");
+  const els=m.elems.map((e,k)=>({e,v:c.el[k]})).filter(x=>x.e.tipo);
+  T({head:[["Nº","DESCRIÇÃO DO ELEMENTO / ORIGEM","TIPO DE CÁLCULO","CÁLCULO","RESULTADO",...L.map(l=>l.item)]],
+    body:els.map((x,j)=>[j+1,pdfTxt(x.e.desc),pdfTxt(x.e.tipo),pdfTxt(textoElem(x.e)),{content:fmt(x.v,3),styles:{fontStyle:"bold",halign:"right"}},...L.map(l=>({content:x.e.fl[l.i]?"x":"",styles:{halign:"center",fontStyle:"bold"}}))]),
+    foot:[[{content:"QUANTIDADE DA MEMÓRIA POR ITEM",colSpan:5,styles:{halign:"right"}},...L.map(l=>({content:fmt(l.mem,3),styles:{halign:"center"}}))]],
+    columnStyles:Object.assign({0:{cellWidth:7,halign:"center"},2:{cellWidth:VERT?28:40},4:{cellWidth:20}},Object.fromEntries(L.map((_,k)=>[5+k,{cellWidth:VERT?13:16}])))});
+  // 3 quadro
+  sec("QUADRO DE MEDIÇÃO E AVANÇO POR ITEM");
+  T({head:[["ITEM","DESCRIÇÃO","UNID.","QTD MEMÓRIA","DEMÃOS","PREVISTO","ACUM. ANTERIOR","MEDIDO NO BM","ACUMULADO","% ACUM.","PREÇO APLIC.","VALOR NO BM (R$)"]],
+    body:L.map(l=>[{content:l.item,styles:{fontStyle:"bold",halign:"center"}},{content:pdfTxt(l.P.d),styles:{fontSize:FS-1}},l.P.u,fmt(l.mem,3),l.dem,fmt(l.prev,3),fmt(l.ant,3),{content:fmt(l.bm,3),styles:{fontStyle:"bold"}},fmt(l.acum,3),l.pa==null?"":fmt(l.pa*100,1)+"%",fmt(l.precoAp),{content:fmt(l.valor),styles:{fontStyle:"bold"}}]),
+    foot:[[{content:"TOTAL DA MC NO BM (R$)",colSpan:11,styles:{halign:"right"}},{content:fmt(c.total),styles:{halign:"right",fontSize:FS+1}}]],
+    columnStyles:{0:{cellWidth:12},2:{cellWidth:10,halign:"center"},3:{halign:"right"},4:{cellWidth:15,halign:"center"},5:{halign:"right"},6:{halign:"right"},7:{halign:"right"},8:{halign:"right"},9:{cellWidth:14,halign:"center"},10:{halign:"right"},11:{cellWidth:24,halign:"right"}}});
+  // 4 etapas
+  const et=etapasDe(m.etapa.item);
+  if(et){ const lotes=m.etapa.lotes.filter(l=>num(l.area)!=null), cres=calcEtapas(m);
+    sec("ITEM "+m.etapa.item+" – MEDIÇÃO POR ETAPAS (BM em que cada etapa foi concluída)");
+    T({head:[["LOTE","DESCRIÇÃO","TIPO","ÁREA / QTD",...et.map(([n,p])=>Math.round(p*100)+"% "+n),"% NO BM","EQUIV. NO BM","% ACUM.","EQUIV. ACUM."]].map(r=>r.map(pdfTxt)),
+      body:lotes.map((l,k)=>{ const q=cres.lotes[m.etapa.lotes.indexOf(l)]; return [k+1,pdfTxt(l.desc),pdfTxt(l.tipo),fmt(num(l.area),3),...et.map((_,j)=>({content:pdfTxt(l.bms[j]),styles:{halign:"center",fillColor:INP}})),fmt(q.pb*100,0)+"%",{content:fmt(q.qb,3),styles:{fontStyle:"bold"}},fmt(q.pa*100,0)+"%",fmt(q.qa,3)]; }),
+      foot:[[{content:"TOTAL",colSpan:3,styles:{halign:"right"}},fmt(lotes.reduce((s,l)=>s+num(l.area),0),3),{content:"",colSpan:et.length+1},fmt(cres.bm,3),"",fmt(cres.acum,3)]],
+      headStyles:Object.assign({},base.headStyles,{fontSize:HS-1}),columnStyles:{0:{cellWidth:10,halign:"center"},3:{halign:"right"}}});
+  }
+  // obs
+  if((m.obs||"").trim()){ sec("DESENHOS DE REFERÊNCIA E OBSERVAÇÕES"); T({body:[[pdfTxt(m.obs)]],styles:{fillColor:INP}}); }
+  // fotos
+  const fotos=m.fotos||[];
+  if(fotos.length){ doc.addPage(); y=10; sec("REGISTRO FOTOGRÁFICO");
+    const gap=6, cw=(CW-gap)/2, hmax=VERT?(H-34)/2-10:(H-34)/2-10; let col=0, rowH=0;
+    for(let k=0;k<fotos.length;k++){ const f=fotos[k]; const buf=await fotoBuf(f); if(!buf) continue;
+      const ratio=(f.w&&f.h)?f.w/f.h:4/3; let w=cw, h=w/ratio; if(h>hmax){ h=hmax; w=h*ratio; }
+      if(col===0 && y+h+8>H-12){ doc.addPage(); y=10; }
+      const x=ML+col*(cw+gap)+(cw-w)/2;
+      doc.addImage(new Uint8Array(buf),"JPEG",x,y,w,h,undefined,"FAST");
+      doc.setFont("helvetica","italic"); doc.setFontSize(9); doc.setTextColor(40); doc.text(pdfTxt((k+1)+". "+(f.legenda||"Foto "+(k+1))),ML+col*(cw+gap),y+h+4,{maxWidth:cw});
+      rowH=Math.max(rowH,h+8); col++; if(col===2){ col=0; y+=rowH+2; rowH=0; } }
+  }
 }
 async function baixar(lista, nome){
   if(typeof ExcelJS==="undefined"){ toast("A biblioteca de planilhas não carregou. Recarregue a página."); return; }
