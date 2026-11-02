@@ -475,7 +475,7 @@ function renderEditor(){
     <div class="row" style="margin-top:8px"><button id="bAddEl">+ Linha</button><span class="hint">Nas medidas você pode digitar a conta, por exemplo <b>32,44+2*(3,30+0,40)</b>: ela aparece na MC e no Excel. Fatores do contrato já entram pela forma escolhida.</span></div>
   </section>
 
-  <section class="blk"><h2><span class="num">3</span> Quadro de medição <small>Digite o acumulado até o BM anterior e o % (ou a quantidade) deste BM.</small></h2>
+  <section class="blk"><h2><span class="num">3</span> Medição e avanço por item <small>Digite o acumulado até o BM anterior e o % (ou a quantidade) deste BM.</small></h2>
     <div class="tblw"><table><thead><tr><th>Item</th><th class="r">Qtd memória</th><th class="c">${tituloDemao(m.itens.map(x=>x.item))}</th><th class="r">Previsto</th><th class="r">Acum. anterior</th><th class="r">% no BM</th><th class="r">Qtd no BM (opcional)</th><th class="r">Medido no BM</th><th class="r">Acumulado</th><th class="r">% acum.</th><th class="r">Valor no BM</th></tr></thead><tbody>
     ${m.quadro.map((q,i)=>`<tr id="qr${i}"><td><span class="out" id="o_qi${i}"></span></td><td class="r"><span class="out" id="o_qm${i}"></span></td><td class="c"><span class="out" id="o_qd${i}"></span></td><td class="r"><span class="out" id="o_qp${i}"></span></td>
       <td><input id="q${i}_ant" class="num" data-q="${i}" data-f="ant" inputmode="decimal" value="${esc(q.ant)}"></td>
@@ -665,7 +665,7 @@ async function pdfMC(doc, m, VERT){
   const c=calcMC(m), W=doc.internal.pageSize.getWidth(), H=doc.internal.pageSize.getHeight(), ML=10, CW=W-2*ML;
   const AZ=[31,78,120], SEC=[221,235,247], INP=[255,242,204], TOT=[226,239,218];
   const FS=VERT?8:9, HS=VERT?7.5:8.5;
-  const base={theme:"grid",margin:{left:ML,right:ML,bottom:12},styles:{font:"helvetica",fontSize:FS,cellPadding:1.4,lineColor:[128,128,128],lineWidth:0.15,textColor:20,valign:"middle",overflow:"linebreak"},
+  const base={theme:"grid",showFoot:"lastPage",showHead:"everyPage",margin:{left:ML,right:ML,bottom:12},styles:{font:"helvetica",fontSize:FS,cellPadding:1.4,lineColor:[128,128,128],lineWidth:0.15,textColor:20,valign:"middle",overflow:"linebreak"},
     headStyles:{fillColor:AZ,textColor:255,fontStyle:"bold",fontSize:HS,halign:"center",valign:"middle"},footStyles:{fillColor:TOT,textColor:20,fontStyle:"bold",fontSize:FS}};
   let y=10; let NS=0;
   const T=(o)=>{ doc.autoTable(Object.assign({},base,o,{startY:y,styles:Object.assign({},base.styles,o.styles||{})})); y=doc.lastAutoTable.finalY+4; };
@@ -701,7 +701,7 @@ async function pdfMC(doc, m, VERT){
     columnStyles:Object.assign({0:{cellWidth:7,halign:"center"},2:{cellWidth:VERT?28:40},4:{cellWidth:20}},Object.fromEntries(L.map((_,k)=>[5+k,{cellWidth:VERT?13:16}])))});
   const dem=somaItens(m,c); if(dem){ y-=2; T({body:[[pdfTxt(dem)]],styles:{fontSize:FS-0.5,fontStyle:"italic",fillColor:[248,248,248]}}); }
   // 3 quadro
-  sec("QUADRO DE MEDIÇÃO E AVANÇO POR ITEM");
+  sec("MEDIÇÃO E AVANÇO POR ITEM");
   T({head:[["ITEM","DESCRIÇÃO","UNID.","QTD MEMÓRIA",tituloDemao(L.map(l=>l.item)).toUpperCase(),"PREVISTO","ACUM. ANTERIOR","MEDIDO NO BM","ACUMULADO","% ACUM.","PREÇO APLIC.","VALOR NO BM (R$)"]],
     body:L.map(l=>[{content:l.item,styles:{fontStyle:"bold",halign:"center"}},{content:pdfTxt(l.P.d),styles:{fontSize:FS-1}},l.P.u,fmt(l.mem,3),l.usaD?l.dem:{content:l.base,styles:{fontSize:FS-1,textColor:90}},fmt(l.prev,3),fmt(l.ant,3),{content:fmt(l.bm,3),styles:{fontStyle:"bold"}},fmt(l.acum,3),l.pa==null?"":fmt(l.pa*100,1)+"%",fmt(l.precoAp),{content:fmt(l.valor),styles:{fontStyle:"bold"}}]),
     foot:[[{content:"TOTAL DA MC NO BM (R$)",colSpan:11,styles:{halign:"right"}},{content:fmt(c.total),styles:{halign:"right",fontSize:FS+1}}]],
@@ -811,7 +811,7 @@ async function folhaMC(wb, nome, m){
   // 4 etapas (antes do quadro para as referências) -> posicionado depois; calculamos linhas
   const et=etapasDe(m.etapa.item); const lotes=et?m.etapa.lotes.filter(l=>num(l.area)!=null):[];
   // 3 quadro
-  sec(r,"3. QUADRO DE MEDIÇÃO E AVANÇO POR ITEM"); r++;
+  sec(r,"3. MEDIÇÃO E AVANÇO POR ITEM"); r++;
   head(r,[["A","Nº"],["B","ITEM"],["C","DESCRIÇÃO"],["D","UNID."],["E","QTD MEMÓRIA"],["F",tituloDemao(L.map(l=>l.item)).toUpperCase()],["G","PREVISTO","H"],["I","ACUM. ATÉ BM ANTERIOR"],["J","% NO BM"],["K","MEDIDO NO BM","L"],["M","ACUMULADO","N"],["O","% ACUM."],["P","PREÇO APLICADO"],["Q","VALOR NO BM (R$)","R"]]);
   const Q0=r+1; const QE=Q0+Math.max(L.length,1)-1;
   const ETR0 = QE+6; // linha do 1º lote (seção, item, cabeçalho)
