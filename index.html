@@ -4,7 +4,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<style>.bkbar{position:fixed;left:0;right:0;bottom:0;display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;padding:6px 12px;background:#1f2a37;color:#fff;font:13px system-ui;z-index:50}.bkbar button,.bkbar .bkbtn{position:relative;background:#fff;color:#1f2a37;border:0;border-radius:6px;padding:5px 10px;font:inherit;cursor:pointer}body{padding-bottom:44px}.loginov{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,32,.72)}.loginov[hidden]{display:none}.logincx{background:var(--panel,#fff);color:var(--ink,#1f2a37);max-width:420px;width:100%;border-radius:12px;padding:24px;box-shadow:0 10px 40px rgba(0,0,0,.35);font:15px system-ui;text-align:center}.logincx h2{margin:0 0 8px}.logincx p{line-height:1.45}.logincx #lgGoogle{font-size:16px;padding:10px 18px;cursor:pointer}.lgerro{color:#c0392b;min-height:1em;font-size:14px}.bkesp{display:inline-flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums}.bkesp i{display:inline-block;width:90px;height:8px;border-radius:4px;background:rgba(255,255,255,.25);overflow:hidden}.bkesp i b{display:block;height:100%;background:#6fcf8f}.bkesp.alto i b{background:#f0a94a}.bkesp.cheio i b{background:#ff8a80}.lglocal{background:none;border:0;color:inherit;opacity:.8;text-decoration:underline;cursor:pointer;font:inherit;font-size:14px}</style><script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<style>.bkbar{position:fixed;left:0;right:0;bottom:0;display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;padding:6px 12px;background:#1f2a37;color:#fff;font:13px system-ui;z-index:50}.bkbar button,.bkbar .bkbtn{position:relative;background:#fff;color:#1f2a37;border:0;border-radius:6px;padding:5px 10px;font:inherit;cursor:pointer}body{padding-bottom:44px}@media (min-width:901px){.bkbar{left:260px}}.loginov{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,32,.72)}.loginov[hidden]{display:none}.logincx{background:var(--panel,#fff);color:var(--ink,#1f2a37);max-width:420px;width:100%;border-radius:12px;padding:24px;box-shadow:0 10px 40px rgba(0,0,0,.35);font:15px system-ui;text-align:center}.logincx h2{margin:0 0 8px}.logincx p{line-height:1.45}.logincx #lgGoogle{font-size:16px;padding:10px 18px;cursor:pointer}.lgerro{color:#c0392b;min-height:1em;font-size:14px}.bkesp{display:inline-flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums}.bkesp i{display:inline-block;width:90px;height:8px;border-radius:4px;background:rgba(255,255,255,.25);overflow:hidden}.bkesp i b{display:block;height:100%;background:#6fcf8f}.bkesp.alto i b{background:#f0a94a}.bkesp.cheio i b{background:#ff8a80}.lglocal{background:none;border:0;color:inherit;opacity:.8;text-decoration:underline;cursor:pointer;font:inherit;font-size:14px}</style><script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>/* GitHub Pages: MCs na nuvem (Firebase, login Google). Sem login: salva no aparelho (IndexedDB). */
@@ -128,20 +128,26 @@
 <style>
 /* Layout: barra de ferramentas fixa + lista de MCs à esquerda + formulário em blocos numerados como a própria MC */
 :root{
-  --bg:#f4f6f7; --panel:#ffffff; --ink:#18232b; --muted:#5d6b75; --line:#d5dde2;
-  --accent:#0f5f63; --accent-ink:#ffffff; --entry:#fff6d9; --entry-line:#e7d08a;
-  --ok:#1f7a3f; --warn:#a65b00; --bad:#b3261e; --chip:#e6eef0;
+  --bg:#eef1f5; --panel:#ffffff; --ink:#14212e; --muted:#5b6876; --line:#dde3ea;
+  --accent:#0b4f8a; --accent-ink:#ffffff; --entry:#ffffff; --entry-line:#cfd7e0;
+  --ok:#1f7a3f; --warn:#a65b00; --bad:#b3261e; --chip:#f1f4f8;
+  --side:#0f2236; --side-ink:#b4c4d4; --side-mut:#7f97ae; --side-line:#23394f; --side-hi:#1b3a5a; --side-acc:#2f7fd1;
+  --shadow:0 1px 2px rgba(16,34,54,.06),0 4px 14px rgba(16,34,54,.05); --sel:#e8f1fb; --zebra:#fafbfd;
   --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#11181d; --panel:#18222a; --ink:#e3eaee; --muted:#9aa9b3; --line:#2c3a44;
-  --accent:#4fb3b6; --accent-ink:#0b1417; --entry:#2f2a17; --entry-line:#6b5a22;
-  --ok:#6fcf8f; --warn:#f0a94a; --bad:#ff8a80; --chip:#22323b; color-scheme:dark}}
+  --bg:#0e151c; --panel:#16212b; --ink:#e3eaf0; --muted:#97a7b6; --line:#273746;
+  --accent:#5aa2e6; --accent-ink:#08121b; --entry:#1b2834; --entry-line:#33475a;
+  --ok:#6fcf8f; --warn:#f0a94a; --bad:#ff8a80; --chip:#1d2b37;
+  --side:#0a121a; --side-ink:#a9bbcc; --side-mut:#6c8399; --side-line:#1b2b3b; --side-hi:#16304a; --side-acc:#3b8ee0;
+  --shadow:0 1px 2px rgba(0,0,0,.3); --sel:#17324c; --zebra:#182530; color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#11181d; --panel:#18222a; --ink:#e3eaee; --muted:#9aa9b3; --line:#2c3a44;
-  --accent:#4fb3b6; --accent-ink:#0b1417; --entry:#2f2a17; --entry-line:#6b5a22;
-  --ok:#6fcf8f; --warn:#f0a94a; --bad:#ff8a80; --chip:#22323b; color-scheme:dark}
+  --bg:#0e151c; --panel:#16212b; --ink:#e3eaf0; --muted:#97a7b6; --line:#273746;
+  --accent:#5aa2e6; --accent-ink:#08121b; --entry:#1b2834; --entry-line:#33475a;
+  --ok:#6fcf8f; --warn:#f0a94a; --bad:#ff8a80; --chip:#1d2b37;
+  --side:#0a121a; --side-ink:#a9bbcc; --side-mut:#6c8399; --side-line:#1b2b3b; --side-hi:#16304a; --side-acc:#3b8ee0;
+  --shadow:0 1px 2px rgba(0,0,0,.3); --sel:#17324c; --zebra:#182530; color-scheme:dark}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.45}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--panel)}
@@ -234,6 +240,55 @@ tfoot td{font-weight:700;background:var(--chip)}
   padding:8px 14px;border-radius:6px;font-size:13px;z-index:20;max-width:calc(100% - 32px)}
 .confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px}
 @media (prefers-reduced-motion:no-preference){.mcrow{transition:border-color .15s}}
+
+/* ===== Layout "corporativo com indicadores": barra lateral escura com índice das seções + indicadores no topo ===== */
+body{font-family:"Inter","Segoe UI",var(--f-body)}
+.top{position:fixed;left:0;top:0;bottom:0;width:260px;flex-direction:column;flex-wrap:nowrap;align-items:stretch;background:var(--side);border:0;
+  padding:22px 16px calc(60px + env(safe-area-inset-bottom,0px));gap:14px;z-index:6;overflow-y:auto}
+.top .brand b{color:#fff;font-size:19px}
+.top .brand span{color:var(--side-mut);font-family:inherit;font-size:12px}
+.top .sp{display:none}
+.top #bNova{order:1;background:var(--side-acc);border-color:var(--side-acc);color:#fff;font-size:15px;padding:10px}
+.secnav{order:2;display:flex;flex-direction:column;gap:2px;font-size:14px;border-top:1px solid var(--side-line);padding-top:12px}
+.secnav .tt{color:var(--side-mut);font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 6px 10px}
+.secnav a{padding:8px 10px;border-radius:7px;color:var(--side-ink);text-decoration:none;display:flex;gap:10px;align-items:center;white-space:nowrap}
+.secnav a:hover{background:var(--side-hi);color:#fff}
+.secnav a i{font-style:normal;display:inline-grid;place-items:center;min-width:24px;height:24px;border-radius:12px;background:rgba(255,255,255,.07);color:#8fb5dc;font-size:11px;font-weight:700;padding:0 4px}
+.secnav a.on{background:var(--side-hi);color:#fff}
+.secnav a.on i{background:var(--side-acc);color:#fff}
+.secnav .vazio{color:var(--side-mut);font-size:13px;margin:0 10px}
+.top .status{order:5;color:var(--side-mut);margin-top:auto}
+.top .tema{order:6;color:var(--side-mut)}
+.top .tema select{background:var(--side-hi);color:#fff;border-color:var(--side-line)}
+.kpis{margin-left:260px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;padding:22px 24px 0}
+.kpi{background:var(--panel);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);display:flex;gap:14px;align-items:center;min-width:0}
+.kpi .ic{flex:none;width:42px;height:42px;border-radius:10px;display:grid;place-items:center;background:color-mix(in srgb,var(--k) 14%,transparent);color:var(--k);font-size:16px;font-weight:700}
+.kpi div{min-width:0}
+.kpi small{display:block;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.05em}
+.kpi b{display:block;font-size:22px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wrap{margin-left:260px;grid-template-columns:240px minmax(0,1fr);padding:20px 24px 60px}
+aside .mclist{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px}
+.mcrow{border:0;border-radius:7px}
+.mcrow.on{background:var(--sel);box-shadow:inset 3px 0 0 var(--accent)}
+section.blk{border:0;border-radius:12px;box-shadow:var(--shadow);padding:20px;scroll-margin-top:16px}
+.blk h2{font-size:14px;letter-spacing:.04em}
+.blk h2 .num{display:inline-grid;place-items:center;min-width:26px;height:26px;border-radius:13px;background:var(--sel);color:var(--accent);font-size:12px;padding:0 6px}
+th{background:var(--chip)}
+table tbody tr:nth-child(even) td{background:var(--zebra)}
+input,select,textarea{border-radius:7px}
+.total .big{font-size:26px}
+@media (max-width:1100px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:900px){
+  .top{position:sticky;top:0;bottom:auto;width:auto;flex-direction:row;flex-wrap:wrap;align-items:center;padding:10px 16px;overflow:visible;gap:8px 12px}
+  .top .brand{flex:1}.top #bNova{order:2;font-size:14px;padding:7px 12px}
+  .top .status{order:3;margin-top:0}.top .tema{order:4}
+  .secnav{order:9;flex-basis:100%;flex-direction:row;overflow-x:auto;border-top:1px solid var(--side-line);padding-top:8px;gap:4px}
+  .secnav .tt{display:none}.secnav a{padding:6px 8px}
+  .top{position:relative}.top .brand span{display:none}.top .brand b{font-size:17px}.top .status{display:none}
+  .wrap{grid-template-columns:minmax(0,1fr)}
+  .kpis,.wrap{margin-left:0}.kpis{padding:16px 16px 0;gap:10px}.wrap{padding:16px}
+  .kpi{padding:10px 12px;gap:10px}.kpi .ic{width:34px;height:34px;font-size:13px}.kpi b{font-size:15px}.kpi small{font-size:10.5px}
+}
 </style>
 
 <header class="top">
@@ -242,7 +297,9 @@ tfoot td{font-weight:700;background:var(--chip)}
   <span class="status" id="status">Conectando…</span>
   <label class="tema">Tema<select id="selTema"><option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
   <button id="bNova" class="pri">+ Nova MC</button>
+  <nav class="secnav" id="secnav"></nav>
 </header>
+<div class="kpis" id="kpis"></div>
 
 <div class="wrap">
   <aside>
@@ -486,7 +543,7 @@ function espacoUsado(){ const vistos=new Set(); let b=0;
   for(const m of Object.values(MCS)){ b+=JSON.stringify(m).length;
     for(const f of (m.fotos||[])){ if(!f.db||vistos.has(f.id)) continue; vistos.add(f.id); b+=((f.kb||(FOTOS[f.id]?Math.ceil(FOTOS[f.id].length/1024):200))+1)*1024; } }
   return {bytes:b,fotos:vistos.size,mcs:Object.keys(MCS).length}; }
-function renderList(){ if(window.mcEspaco) try{ window.mcEspaco(espacoUsado()); }catch(e){}
+function renderList(){ kpis(); if(window.mcEspaco) try{ window.mcEspaco(espacoUsado()); }catch(e){}
   const bms=[...new Set(Object.values(MCS).map(m=>m.bm))].sort((a,b)=>b-a);
   if(filtroBM==null && bms.length) filtroBM=bms[0];
   $("#fBM").innerHTML='<option value="">Todos</option>'+bms.map(b=>`<option value="${b}" ${b===filtroBM?"selected":""}>BM-${String(b).padStart(3,"0")}</option>`).join("");
@@ -530,9 +587,30 @@ function memVazia(m){ return m.elems.every(e=>!e.desc && !e.a && !e.b && !e.c &&
 function aplicaModelo(m){ const tp=tipoMC(m); if(!memVazia(m)) return;
   const comp=(f,it)=>{ const P=PPU[it]; if(!P) return false; const k=FORMAS[f][3]; return k==="diaria"||k==="dias" ? P.u==="Diária" : k==="un" ? !["m²","m","Diária"].includes(P.u) : ["m²","m"].includes(P.u); };
   m.elems=(tp.modelo.length?tp.modelo:[["",tp.f[0]]]).map(([d,f])=>Object.assign(novoElem(f),{desc:d,fl:m.itens.map(it=>comp(f,it.item))})); }
+
+/* ---------- indicadores do topo e índice das seções ---------- */
+function kpis(){ const el=document.getElementById("kpis"); if(!el) return;
+  const bm=cur?cur.bm:filtroBM, nMC=bm==null?Object.keys(MCS).length:Object.values(MCS).filter(m=>m.bm===bm).length;
+  const c=(ic,k,t,v)=>`<div class="kpi" style="--k:${k}"><span class="ic">${ic}</span><div><small>${t}</small><b>${v}</b></div></div>`;
+  el.innerHTML=c("BM","#2f7fd1","BM atual",bm==null?"—":"BM-"+String(bm).padStart(3,"0"))+c("#","#0e9f7e","MCs no BM",nMC)+
+    c("R$","#d98a1c","Valor desta MC",cur?brl(calcMC(cur).total):"—")+c("▣","#8a5cd1","Fotos anexadas",cur?(cur.fotos||[]).length:"—"); }
+function navSecoes(){ const nav=document.getElementById("secnav"); if(!nav) return;
+  const secs=[...document.querySelectorAll("#ed section.blk")].filter(s=>s.querySelector("h2 .num")&&!s.hidden&&s.style.display!=="none");
+  if(!secs.length){ nav.innerHTML='<div class="tt">Seções da MC</div><div class="vazio">Abra ou crie uma MC.</div>'; return; }
+  nav.innerHTML='<div class="tt">Seções da MC</div>'+secs.map((s,i)=>{ s.id="sec"+i; const h=s.querySelector("h2").cloneNode(true); const n=h.querySelector(".num").textContent; h.querySelectorAll(".num,small").forEach(x=>x.remove());
+    let t=h.textContent.trim().replace(/^Medição e avanço por item$/,"Medição e avanço").replace(/^Desenhos de referência e observações$/,"Desenhos e obs.").replace(/^Registro fotográfico$/,"Fotos").replace(/^Medição por etapas$/,"Etapas");
+    return `<a href="#sec${i}" data-sec="${i}"><i>${esc(n)}</i>${esc(t)}</a>`; }).join("");
+  marcaSecao(); }
+function marcaSecao(){ const secs=[...document.querySelectorAll("#ed section.blk[id^=sec]")]; if(!secs.length) return; let on=0;
+  secs.forEach((s,i)=>{ if(s.getBoundingClientRect().top<=140) on=i; });
+  if(window.innerHeight+window.scrollY>=document.documentElement.scrollHeight-4) on=secs.length-1;
+  document.querySelectorAll("#secnav a").forEach(a=>a.classList.toggle("on",+a.dataset.sec===on)); }
+document.getElementById("secnav").addEventListener("click",e=>{ const a=e.target.closest("a[data-sec]"); if(!a) return; e.preventDefault();
+  const s=document.getElementById("sec"+a.dataset.sec); if(s) s.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"}); });
+window.addEventListener("scroll",()=>requestAnimationFrame(marcaSecao),{passive:true});
 function renderEditor(){
   const ed=$("#ed");
-  if(!cur){ ed.innerHTML=`<section class="blk"><h2>Comece por aqui</h2><p>Escolha uma MC na lista ou toque em <b>+ Nova MC</b>. Você preenche as medidas, o site faz as contas pelas regras do contrato e gera a planilha da MC com fórmulas e fotos.</p></section>`; return; }
+  if(!cur){ ed.innerHTML=`<section class="blk"><h2>Comece por aqui</h2><p>Escolha uma MC na lista ou toque em <b>+ Nova MC</b>. Você preenche as medidas, o site faz as contas pelas regras do contrato e gera a planilha da MC com fórmulas e fotos.</p></section>`; navSecoes(); kpis(); return; }
   const m=cur, [ini,fim]=periodo(m.bm), tp=tipoMC(m);
   ed.innerHTML=`
   <section class="blk"><h2><span class="num">MC</span> Cabeçalho <small>${esc(OBJETO)}</small></h2>
@@ -596,7 +674,7 @@ function renderEditor(){
     <div class="row"><label class="f oriw">Página do Excel<select class="selOri"><option value="portrait">Vertical (em pé)</option><option value="landscape">Horizontal (deitada)</option></select></label><button class="pri" id="bXls">Baixar a MC (.xlsx)</button><button class="pri" id="bPdf">Baixar a MC (PDF)</button><button id="bProx">Copiar para o próximo BM</button><button id="bDup">Duplicar</button></div>
     <div class="confirm" id="delBox"><button id="bDel">Excluir MC</button></div></div>
   </section>`;
-  renderEtapas(); renderFotos(); updateOut(); syncOri();
+  renderEtapas(); renderFotos(); updateOut(); syncOri(); navSecoes();
 }
 function renderEtapas(){
   const m=cur, et=etapasDe(m.etapa.item), box=$("#et_box");
@@ -611,7 +689,7 @@ function renderEtapas(){
   </tbody><tfoot><tr><td colspan="${3+et.length+1}" class="r">Total (vai para o quadro de medição)</td><td class="r"><span class="out" id="o_ltb"></span></td><td></td><td class="r"><span class="out" id="o_lta"></span></td><td></td></tr></tfoot></table></div>
   <div class="row" style="margin-top:8px"><button id="bAddLo">+ Lote</button><span class="hint">Sobreposição sem remoção: digite N/A na etapa de remoção e descarte.</span></div>`;
 }
-function renderFotos(){
+function renderFotos(){ kpis();
   const box=$("#photos"); if(!box) return;
   box.innerHTML=cur.fotos.map((f,k)=>`<div class="ph"><img src="${esc(fotoSrc(f)||"")}" data-fsrc="${k}" alt="${esc(f.legenda||"Foto "+(k+1))}" loading="lazy"><input id="ft${k}" data-ft="${k}" value="${esc(f.legenda)}" placeholder="Legenda da foto ${k+1}"><button class="ghost rm" data-del-ft="${k}">Remover</button></div>`).join("");
   cur.fotos.forEach((f,k)=>{ if(f.db && !FOTOS[f.id]) carregaFotoDb(f.id).then(u=>{ const im=box.querySelector(`img[data-fsrc="${k}"]`); if(u&&im) im.src=u; }); });
@@ -623,7 +701,7 @@ async function carregaFotoDb(id){
   try{ const d=await db.doc("fotos/"+id).get(); const v=d&&d.exists!==false&&d.data(); if(v&&v.data){ FOTOS[id]=v.data; return v.data; } }catch(e){}
   return null;
 }
-function updateOut(){
+function updateOut(){ kpis();
   const m=cur, c=calcMC(m), set=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
   set("o_total",brl(c.total)); set("o_qt",brl(c.total));
   $("#o_alerts").innerHTML=c.alerts.slice(0,8).map(([k,t])=>`<div class="alert ${k}">${esc(t)}</div>`).join("");
