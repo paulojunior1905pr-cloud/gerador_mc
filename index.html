@@ -129,7 +129,7 @@
 /* Layout: barra de ferramentas fixa + lista de MCs à esquerda + formulário em blocos numerados como a própria MC */
 :root{
   --bg:#eef1f5; --panel:#ffffff; --ink:#14212e; --muted:#5b6876; --line:#dde3ea;
-  --accent:#0b4f8a; --accent-ink:#ffffff; --entry:#ffffff; --entry-line:#cfd7e0;
+  --accent:#0b4f8a; --accent-ink:#ffffff; --entry:#eef5fd; --entry-line:#8fb3da;
   --ok:#1f7a3f; --warn:#a65b00; --bad:#b3261e; --chip:#f1f4f8;
   --side:#0f2236; --side-ink:#b4c4d4; --side-mut:#7f97ae; --side-line:#23394f; --side-hi:#1b3a5a; --side-acc:#2f7fd1;
   --shadow:0 1px 2px rgba(16,34,54,.06),0 4px 14px rgba(16,34,54,.05); --sel:#e8f1fb; --zebra:#fafbfd;
@@ -138,13 +138,13 @@
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#0e151c; --panel:#16212b; --ink:#e3eaf0; --muted:#97a7b6; --line:#273746;
-  --accent:#5aa2e6; --accent-ink:#08121b; --entry:#1b2834; --entry-line:#33475a;
+  --accent:#5aa2e6; --accent-ink:#08121b; --entry:#1a2d40; --entry-line:#4a77a3;
   --ok:#6fcf8f; --warn:#f0a94a; --bad:#ff8a80; --chip:#1d2b37;
   --side:#0a121a; --side-ink:#a9bbcc; --side-mut:#6c8399; --side-line:#1b2b3b; --side-hi:#16304a; --side-acc:#3b8ee0;
   --shadow:0 1px 2px rgba(0,0,0,.3); --sel:#17324c; --zebra:#182530; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0e151c; --panel:#16212b; --ink:#e3eaf0; --muted:#97a7b6; --line:#273746;
-  --accent:#5aa2e6; --accent-ink:#08121b; --entry:#1b2834; --entry-line:#33475a;
+  --accent:#5aa2e6; --accent-ink:#08121b; --entry:#1a2d40; --entry-line:#4a77a3;
   --ok:#6fcf8f; --warn:#f0a94a; --bad:#ff8a80; --chip:#1d2b37;
   --side:#0a121a; --side-ink:#a9bbcc; --side-mut:#6c8399; --side-line:#1b2b3b; --side-hi:#16304a; --side-acc:#3b8ee0;
   --shadow:0 1px 2px rgba(0,0,0,.3); --sel:#17324c; --zebra:#182530; color-scheme:dark}
@@ -275,7 +275,10 @@ section.blk{border:0;border-radius:12px;box-shadow:var(--shadow);padding:20px;sc
 .blk h2 .num{display:inline-grid;place-items:center;min-width:26px;height:26px;border-radius:13px;background:var(--sel);color:var(--accent);font-size:12px;padding:0 6px}
 th{background:var(--chip)}
 table tbody tr:nth-child(even) td{background:var(--zebra)}
-input,select,textarea{border-radius:7px}
+input,select,textarea{border-radius:7px;border-width:1.5px}
+input:hover,select:hover,textarea:hover{border-color:var(--accent)}
+input:focus,select:focus,textarea:focus{background:var(--panel);border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent);outline:none}
+input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:none}
 .total .big{font-size:26px}
 @media (max-width:1100px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:900px){
