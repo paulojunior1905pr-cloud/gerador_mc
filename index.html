@@ -433,6 +433,7 @@ function somaItens(m,c){
   return c.linhas.filter(Boolean).map(l=>{ const idx=[], vs=[]; els.forEach((x,j)=>{ if(x.e.fl[l.i]&&x.v!=null){ idx.push(j+1); vs.push(fmt(x.v,3)); } });
     if(!vs.length) return null; return `Item ${l.item}: `+(vs.length>1?`linhas ${idx.join(" + ")} = ${vs.join(" + ")} = `:`linha ${idx[0]} = `)+`${fmt(l.mem,3)} ${l.P.u}`+(l.dem>1?` × ${l.dem} demãos = ${fmt(l.prev,3)} ${l.P.u}`:""); }).filter(Boolean).join("\n");
 }
+function critTxt(l){ const et=etapasDe(l.item); return l.P.c+(et?"\nEtapas: "+et.map(([n,p])=>Math.round(p*100)+"% "+n).join("; ")+".":""); }
 function memVazia(m){ return m.elems.every(e=>!e.desc && !e.a && !e.b && !e.c && !e.qtd); }
 function aplicaModelo(m){ const tp=tipoMC(m); if(!memVazia(m)) return;
   const comp=(f,it)=>{ const P=PPU[it]; if(!P) return false; const k=FORMAS[f][3]; return k==="diaria"||k==="dias" ? P.u==="Diária" : k==="un" ? !["m²","m","Diária"].includes(P.u) : ["m²","m"].includes(P.u); };
@@ -544,7 +545,7 @@ function updateOut(){
   });
   m.elems.forEach((e,k)=>{ set("o_e"+k,c.el[k]==null?"":fmt(c.el[k],3)); set("o_t"+k,textoElem(e)); });
   $("#o_crit").innerHTML=m.itens.filter(it=>PPU[it.item]).map(it=>{ const P=PPU[it.item]; const et=etapasDe(it.item);
-    return `<div><b>${esc(it.item)}</b> (seção ${esc(P.s)}): ${esc(P.c)}${et?" Etapas: "+et.map(([n,p])=>fmt(p*100,0)+"% "+n).join("; ")+".":""}</div>`; }).join("");
+    return `<div><b>${esc(it.item)}</b> – ${esc(P.c)}${et?" Etapas: "+et.map(([n,p])=>fmt(p*100,0)+"% "+n).join("; ")+".":""}</div>`; }).join("");
   if(etapasDe(m.etapa.item)){ m.etapa.lotes.forEach((l,k)=>{ const q=c.et.lotes[k]; set("o_lpb"+k,num(l.area)!=null?pctf(q.pb):""); set("o_lqb"+k,q.qb!=null?fmt(q.qb,3):""); set("o_lpa"+k,num(l.area)!=null?pctf(q.pa):""); set("o_lqa"+k,q.qa!=null?fmt(q.qa,3):""); });
     set("o_ltb",fmt(c.et.bm,3)); set("o_lta",fmt(c.et.acum,3)); }
 }
@@ -686,12 +687,11 @@ async function pdfMC(doc, m, VERT){
   // 1 itens
   const L=c.linhas.filter(Boolean);
   sec("ITENS DA PPU MEDIDOS NESTA MC");
-  T({head:[["Nº","ITEM","DESCRIÇÃO (PPU DO CONTRATO)","UNID.","PREÇO PPU (R$)","MÉTODO","FATOR","PREÇO APLICADO (R$)",tituloDemao(L.map(l=>l.item)).toUpperCase(),"SEÇÃO"]],
-    body:L.map((l,k)=>{ const met=METODOS.find(x=>x[0]===l.metodo)||METODOS[0]; return [k+1,{content:l.item,styles:{fontStyle:"bold",halign:"center"}},pdfTxt(l.P.d),l.P.u,fmt(l.P.p),l.faixa?pdfTxt(met[2]):"Não se aplica",fmt(l.fat),{content:fmt(l.precoAp),styles:{fontStyle:"bold"}},l.usaD?l.dem:{content:l.base,styles:{fontSize:FS-1,textColor:90}},l.P.s]; }),
-    columnStyles:{0:{cellWidth:7,halign:"center"},1:{cellWidth:13},3:{cellWidth:11,halign:"center"},4:{cellWidth:18,halign:"right"},5:{cellWidth:VERT?22:30,halign:"center"},6:{cellWidth:13,halign:"center"},7:{cellWidth:20,halign:"right"},8:{cellWidth:15,halign:"center"},9:{cellWidth:13,halign:"center"}}});
+  T({head:[["Nº","ITEM","DESCRIÇÃO (PPU DO CONTRATO)","UNID.","PREÇO PPU (R$)","MÉTODO","FATOR","PREÇO APLICADO (R$)",tituloDemao(L.map(l=>l.item)).toUpperCase()]],
+    body:L.map((l,k)=>{ const met=METODOS.find(x=>x[0]===l.metodo)||METODOS[0]; return [k+1,{content:l.item,styles:{fontStyle:"bold",halign:"center"}},pdfTxt(l.P.d),l.P.u,fmt(l.P.p),l.faixa?pdfTxt(met[2]):"Não se aplica",fmt(l.fat),{content:fmt(l.precoAp),styles:{fontStyle:"bold"}},l.usaD?l.dem:{content:l.base,styles:{fontSize:FS-1,textColor:90}}]; }),
+    columnStyles:{0:{cellWidth:7,halign:"center"},1:{cellWidth:13},3:{cellWidth:11,halign:"center"},4:{cellWidth:18,halign:"right"},5:{cellWidth:VERT?22:30,halign:"center"},6:{cellWidth:13,halign:"center"},7:{cellWidth:20,halign:"right"},8:{cellWidth:17,halign:"center"}}});
   // critério
-  const crit=L.map(l=>{ const et=etapasDe(l.item); return `Item ${l.item} (seção ${l.P.s}): ${l.P.c}`+(et?" Etapas: "+et.map(([n,p])=>Math.round(p*100)+"% "+n).join("; ")+".":""); }).join("\n");
-  if(crit){ sub("Critério de medição (Anexo 1 – resumo)"); T({body:[[pdfTxt(crit)]],styles:{fontSize:FS-0.5}}); }
+  if(L.length){ sub("Critério de medição"); T({body:L.map(l=>[{content:l.item,styles:{fontStyle:"bold",halign:"center"}},pdfTxt(critTxt(l))]),styles:{fontSize:FS,cellPadding:2},columnStyles:{0:{cellWidth:16}}}); }
   // 2 memória
   sec("MEMÓRIA DE CÁLCULO – "+tipoMC(m).n.toUpperCase());
   const els=m.elems.map((e,k)=>({e,v:c.el[k]})).filter(x=>formaDe(x.e));
@@ -772,17 +772,19 @@ async function folhaMC(wb, nome, m){
   ws.getCell("A7").value="Células amarelas = valores informados. As demais são fórmulas."; ws.getCell("A7").font={name:"Arial",size:9,italic:true,color:{argb:"FF595959"}};
   // 1 itens
   const RI=10; sec(RI-1,"1. ITENS DA PPU MEDIDOS NESTA MC");
-  head(RI,[["A","Nº"],["B","ITEM PPU"],["C","DESCRIÇÃO (PPU DO CONTRATO)","H"],["I","UNID."],["J","PREÇO PPU (R$)"],["K","MÉTODO","L"],["M","FATOR"],["N","PREÇO APLICADO (R$)","O"],["P",tituloDemao(c.linhas.filter(Boolean).map(l=>l.item)).toUpperCase()],["Q","SEÇÃO ANEXO 1","R"]]);
+  head(RI,[["A","Nº"],["B","ITEM PPU"],["C","DESCRIÇÃO (PPU DO CONTRATO)","H"],["I","UNID."],["J","PREÇO PPU (R$)"],["K","MÉTODO","L"],["M","FATOR"],["N","PREÇO APLICADO (R$)","O"],["P",tituloDemao(c.linhas.filter(Boolean).map(l=>l.item)).toUpperCase(),"R"]]);
   const L=c.linhas.filter(Boolean); const row1={}; // i -> linha excel
   L.forEach((l,k)=>{ const r=RI+1+k; row1[l.i]=r; const met=METODOS.find(x=>x[0]===l.metodo)||METODOS[0];
     put("A"+r,k+1,{h:"center",b:1}); put("B"+r,l.item,{h:"center",b:1,sz:10,fill:INP}); put("C"+r,l.P.d,{m:"H"+r}); put("I"+r,l.P.u,{h:"center"});
     put("J"+r,l.P.p,{h:"right",f:"#,##0.00"}); put("K"+r,l.faixa?met[2]:"Não se aplica",{m:"L"+r,h:"center",sz:8,fill:INP}); put("M"+r,l.fat,{h:"center",f:"0.00",b:1});
-    put("N"+r,F(`ROUND(J${r}*M${r},2)`,l.precoAp),{m:"O"+r,h:"right",f:"#,##0.00",b:1}); put("P"+r,l.usaD?l.dem:l.base,l.usaD?{h:"center",fill:INP}:{h:"center",sz:8,i:1}); put("Q"+r,l.P.s,{m:"R"+r,h:"center"}); ws.getRow(r).height=26; });
+    put("N"+r,F(`ROUND(J${r}*M${r},2)`,l.precoAp),{m:"O"+r,h:"right",f:"#,##0.00",b:1}); put("P"+r,l.usaD?l.dem:l.base,l.usaD?{m:"R"+r,h:"center",fill:INP}:{m:"R"+r,h:"center",sz:8,i:1}); ws.getRow(r).height=26; });
   let r=RI+1+Math.max(L.length,1)+1;
   // critério
-  sec(r,"CRITÉRIO DE MEDIÇÃO (Anexo 1 – resumo)"); r++;
-  const crit=L.map(l=>{ const et=etapasDe(l.item); return `Item ${l.item} (seção ${l.P.s}): ${l.P.c}`+(et?" Etapas: "+et.map(([n,p])=>Math.round(p*100)+"% "+n).join("; ")+".":""); }).join("\n");
-  put("A"+r,crit,{m:"R"+r,sz:8}); ws.getRow(r).height=Math.min(400,22+L.length*30); r+=2;
+  sec(r,"CRITÉRIO DE MEDIÇÃO"); r++;
+  const largC=W.slice(2).reduce((a,b)=>a+b,0)*1.05;
+  L.forEach(l=>{ const t=critTxt(l); const lin=t.split("\n").reduce((n,p)=>n+Math.max(1,Math.ceil(p.length/largC)),0);
+    put("A"+r,l.item,{m:"B"+r,b:1,h:"center"}); put("C"+r,t,{m:"R"+r,sz:9}); ws.getRow(r).height=Math.max(18,lin*13+4); r++; });
+  r++;
   // 2 memória
   const tp=tipoMC(m);
   sec(r,"2. MEMÓRIA DE CÁLCULO – "+tp.n.toUpperCase()); r++;
