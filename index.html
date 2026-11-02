@@ -242,7 +242,7 @@ tfoot td{font-weight:700;background:var(--chip)}
       <label class="f" style="flex:1">BM<select id="fBM"></select></label>
     </div>
     <div class="mclist" id="list"><div class="empty">Carregando as MCs salvas…</div></div>
-    <label class="f oriw">Página do Excel<select class="selOri"><option value="landscape">Horizontal (deitada)</option><option value="portrait">Vertical (em pé)</option></select></label>
+    <label class="f oriw">Página do Excel<select class="selOri"><option value="portrait">Vertical (em pé)</option><option value="landscape">Horizontal (deitada)</option></select></label>
     <button id="bBM">Baixar todas as MCs deste BM (.xlsx)</button>
     <button id="bBMpdf">Baixar todas as MCs deste BM (PDF)</button>
     <p class="hint">Cada MC vira uma aba, com fórmulas e fotos, no padrão do contrato.</p>
@@ -432,9 +432,9 @@ const BLOBS={}, FOTOS={};
 (function(){ const sel=document.getElementById("selTema"); let t="auto"; try{ t=localStorage.getItem("mc_tema")||"auto"; }catch(e){}
   const ap=v=>{ if(v==="auto") document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme",v); };
   ap(t); if(sel){ sel.value=t; sel.addEventListener("change",()=>{ ap(sel.value); try{ localStorage.setItem("mc_tema",sel.value); }catch(e){} }); } })();
-let ORI=(()=>{ try{ return localStorage.getItem("mc_ori")||"landscape"; }catch(e){ return "landscape"; } })();
+let ORI="portrait"; /* sempre abre na vertical; a troca vale só até recarregar */
 function syncOri(){ document.querySelectorAll(".selOri").forEach(s=>s.value=ORI); }
-document.addEventListener("change",e=>{ if(e.target.classList&&e.target.classList.contains("selOri")){ ORI=e.target.value; try{ localStorage.setItem("mc_ori",ORI); }catch(x){} syncOri(); } });
+document.addEventListener("change",e=>{ if(e.target.classList&&e.target.classList.contains("selOri")){ ORI=e.target.value; syncOri(); } });
 let db=null, assets=null, downloads=null, MCS={}, cur=null, curId=null, saveT=null, filtroBM=null;
 const BM_ATUAL_PADRAO = 24;
 function status(s){ $("#status").textContent=s; }
@@ -576,7 +576,7 @@ function renderEditor(){
   </section>
 
   <section class="blk"><div class="row" style="justify-content:space-between">
-    <div class="row"><label class="f oriw">Página do Excel<select class="selOri"><option value="landscape">Horizontal (deitada)</option><option value="portrait">Vertical (em pé)</option></select></label><button class="pri" id="bXls">Baixar a MC (.xlsx)</button><button class="pri" id="bPdf">Baixar a MC (PDF)</button><button id="bProx">Copiar para o próximo BM</button><button id="bDup">Duplicar</button></div>
+    <div class="row"><label class="f oriw">Página do Excel<select class="selOri"><option value="portrait">Vertical (em pé)</option><option value="landscape">Horizontal (deitada)</option></select></label><button class="pri" id="bXls">Baixar a MC (.xlsx)</button><button class="pri" id="bPdf">Baixar a MC (PDF)</button><button id="bProx">Copiar para o próximo BM</button><button id="bDup">Duplicar</button></div>
     <div class="confirm" id="delBox"><button id="bDel">Excluir MC</button></div></div>
   </section>`;
   renderEtapas(); renderFotos(); updateOut(); syncOri();
