@@ -575,7 +575,7 @@ async function folhaMC(wb, nome, m){
     cell.font={name:"Arial",size:o.sz||9,bold:!!o.b,italic:!!o.i,color:o.w?{argb:"FFFFFFFF"}:undefined};
     cell.alignment={horizontal:o.h||"left",vertical:"middle",wrapText:true}; if(o.f) cell.numFmt=o.f; return cell; };
   const F=(f,result)=>({formula:f,result});
-  const sec=(r,t)=>{ put("A"+r,t,{m:"R"+r,fill:SEC,b:1,sz:10}); ws.getRow(r).height=18; };
+  let NS=0; const sec=(r,t)=>{ t=(/^\d\./.test(t)?(++NS)+"."+t.replace(/^\d\./,""):t); put("A"+r,t,{m:"R"+r,fill:SEC,b:1,sz:10}); ws.getRow(r).height=18; };
   const head=(r,cols)=>{ cols.forEach(([ref,t,mg])=>put(ref+r,t,{m:mg?mg+r:null,fill:AZ,w:1,b:1,sz:8,h:"center"})); ws.getRow(r).height=32; };
   const [ini,fim]=periodo(m.bm);
   put("A1","MEMÓRIA DE CÁLCULO",{m:"M2",b:1,sz:16,h:"center"}); put("N1","CONTRATO Nº",{m:"R1",b:1,sz:8,h:"center"}); put("N2",CONTRATO,{m:"R2",b:1,sz:11,h:"center"});
@@ -637,6 +637,7 @@ async function folhaMC(wb, nome, m){
   r=QE+1; put("A"+r,"TOTAL DA MC NO BM (R$)",{m:"P"+r,fill:TOT,b:1,sz:10,h:"right"}); put("Q"+r,F(`SUM(Q${Q0}:Q${QE})`,c.total),{m:"R"+r,fill:TOT,b:1,sz:11,h:"right",f:"#,##0.00"});
   put("O5",F(`Q${r}`,c.total),{m:"R5",fill:TOT,b:1,sz:12,h:"center",f:"#,##0.00"});
   r+=2;
+  if(et){
   // 4 etapas
   sec(r,"4. ITEM COM MEDIÇÃO POR ETAPAS (nº do BM em que cada etapa foi concluída)"); r++;
   put("A"+r,"ITEM:",{m:"B"+r,b:1,h:"right"}); put("C"+r,et?m.etapa.item:"—",{b:1,h:"center",fill:INP}); put("D"+r,"BM ATUAL:",{b:1,h:"right"}); const BMC="$E$"+r; put("E"+r,m.bm,{b:1,h:"center"});
@@ -663,18 +664,28 @@ async function folhaMC(wb, nome, m){
   put("M"+r,F(`SUM(P${ETR0}:P${LE})`,cres.acum),{m:"N"+r,fill:TOT,b:1,h:"right",f:"#,##0.000"}); put("O"+r,"← equiv. no BM | acumulado",{m:"R"+r,fill:TOT,sz:8,i:1});
   if(r!==ETT) console.warn("total etapas", r, ETT);
   r+=2;
+  }
   // 5 obs
+  if((m.obs||"").trim()){
   sec(r,"5. DESENHOS DE REFERÊNCIA E OBSERVAÇÕES"); r++;
   put("A"+r,m.obs||"",{m:"R"+r,sz:9,fill:INP}); ws.getRow(r).height=Math.max(30,16*((m.obs||"").split("\n").length+1)); r+=2;
-  // 6 fotos
-  sec(r,"6. REGISTRO FOTOGRÁFICO"); r++;
-  const fotos=m.fotos||[]; const POR=3; const ALT=200;
-  for(let k=0;k<fotos.length;k++){ const f=fotos[k], col=[0,6,12][k%POR], linha=r+Math.floor(k/POR)*14;
-    const buf=await fotoBuf(f); if(!buf) continue;
-    const id=wb.addImage({buffer:buf,extension:"jpeg"}); const ratio=(f.w&&f.h)?f.w/f.h:4/3; const h=ALT, w=Math.min(330,h*ratio);
-    ws.addImage(id,{tl:{col:col+0.1,row:linha-1+0.2},ext:{width:w,height:h}});
-    const cap=ws.getCell(linha+12,col+1); cap.value=f.legenda||("Foto "+(k+1)); cap.font={name:"Arial",size:8,italic:true}; }
-  ws.pageSetup.printArea=`A1:R${r+Math.ceil(fotos.length/POR)*14+1}`;
+  }
+  // 6 fotos (2 por linha, grandes)
+  const fotos=(m.fotos||[]); let fimP=r;
+  if(fotos.length){
+    if(r>1) ws.getRow(r-1).addPageBreak();
+    sec(r,"6. REGISTRO FOTOGRÁFICO"); r++;
+    const POR=2, LMAX=760, HMAX=520, PXL=20, BLOCO=Math.ceil(HMAX/PXL)+3, COLS=[0,7];
+    for(let k=0;k<fotos.length;k++){ const f=fotos[k], col=COLS[k%POR], linha=r+Math.floor(k/POR)*BLOCO;
+      const buf=await fotoBuf(f); if(!buf) continue;
+      const id=wb.addImage({buffer:buf,extension:"jpeg"}); const ratio=(f.w&&f.h)?f.w/f.h:4/3;
+      let w=LMAX, h=w/ratio; if(h>HMAX){ h=HMAX; w=h*ratio; }
+      ws.addImage(id,{tl:{col:col+0.1,row:linha-1+0.2},ext:{width:w,height:h}});
+      const cr=linha+Math.ceil(h/PXL)+1; const cap=ws.getCell(cr,col+1); cap.value=(k+1)+". "+(f.legenda||"Foto "+(k+1)); cap.font={name:"Arial",size:9,italic:true}; }
+    for(let rr=r; rr<r+Math.ceil(fotos.length/POR)*BLOCO; rr++) ws.getRow(rr).height=15;
+    fimP=r+Math.ceil(fotos.length/POR)*BLOCO;
+  }
+  ws.pageSetup.printArea=`A1:R${fimP}`;
 }
 
 /* ---------- início ---------- */
