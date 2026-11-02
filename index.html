@@ -859,9 +859,9 @@ async function pdfMC(doc, m, VERT){
   // 1 itens
   const L=c.linhas.filter(Boolean);
   sec("ITENS DA PPU MEDIDOS NESTA MC");
-  T({head:[["Nº","ITEM","DESCRIÇÃO (PPU DO CONTRATO)","UNID.","PREÇO PPU (R$)","MÉTODO","FATOR","PREÇO APLICADO (R$)",tituloDemao(L.map(l=>l.item)).toUpperCase()]],
-    body:L.map((l,k)=>{ const met=METODOS.find(x=>x[0]===l.metodo)||METODOS[0]; return [k+1,{content:l.item,styles:{fontStyle:"bold",halign:"center"}},pdfTxt(l.P.d),l.P.u,fmt(l.P.p),l.faixa?pdfTxt(met[2]):"Não se aplica",fmt(l.fat),{content:fmt(l.precoAp),styles:{fontStyle:"bold"}},l.usaD?l.dem:{content:l.base,styles:{fontSize:FS-1,textColor:90}}]; }),
-    columnStyles:{0:{cellWidth:7,halign:"center"},1:{cellWidth:13},3:{cellWidth:11,halign:"center"},4:{cellWidth:18,halign:"right"},5:{cellWidth:VERT?22:30,halign:"center"},6:{cellWidth:13,halign:"center"},7:{cellWidth:20,halign:"right"},8:{cellWidth:17,halign:"center"}}});
+  T({head:[["Nº","ITEM","DESCRIÇÃO (PPU DO CONTRATO)","UNID.","PREÇO PPU (R$)","FATOR","PREÇO APLICADO (R$)",tituloDemao(L.map(l=>l.item)).toUpperCase()]],
+    body:L.map((l,k)=>{ const met=METODOS.find(x=>x[0]===l.metodo)||METODOS[0]; return [k+1,{content:l.item,styles:{fontStyle:"bold",halign:"center"}},pdfTxt(l.P.d),l.P.u,fmt(l.P.p),fmt(l.fat),{content:fmt(l.precoAp),styles:{fontStyle:"bold"}},l.usaD?l.dem:{content:l.base,styles:{fontSize:FS-1,textColor:90}}]; }),
+    columnStyles:{0:{cellWidth:7,halign:"center"},1:{cellWidth:13},3:{cellWidth:11,halign:"center"},4:{cellWidth:18,halign:"right"},5:{cellWidth:13,halign:"center"},6:{cellWidth:20,halign:"right"},7:{cellWidth:17,halign:"center"}}});
   // critério
   if(L.length){ sub("Critério de medição"); T({body:L.map(l=>[{content:l.item,styles:{fontStyle:"bold",halign:"center"}},pdfTxt(critTxt(l))]),styles:{fontSize:FS,cellPadding:2},columnStyles:{0:{cellWidth:16}}}); }
   // 2 memória
@@ -944,12 +944,12 @@ async function folhaMC(wb, nome, m){
   ws.getCell("A7").value="Células amarelas = valores informados. As demais são fórmulas."; ws.getCell("A7").font={name:"Arial",size:9,italic:true,color:{argb:"FF595959"}};
   // 1 itens
   const RI=10; sec(RI-1,"1. ITENS DA PPU MEDIDOS NESTA MC");
-  head(RI,[["A","Nº"],["B","ITEM PPU"],["C","DESCRIÇÃO (PPU DO CONTRATO)","H"],["I","UNID."],["J","PREÇO PPU (R$)"],["K","MÉTODO","L"],["M","FATOR"],["N","PREÇO APLICADO (R$)","O"],["P",tituloDemao(c.linhas.filter(Boolean).map(l=>l.item)).toUpperCase(),"R"]]);
+  head(RI,[["A","Nº"],["B","ITEM PPU"],["C","DESCRIÇÃO (PPU DO CONTRATO)","H"],["I","UNID."],["J","PREÇO PPU (R$)"],["K","FATOR","M"],["N","PREÇO APLICADO (R$)","O"],["P",tituloDemao(c.linhas.filter(Boolean).map(l=>l.item)).toUpperCase(),"R"]]);
   const L=c.linhas.filter(Boolean); const row1={}; // i -> linha excel
   L.forEach((l,k)=>{ const r=RI+1+k; row1[l.i]=r; const met=METODOS.find(x=>x[0]===l.metodo)||METODOS[0];
     put("A"+r,k+1,{h:"center",b:1}); put("B"+r,l.item,{h:"center",b:1,sz:10,fill:INP}); put("C"+r,l.P.d,{m:"H"+r}); put("I"+r,l.P.u,{h:"center"});
-    put("J"+r,l.P.p,{h:"right",f:"#,##0.00"}); put("K"+r,l.faixa?met[2]:"Não se aplica",{m:"L"+r,h:"center",sz:8,fill:INP}); put("M"+r,l.fat,{h:"center",f:"0.00",b:1});
-    put("N"+r,F(`ROUND(J${r}*M${r},2)`,l.precoAp),{m:"O"+r,h:"right",f:"#,##0.00",b:1}); put("P"+r,l.usaD?l.dem:l.base,l.usaD?{m:"R"+r,h:"center",fill:INP}:{m:"R"+r,h:"center",sz:8,i:1}); ws.getRow(r).height=26; });
+    put("J"+r,l.P.p,{h:"right",f:"#,##0.00"}); put("K"+r,l.fat,{m:"M"+r,h:"center",f:"0.00",b:1});
+    put("N"+r,F(`ROUND(J${r}*K${r},2)`,l.precoAp),{m:"O"+r,h:"right",f:"#,##0.00",b:1}); put("P"+r,l.usaD?l.dem:l.base,l.usaD?{m:"R"+r,h:"center",fill:INP}:{m:"R"+r,h:"center",sz:8,i:1}); ws.getRow(r).height=26; });
   let r=RI+1+Math.max(L.length,1)+1;
   // critério
   sec(r,"CRITÉRIO DE MEDIÇÃO"); r++;
