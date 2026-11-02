@@ -4,37 +4,99 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<style>.bkbar{position:fixed;left:0;right:0;bottom:0;display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;padding:6px 12px;background:#1f2a37;color:#fff;font:13px system-ui;z-index:50}.bkbar button,.bkbar .bkbtn{position:relative;background:#fff;color:#1f2a37;border:0;border-radius:6px;padding:5px 10px;font:inherit;cursor:pointer}body{padding-bottom:44px}</style><script>/* Modo independente (GitHub Pages / arquivo local): salva no próprio navegador (IndexedDB). */
+<style>.bkbar{position:fixed;left:0;right:0;bottom:0;display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;padding:6px 12px;background:#1f2a37;color:#fff;font:13px system-ui;z-index:50}.bkbar button,.bkbar .bkbtn{position:relative;background:#fff;color:#1f2a37;border:0;border-radius:6px;padding:5px 10px;font:inherit;cursor:pointer}body{padding-bottom:44px}.loginov{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,32,.72)}.loginov[hidden]{display:none}.logincx{background:var(--panel,#fff);color:var(--ink,#1f2a37);max-width:420px;width:100%;border-radius:12px;padding:24px;box-shadow:0 10px 40px rgba(0,0,0,.35);font:15px system-ui;text-align:center}.logincx h2{margin:0 0 8px}.logincx p{line-height:1.45}.logincx #lgGoogle{font-size:16px;padding:10px 18px;cursor:pointer}.lgerro{color:#c0392b;min-height:1em;font-size:14px}.lglocal{background:none;border:0;color:inherit;opacity:.8;text-decoration:underline;cursor:pointer;font:inherit;font-size:14px}</style><script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>/* GitHub Pages: MCs na nuvem (Firebase, login Google). Sem login: salva no aparelho (IndexedDB). */
 (function(){
   if(window.claude) return;
+  const CFG={apiKey:"AIzaSyAfJ-JvVzBbACDe-woWivQBQ5s89wVq9M0",authDomain:"gerador-mc.firebaseapp.com",projectId:"gerador-mc",storageBucket:"gerador-mc.firebasestorage.app",messagingSenderId:"4121049572",appId:"1:4121049572:web:41329bbe804b2897f32ff1"};
+  const LS={get:k=>{try{return localStorage.getItem(k);}catch(e){return null;}},set:(k,v)=>{try{localStorage.setItem(k,v);}catch(e){}},del:k=>{try{localStorage.removeItem(k);}catch(e){}}};
+  /* ---- armazenamento local (IndexedDB) ---- */
   const DBN="gerador-mc", ST="docs"; let _db=null;
   const abre=()=>_db||(_db=new Promise((ok,er)=>{ const r=indexedDB.open(DBN,1); r.onupgradeneeded=()=>r.result.createObjectStore(ST); r.onsuccess=()=>ok(r.result); r.onerror=()=>er(r.error); }));
-  const tx=async(modo,fn)=>{ const d=await abre(); return new Promise((ok,er)=>{ const t=d.transaction(ST,modo); const s=t.objectStore(ST); const r=fn(s); t.oncomplete=()=>ok(r&&r.result); t.onerror=()=>er(t.error); }); };
+  const tx=async(modo,fn)=>{ const d=await abre(); return new Promise((ok,er)=>{ const t=d.transaction(ST,modo); const r=fn(t.objectStore(ST)); t.oncomplete=()=>ok(r&&r.result); t.onerror=()=>er(t.error); }); };
   const get=k=>tx("readonly",s=>s.get(k)), put=(k,v)=>tx("readwrite",s=>s.put(v,k)), del=k=>tx("readwrite",s=>s.delete(k));
   const todos=async pre=>{ const d=await abre(); return new Promise((ok,er)=>{ const out=[]; const t=d.transaction(ST,"readonly"); const c=t.objectStore(ST).openCursor(); c.onsuccess=()=>{ const cur=c.result; if(cur){ if(String(cur.key).startsWith(pre)) out.push([cur.key,cur.value]); cur.continue(); } }; t.oncomplete=()=>ok(out); t.onerror=()=>er(t.error); }); };
   const ouvintes={};
-  const avisa=async col=>{ const l=ouvintes[col]; if(!l||!l.length) return; const snap=await snapCol(col); l.forEach(f=>f(snap)); };
   const snapCol=async col=>{ const r=await todos(col+"/"); const docs=r.map(([k,v])=>({id:k.slice(col.length+1),exists:true,data:()=>JSON.parse(JSON.stringify(v))})); return {size:docs.length,docs}; };
-  const doc=path=>{ const col=path.split("/")[0]; return { id:path.split("/").pop(), path,
+  const avisa=async col=>{ const l=ouvintes[col]; if(!l||!l.length) return; const s=await snapCol(col); l.forEach(f=>f(s)); };
+  const docL=path=>{ const col=path.split("/")[0]; return { id:path.split("/").pop(), path,
     get:async()=>{ const v=await get(path); return {id:path.split("/").pop(),exists:v!==undefined,data:()=>v}; },
     set:async v=>{ await put(path,JSON.parse(JSON.stringify(v))); avisa(col); },
     update:async v=>{ const a=(await get(path))||{}; await put(path,Object.assign(a,JSON.parse(JSON.stringify(v)))); avisa(col); },
     delete:async()=>{ await del(path); avisa(col); } }; };
-  const db={ doc, collection:col=>({ doc:id=>doc(col+"/"+id),
+  const local={ doc:docL, collection:col=>({ doc:id=>docL(col+"/"+id),
+    get:()=>snapCol(col),
     onSnapshot:(next,err)=>{ (ouvintes[col]=ouvintes[col]||[]).push(next); snapCol(col).then(next,e=>err&&err({code:String(e)})); return ()=>{ ouvintes[col]=ouvintes[col].filter(f=>f!==next); }; } }) };
+  /* ---- downloads ---- */
   const baixa=(blob,nome)=>{ const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=nome; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},4000); };
   const downloads={ save:async({filename,data})=>{ baixa(data instanceof Blob?data:new Blob([data]),filename); return {status:"saved"}; } };
-  window.claude={ use:async n=> n==="db"?db : n==="downloads"?downloads : null };
-  // backup
-  window.__backupMC=async()=>{ const r=await todos(""); const o={}; r.forEach(([k,v])=>o[k]=v); baixa(new Blob([JSON.stringify({app:"gerador-mc",versao:1,data:new Date().toISOString(),docs:o})],{type:"application/json"}),"backup_MCs_"+new Date().toISOString().slice(0,10)+".json"); };
-  window.__restauraMC=async file=>{ const j=JSON.parse(await file.text()); if(!j.docs) throw new Error("arquivo inválido"); for(const [k,v] of Object.entries(j.docs)) await put(k,v); await avisa("mcs"); return Object.keys(j.docs).filter(k=>k.startsWith("mcs/")).length; };
-  document.addEventListener("DOMContentLoaded",()=>{
-    const bar=document.createElement("div"); bar.className="bkbar";
-    bar.innerHTML='<span>Dados salvos neste aparelho.</span><button type="button" id="bkOut">Baixar backup</button><label class="bkbtn">Restaurar backup<input type="file" accept=".json,application/json" id="bkIn" style="position:absolute;width:1px;height:1px;opacity:0"></label>';
-    document.body.appendChild(bar);
-    bar.querySelector("#bkOut").onclick=()=>window.__backupMC();
-    bar.querySelector("#bkIn").onchange=async e=>{ const f=e.target.files[0]; if(!f) return; try{ const n=await window.__restauraMC(f); alert(n+" MC(s) restauradas."); }catch(x){ alert("Não foi possível restaurar: "+x.message); } e.target.value=""; };
-  });
+  /* ---- ponte com o app ---- */
+  let resolveDb; const dbPronto=new Promise(r=>resolveDb=r); let atual=null, modo="", usuario=null, auth=null;
+  window.claude={ use:async n=> n==="db"?dbPronto : n==="downloads"?downloads : null };
+  window.__aguardandoLogin=true;
+  const pronto=(db,m)=>{ atual=db; modo=m; window.__aguardandoLogin=false; resolveDb(db); barra(); };
+  /* ---- interface: barra e tela de login ---- */
+  let bar=null, ov=null;
+  const onDom=f=>document.readyState==="loading"?document.addEventListener("DOMContentLoaded",f):f();
+  function barra(){ onDom(()=>{
+    if(!bar){ bar=document.createElement("div"); bar.className="bkbar"; document.body.appendChild(bar); }
+    const quem = modo==="nuvem" ? `☁️ Na nuvem: <b>${(usuario&&(usuario.email||usuario.displayName))||"conectado"}</b>` : "💾 Salvo só neste aparelho";
+    bar.innerHTML=`<span>${quem}</span>`+(modo==="nuvem"?'<button type="button" id="bkSair">Sair</button>':(auth?'<button type="button" id="bkEntrar">Entrar com Google</button>':""))+
+      '<button type="button" id="bkOut">Baixar backup</button><label class="bkbtn">Restaurar backup<input type="file" accept=".json,application/json" id="bkIn" style="position:absolute;width:1px;height:1px;opacity:0"></label><span id="bkMsg"></span>';
+    const q=s=>bar.querySelector(s);
+    if(q("#bkSair")) q("#bkSair").onclick=async()=>{ await auth.signOut(); LS.set("mc_local","1"); location.reload(); };
+    if(q("#bkEntrar")) q("#bkEntrar").onclick=()=>{ LS.del("mc_local"); location.reload(); };
+    q("#bkOut").onclick=()=>backup();
+    q("#bkIn").onchange=async e=>{ const f=e.target.files[0]; if(!f) return; try{ const n=await restaura(f); alert(n+" MC(s) restauradas."); }catch(x){ alert("Não foi possível restaurar: "+x.message); } e.target.value=""; };
+  }); }
+  const msg=t=>{ const m=bar&&bar.querySelector("#bkMsg"); if(m) m.textContent=t; };
+  function telaLogin(erro){ onDom(()=>{
+    if(!ov){ ov=document.createElement("div"); ov.className="loginov"; document.body.appendChild(ov); }
+    ov.hidden=false;
+    ov.innerHTML=`<div class="logincx"><h2>Gerador de MC</h2><p>Entre com sua conta Google para salvar as MCs e fotos na nuvem e abrir em qualquer aparelho.</p>
+      <button type="button" class="pri" id="lgGoogle">Entrar com Google</button>
+      <p class="lgerro">${erro||""}</p>
+      <button type="button" class="lglocal" id="lgLocal">Usar sem login (salva só neste aparelho)</button></div>`;
+    ov.querySelector("#lgGoogle").onclick=entrar;
+    ov.querySelector("#lgLocal").onclick=()=>{ LS.set("mc_local","1"); ov.hidden=true; pronto(local,"local"); };
+  }); }
+  function erroTxt(e){ const c=e&&e.code||""; return c==="auth/unauthorized-domain"?"Este endereço não está autorizado no Firebase (Authentication > Configurações > Domínios autorizados).":
+    c==="auth/popup-closed-by-user"||c==="auth/cancelled-popup-request"?"Login cancelado.":c==="auth/network-request-failed"?"Sem internet. Tente de novo.":"Não foi possível entrar: "+(e&&(e.message||c)); }
+  async function entrar(){ const p=new firebase.auth.GoogleAuthProvider(); p.setCustomParameters({prompt:"select_account"});
+    try{ await auth.signInWithPopup(p); }
+    catch(e){ if(["auth/popup-blocked","auth/operation-not-supported-in-this-environment"].includes(e.code)){ try{ await auth.signInWithRedirect(p); }catch(x){ telaLogin(erroTxt(x)); } } else telaLogin(erroTxt(e)); } }
+  /* ---- migração do aparelho para a nuvem ---- */
+  async function migra(nuvem,uid){ const flag="mc_migrado_"+uid; if(LS.get(flag)) return 0;
+    let r=[]; try{ r=await todos(""); }catch(e){ return 0; }
+    let n=0; for(const [k,v] of r){ try{ const ref=nuvem.doc(k); const s=await ref.get(); if(!s.exists){ await ref.set(v); if(k.startsWith("mcs/")) n++; } }catch(e){ console.warn("migração",k,e); } }
+    LS.set(flag,"1"); return n; }
+  /* ---- backup ---- */
+  async function backup(){ const o={}; for(const c of ["mcs","fotos"]){ const s=await atual.collection(c).get(); s.docs.forEach(d=>o[c+"/"+d.id]=d.data()); }
+    baixa(new Blob([JSON.stringify({app:"gerador-mc",versao:1,data:new Date().toISOString(),docs:o})],{type:"application/json"}),"backup_MCs_"+new Date().toISOString().slice(0,10)+".json"); }
+  async function restaura(file){ const j=JSON.parse(await file.text()); if(!j.docs) throw new Error("arquivo inválido");
+    for(const [k,v] of Object.entries(j.docs)) await atual.doc(k).set(v); return Object.keys(j.docs).filter(k=>k.startsWith("mcs/")).length; }
+  /* ---- início ---- */
+  function inicia(){
+    if(!window.firebase||!firebase.initializeApp){ pronto(local,"local"); return; }
+    try{ firebase.initializeApp(CFG); auth=firebase.auth(); }catch(e){ pronto(local,"local"); return; }
+    const fs=firebase.firestore(); try{ fs.enablePersistence({synchronizeTabs:true}).catch(()=>{}); }catch(e){}
+    auth.getRedirectResult().catch(e=>telaLogin(erroTxt(e)));
+    let primeiro=true;
+    auth.onAuthStateChanged(async u=>{
+      if(atual && modo==="nuvem"){ if(!u) location.reload(); return; }
+      if(!u){ if(primeiro && LS.get("mc_local")){ pronto(local,"local"); } else if(!atual) telaLogin(); primeiro=false; return; }
+      primeiro=false; usuario=u; if(ov) ov.hidden=true;
+      const base="usuarios/"+u.uid+"/";
+      const nuvem={ doc:p=>fs.doc(base+p), collection:c=>fs.collection(base+c) };
+      if(atual && modo==="local"){ location.reload(); return; }
+      LS.del("mc_local");
+      const n=await migra(nuvem,u.uid);
+      pronto(nuvem,"nuvem"); if(n) setTimeout(()=>msg(n+" MC(s) deste aparelho foram enviadas para a nuvem."),500);
+    });
+  }
+  inicia();
 })();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
@@ -366,7 +428,7 @@ function status(s){ $("#status").textContent=s; }
 
 async function boot(){
   renderList(); renderEditor();
-  const to=setTimeout(()=>{ if(!db){ status("Sem conexão com o armazenamento"); $("#list").innerHTML='<div class="empty">Não foi possível carregar as MCs salvas. Você pode montar e baixar uma MC, mas ela não ficará salva.</div>'; } },10000);
+  const to=setTimeout(()=>{ if(!db && !window.__aguardandoLogin){ status("Sem conexão com o armazenamento"); $("#list").innerHTML='<div class="empty">Não foi possível carregar as MCs salvas. Você pode montar e baixar uma MC, mas ela não ficará salva.</div>'; } },10000);
   db = await claude.use("db");
   try{ assets = await claude.use("assets"); }catch(e){ assets=null; }
   try{ downloads = await claude.use("downloads"); }catch(e){ downloads=null; }
