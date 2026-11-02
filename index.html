@@ -69,6 +69,8 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .brand b{font-size:16px;letter-spacing:.01em}
 .brand span{font-size:12px;color:var(--muted);font-family:var(--f-mono)}
 .top .sp{flex:1}
+.tema{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.tema select{min-height:32px}
 .status{font-size:12px;color:var(--muted);font-family:var(--f-mono)}
 button,.btn{font:inherit;font-weight:600;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink);
   padding:7px 12px;cursor:pointer;min-height:36px}
@@ -116,6 +118,10 @@ td input,td select{padding:4px 6px}
 td input.num{text-align:right;width:90px}
 td input.sm{width:62px}
 td.na{color:var(--muted);text-align:center}
+td > input.num, td > input[type=date]{display:block;margin-left:auto}
+td.c > input.num{margin:0 auto}
+th.r{text-align:right} th.c{text-align:center}
+.base{font-size:12px;color:var(--muted);white-space:nowrap}
 td input[type=date]{width:140px}
 td .out{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
 td .txt{font-family:var(--f-mono);font-size:12px;color:var(--muted);white-space:nowrap}
@@ -151,6 +157,7 @@ tfoot td{font-weight:700;background:var(--chip)}
   <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span></div>
   <div class="sp"></div>
   <span class="status" id="status">Conectando…</span>
+  <label class="tema">Tema<select id="selTema"><option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
   <button id="bNova" class="pri">+ Nova MC</button>
 </header>
 
@@ -247,6 +254,10 @@ const FORMA_ANTIGA = {"Valor direto (área/qtd já calculada)":"direto","Retâng
   "Guarda-corpo / treliça / escada vertical (÷ 2)":"gcReto","Plataforma / piso vazado – grelha (× 3)":"grelha","Plataforma – face inferior c/ vigamento (+30%)":"platInf","Piso fechado liso ou xadrez (por face)":"piso",
   "Tubulação até 26\" (comprimento × m²/m)":"tubo","Perfil metálico (comprimento × m²/m)":"perfil","Retoque de pintura (0,15 m² cada)":"retoque","Unidade":"un","Diária":"diasQ"};
 const tipoMC = m => TMC[m.tipoMC]||TMC.geral;
+const usaDemao = it => !!PPU[it] && /demão/i.test(PPU[it].c||"");
+const BASE_UN = {"Diária":"Por diária","Hs":"Por hora","m²":"Área única","un":"Por unidade","m³":"Por m³","kg":"Por kg","Kg":"Por kg","m":"Por metro","Vb":"Verba","Cj":"Por conjunto","cent":"Por cento"};
+const baseMed = it => PPU[it] ? (BASE_UN[PPU[it].u]||"Não se aplica") : "";
+function tituloDemao(itens){ const v=itens.filter(it=>PPU[it]); const d=v.filter(usaDemao).length; return !v.length||d===v.length ? "Demãos" : d===0 ? "Base de medição" : "Demãos / base"; }
 const usaCampo = (tp,k) => tp.f.some(f=>FORMAS[f][2].includes(k)) || (k==="bit" && tp.f.some(f=>FORMAS[f][3]==="bit"));
 /* números com conta: "32,44+2*(3,30+0,40)" */
 const ehConta = v => typeof v==="string" && /[+*/×xX÷()π^]|\d\s*-|−/.test(v.trim().replace(/^[-−]/,""));
@@ -316,7 +327,7 @@ function calcMC(m){
     if(!it.item||!PPU[it.item]) return null; const P=PPU[it.item];
     const n=itNum(it.item), faixa=n>=96&&n<=124;
     const met=METODOS.find(x=>x[0]===it.metodo)||METODOS[0]; const fat=faixa?met[1]:1;
-    const precoAp=r2(P.p*fat), dem=num(it.demaos)||1;
+    const precoAp=r2(P.p*fat), usaD=usaDemao(it.item), dem=usaD?(num(it.demaos)||1):1;
     const mem=r3(m.elems.reduce((s,e,k)=>s+(e.fl[i]&&el[k]!=null?el[k]:0),0));
     const prev=r3(mem*dem); const q=m.quadro[i]; const isEt=m.etapa.item===it.item&&!!etapasDe(it.item);
     let ant=num(q.ant)||0, bm;
@@ -325,7 +336,7 @@ function calcMC(m){
     else if(num(q.pct)!=null) bm=r3(prev*num(q.pct)/100);
     else bm=0;
     const acum=r3(ant+bm);
-    return {i,item:it.item,P,faixa,fat,precoAp,dem,mem,prev,ant,bm,acum,pa:prev?acum/prev:null,valor:r2(bm*precoAp),isEt,metodo:it.metodo};
+    return {i,item:it.item,P,faixa,fat,precoAp,dem,usaD,base:usaD?null:baseMed(it.item),mem,prev,ant,bm,acum,pa:prev?acum/prev:null,valor:r2(bm*precoAp),isEt,metodo:it.metodo};
   });
   const total=r2(linhas.reduce((s,l)=>s+(l?l.valor:0),0));
   const alerts=[];
@@ -343,6 +354,9 @@ function calcMC(m){
 
 /* ---------- estado e persistência ---------- */
 const BLOBS={}, FOTOS={};
+(function(){ const sel=document.getElementById("selTema"); let t="auto"; try{ t=localStorage.getItem("mc_tema")||"auto"; }catch(e){}
+  const ap=v=>{ if(v==="auto") document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme",v); };
+  ap(t); if(sel){ sel.value=t; sel.addEventListener("change",()=>{ ap(sel.value); try{ localStorage.setItem("mc_tema",sel.value); }catch(e){} }); } })();
 let ORI=(()=>{ try{ return localStorage.getItem("mc_ori")||"landscape"; }catch(e){ return "landscape"; } })();
 function syncOri(){ document.querySelectorAll(".selOri").forEach(s=>s.value=ORI); }
 document.addEventListener("change",e=>{ if(e.target.classList&&e.target.classList.contains("selOri")){ ORI=e.target.value; try{ localStorage.setItem("mc_ori",ORI); }catch(x){} syncOri(); } });
@@ -421,7 +435,8 @@ function somaItens(m,c){
 }
 function memVazia(m){ return m.elems.every(e=>!e.desc && !e.a && !e.b && !e.c && !e.qtd); }
 function aplicaModelo(m){ const tp=tipoMC(m); if(!memVazia(m)) return;
-  const fl0=m.itens.map(it=>!!it.item); m.elems=(tp.modelo.length?tp.modelo:[["",tp.f[0]]]).map(([d,f])=>Object.assign(novoElem(f),{desc:d,fl:[...fl0]})); }
+  const comp=(f,it)=>{ const P=PPU[it]; if(!P) return false; const k=FORMAS[f][3]; return k==="diaria"||k==="dias" ? P.u==="Diária" : k==="un" ? !["m²","m","Diária"].includes(P.u) : ["m²","m"].includes(P.u); };
+  m.elems=(tp.modelo.length?tp.modelo:[["",tp.f[0]]]).map(([d,f])=>Object.assign(novoElem(f),{desc:d,fl:m.itens.map(it=>comp(f,it.item))})); }
 function renderEditor(){
   const ed=$("#ed");
   if(!cur){ ed.innerHTML=`<section class="blk"><h2>Comece por aqui</h2><p>Escolha uma MC na lista ou toque em <b>+ Nova MC</b>. Você preenche as medidas, o site faz as contas pelas regras do contrato e gera a planilha da MC com fórmulas e fotos.</p></section>`; return; }
@@ -442,12 +457,12 @@ function renderEditor(){
   </section>
 
   <section class="blk"><h2><span class="num">1</span> Itens da PPU <small>Preço do Anexo 2A. Método só vale para os itens 1.96 a 1.124.</small></h2>
-    <div class="tblw"><table><thead><tr><th>Nº</th><th>Item</th><th>Unid.</th><th class="r">Preço PPU</th><th>Método</th><th class="r">Preço aplicado</th><th class="c">Demãos</th></tr></thead><tbody>
+    <div class="tblw"><table><thead><tr><th>Nº</th><th>Item</th><th>Unid.</th><th class="r">Preço PPU</th><th>Método</th><th class="r">Preço aplicado</th><th class="c">${tituloDemao(m.itens.map(x=>x.item))}</th></tr></thead><tbody>
     ${m.itens.map((it,i)=>`<tr><td class="c">${i+1}</td><td><select id="it_${i}" data-it="${i}" data-f="item" style="min-width:240px">${itemOpts(it.item)}</select></td>
       <td id="o_u${i}"></td><td class="r"><span class="out" id="o_p${i}"></span></td>
       <td><select id="mt_${i}" data-it="${i}" data-f="metodo">${METODOS.map(x=>opt(x[0],x[2],it.metodo)).join("")}</select></td>
       <td class="r"><span class="out" id="o_pa${i}"></span></td>
-      <td class="c"><input id="dm_${i}" class="sm num" data-it="${i}" data-f="demaos" inputmode="numeric" value="${esc(it.demaos)}" placeholder="1"></td></tr>`).join("")}
+      <td class="c">${!it.item||usaDemao(it.item)?`<input id="dm_${i}" class="sm num" data-it="${i}" data-f="demaos" inputmode="numeric" value="${esc(it.demaos)}" placeholder="1">`:`<span class="base">${esc(baseMed(it.item))}</span>`}</td></tr>`).join("")}
     </tbody></table></div>
     <div class="crit" id="o_crit" style="margin-top:10px"></div>
   </section>
@@ -461,7 +476,7 @@ function renderEditor(){
   </section>
 
   <section class="blk"><h2><span class="num">3</span> Quadro de medição <small>Digite o acumulado até o BM anterior e o % (ou a quantidade) deste BM.</small></h2>
-    <div class="tblw"><table><thead><tr><th>Item</th><th class="r">Qtd memória</th><th class="c">Demãos</th><th class="r">Previsto</th><th class="r">Acum. anterior</th><th class="r">% no BM</th><th class="r">Qtd no BM (opcional)</th><th class="r">Medido no BM</th><th class="r">Acumulado</th><th class="r">% acum.</th><th class="r">Valor no BM</th></tr></thead><tbody>
+    <div class="tblw"><table><thead><tr><th>Item</th><th class="r">Qtd memória</th><th class="c">${tituloDemao(m.itens.map(x=>x.item))}</th><th class="r">Previsto</th><th class="r">Acum. anterior</th><th class="r">% no BM</th><th class="r">Qtd no BM (opcional)</th><th class="r">Medido no BM</th><th class="r">Acumulado</th><th class="r">% acum.</th><th class="r">Valor no BM</th></tr></thead><tbody>
     ${m.quadro.map((q,i)=>`<tr id="qr${i}"><td><span class="out" id="o_qi${i}"></span></td><td class="r"><span class="out" id="o_qm${i}"></span></td><td class="c"><span class="out" id="o_qd${i}"></span></td><td class="r"><span class="out" id="o_qp${i}"></span></td>
       <td><input id="q${i}_ant" class="num" data-q="${i}" data-f="ant" inputmode="decimal" value="${esc(q.ant)}"></td>
       <td><input id="q${i}_pct" class="sm num" data-q="${i}" data-f="pct" inputmode="decimal" value="${esc(q.pct)}" placeholder="%"></td>
@@ -524,7 +539,7 @@ function updateOut(){
     set("o_fh"+i,it.item||"Item "+(i+1));
     set("o_fs"+i,l?fmt(l.mem,3):"");
     const tr=document.getElementById("qr"+i); if(tr){ tr.hidden=!l; tr.classList.toggle("over",!!l&&l.acum>l.prev+0.0005); }
-    if(l){ set("o_qi"+i,l.item); set("o_qm"+i,fmt(l.mem,3)); set("o_qd"+i,l.dem); set("o_qp"+i,fmt(l.prev,3)); set("o_qb"+i,fmt(l.bm,3)); set("o_qa"+i,fmt(l.acum,3)); set("o_qpa"+i,pctf(l.pa)); set("o_qv"+i,brl(l.valor));
+    if(l){ set("o_qi"+i,l.item); set("o_qm"+i,fmt(l.mem,3)); set("o_qd"+i,l.usaD?l.dem:l.base); set("o_qp"+i,fmt(l.prev,3)); set("o_qb"+i,fmt(l.bm,3)); set("o_qa"+i,fmt(l.acum,3)); set("o_qpa"+i,pctf(l.pa)); set("o_qv"+i,brl(l.valor));
       const ant=document.getElementById(`q${i}_ant`); if(ant){ ant.disabled=l.isEt; document.getElementById(`q${i}_pct`).disabled=l.isEt; document.getElementById(`q${i}_man`).disabled=l.isEt; if(l.isEt) ant.value=fmt(l.ant,3); } }
   });
   m.elems.forEach((e,k)=>{ set("o_e"+k,c.el[k]==null?"":fmt(c.el[k],3)); set("o_t"+k,textoElem(e)); });
@@ -537,7 +552,7 @@ const ED=$("#ed");
 ED.addEventListener("input",e=>{
   const t=e.target, d=t.dataset; if(!cur) return; let estrutura=false;
   if(d.k){ cur[d.k]= d.k==="bm" ? (parseInt(t.value)||cur.bm) : t.value; if(d.k==="bm") estrutura=true; if(d.k==="tipoMC"){ aplicaModelo(cur); estrutura=true; } }
-  else if(d.it!=null){ cur.itens[+d.it][d.f]=t.value; if(d.f==="item") estrutura=false; }
+  else if(d.it!=null){ cur.itens[+d.it][d.f]=t.value; if(d.f==="item") estrutura=true; }
   else if(d.el!=null&&d.fl!=null){ cur.elems[+d.el].fl[+d.fl]=t.checked; }
   else if(d.el!=null){ cur.elems[+d.el][d.f]=t.value; if(d.f==="tipo") estrutura=true; }
   else if(d.q!=null){ cur.quadro[+d.q][d.f]=t.value; }
@@ -670,8 +685,8 @@ async function pdfMC(doc, m, VERT){
   // 1 itens
   const L=c.linhas.filter(Boolean);
   sec("ITENS DA PPU MEDIDOS NESTA MC");
-  T({head:[["Nº","ITEM","DESCRIÇÃO (PPU DO CONTRATO)","UNID.","PREÇO PPU (R$)","MÉTODO","FATOR","PREÇO APLICADO (R$)","DEMÃOS","SEÇÃO"]],
-    body:L.map((l,k)=>{ const met=METODOS.find(x=>x[0]===l.metodo)||METODOS[0]; return [k+1,{content:l.item,styles:{fontStyle:"bold",halign:"center"}},pdfTxt(l.P.d),l.P.u,fmt(l.P.p),l.faixa?pdfTxt(met[2]):"Não se aplica",fmt(l.fat),{content:fmt(l.precoAp),styles:{fontStyle:"bold"}},l.dem,l.P.s]; }),
+  T({head:[["Nº","ITEM","DESCRIÇÃO (PPU DO CONTRATO)","UNID.","PREÇO PPU (R$)","MÉTODO","FATOR","PREÇO APLICADO (R$)",tituloDemao(L.map(l=>l.item)).toUpperCase(),"SEÇÃO"]],
+    body:L.map((l,k)=>{ const met=METODOS.find(x=>x[0]===l.metodo)||METODOS[0]; return [k+1,{content:l.item,styles:{fontStyle:"bold",halign:"center"}},pdfTxt(l.P.d),l.P.u,fmt(l.P.p),l.faixa?pdfTxt(met[2]):"Não se aplica",fmt(l.fat),{content:fmt(l.precoAp),styles:{fontStyle:"bold"}},l.usaD?l.dem:{content:l.base,styles:{fontSize:FS-1,textColor:90}},l.P.s]; }),
     columnStyles:{0:{cellWidth:7,halign:"center"},1:{cellWidth:13},3:{cellWidth:11,halign:"center"},4:{cellWidth:18,halign:"right"},5:{cellWidth:VERT?22:30,halign:"center"},6:{cellWidth:13,halign:"center"},7:{cellWidth:20,halign:"right"},8:{cellWidth:15,halign:"center"},9:{cellWidth:13,halign:"center"}}});
   // critério
   const crit=L.map(l=>{ const et=etapasDe(l.item); return `Item ${l.item} (seção ${l.P.s}): ${l.P.c}`+(et?" Etapas: "+et.map(([n,p])=>Math.round(p*100)+"% "+n).join("; ")+".":""); }).join("\n");
@@ -686,8 +701,8 @@ async function pdfMC(doc, m, VERT){
   const dem=somaItens(m,c); if(dem){ y-=2; T({body:[[pdfTxt(dem)]],styles:{fontSize:FS-0.5,fontStyle:"italic",fillColor:[248,248,248]}}); }
   // 3 quadro
   sec("QUADRO DE MEDIÇÃO E AVANÇO POR ITEM");
-  T({head:[["ITEM","DESCRIÇÃO","UNID.","QTD MEMÓRIA","DEMÃOS","PREVISTO","ACUM. ANTERIOR","MEDIDO NO BM","ACUMULADO","% ACUM.","PREÇO APLIC.","VALOR NO BM (R$)"]],
-    body:L.map(l=>[{content:l.item,styles:{fontStyle:"bold",halign:"center"}},{content:pdfTxt(l.P.d),styles:{fontSize:FS-1}},l.P.u,fmt(l.mem,3),l.dem,fmt(l.prev,3),fmt(l.ant,3),{content:fmt(l.bm,3),styles:{fontStyle:"bold"}},fmt(l.acum,3),l.pa==null?"":fmt(l.pa*100,1)+"%",fmt(l.precoAp),{content:fmt(l.valor),styles:{fontStyle:"bold"}}]),
+  T({head:[["ITEM","DESCRIÇÃO","UNID.","QTD MEMÓRIA",tituloDemao(L.map(l=>l.item)).toUpperCase(),"PREVISTO","ACUM. ANTERIOR","MEDIDO NO BM","ACUMULADO","% ACUM.","PREÇO APLIC.","VALOR NO BM (R$)"]],
+    body:L.map(l=>[{content:l.item,styles:{fontStyle:"bold",halign:"center"}},{content:pdfTxt(l.P.d),styles:{fontSize:FS-1}},l.P.u,fmt(l.mem,3),l.usaD?l.dem:{content:l.base,styles:{fontSize:FS-1,textColor:90}},fmt(l.prev,3),fmt(l.ant,3),{content:fmt(l.bm,3),styles:{fontStyle:"bold"}},fmt(l.acum,3),l.pa==null?"":fmt(l.pa*100,1)+"%",fmt(l.precoAp),{content:fmt(l.valor),styles:{fontStyle:"bold"}}]),
     foot:[[{content:"TOTAL DA MC NO BM (R$)",colSpan:11,styles:{halign:"right"}},{content:fmt(c.total),styles:{halign:"right",fontSize:FS+1}}]],
     columnStyles:{0:{cellWidth:12},2:{cellWidth:10,halign:"center"},3:{halign:"right"},4:{cellWidth:15,halign:"center"},5:{halign:"right"},6:{halign:"right"},7:{halign:"right"},8:{halign:"right"},9:{cellWidth:14,halign:"center"},10:{halign:"right"},11:{cellWidth:24,halign:"right"}}});
   // 4 etapas
@@ -756,12 +771,12 @@ async function folhaMC(wb, nome, m){
   ws.getCell("A7").value="Células amarelas = valores informados. As demais são fórmulas."; ws.getCell("A7").font={name:"Arial",size:9,italic:true,color:{argb:"FF595959"}};
   // 1 itens
   const RI=10; sec(RI-1,"1. ITENS DA PPU MEDIDOS NESTA MC");
-  head(RI,[["A","Nº"],["B","ITEM PPU"],["C","DESCRIÇÃO (PPU DO CONTRATO)","H"],["I","UNID."],["J","PREÇO PPU (R$)"],["K","MÉTODO","L"],["M","FATOR"],["N","PREÇO APLICADO (R$)","O"],["P","DEMÃOS"],["Q","SEÇÃO ANEXO 1","R"]]);
+  head(RI,[["A","Nº"],["B","ITEM PPU"],["C","DESCRIÇÃO (PPU DO CONTRATO)","H"],["I","UNID."],["J","PREÇO PPU (R$)"],["K","MÉTODO","L"],["M","FATOR"],["N","PREÇO APLICADO (R$)","O"],["P",tituloDemao(c.linhas.filter(Boolean).map(l=>l.item)).toUpperCase()],["Q","SEÇÃO ANEXO 1","R"]]);
   const L=c.linhas.filter(Boolean); const row1={}; // i -> linha excel
   L.forEach((l,k)=>{ const r=RI+1+k; row1[l.i]=r; const met=METODOS.find(x=>x[0]===l.metodo)||METODOS[0];
     put("A"+r,k+1,{h:"center",b:1}); put("B"+r,l.item,{h:"center",b:1,sz:10,fill:INP}); put("C"+r,l.P.d,{m:"H"+r}); put("I"+r,l.P.u,{h:"center"});
     put("J"+r,l.P.p,{h:"right",f:"#,##0.00"}); put("K"+r,l.faixa?met[2]:"Não se aplica",{m:"L"+r,h:"center",sz:8,fill:INP}); put("M"+r,l.fat,{h:"center",f:"0.00",b:1});
-    put("N"+r,F(`ROUND(J${r}*M${r},2)`,l.precoAp),{m:"O"+r,h:"right",f:"#,##0.00",b:1}); put("P"+r,l.dem,{h:"center",fill:INP}); put("Q"+r,l.P.s,{m:"R"+r,h:"center"}); ws.getRow(r).height=26; });
+    put("N"+r,F(`ROUND(J${r}*M${r},2)`,l.precoAp),{m:"O"+r,h:"right",f:"#,##0.00",b:1}); put("P"+r,l.usaD?l.dem:l.base,l.usaD?{h:"center",fill:INP}:{h:"center",sz:8,i:1}); put("Q"+r,l.P.s,{m:"R"+r,h:"center"}); ws.getRow(r).height=26; });
   let r=RI+1+Math.max(L.length,1)+1;
   // critério
   sec(r,"CRITÉRIO DE MEDIÇÃO (Anexo 1 – resumo)"); r++;
@@ -796,14 +811,14 @@ async function folhaMC(wb, nome, m){
   const et=etapasDe(m.etapa.item); const lotes=et?m.etapa.lotes.filter(l=>num(l.area)!=null):[];
   // 3 quadro
   sec(r,"3. QUADRO DE MEDIÇÃO E AVANÇO POR ITEM"); r++;
-  head(r,[["A","Nº"],["B","ITEM"],["C","DESCRIÇÃO"],["D","UNID."],["E","QTD MEMÓRIA"],["F","DEMÃOS"],["G","PREVISTO","H"],["I","ACUM. ATÉ BM ANTERIOR"],["J","% NO BM"],["K","MEDIDO NO BM","L"],["M","ACUMULADO","N"],["O","% ACUM."],["P","PREÇO APLICADO"],["Q","VALOR NO BM (R$)","R"]]);
+  head(r,[["A","Nº"],["B","ITEM"],["C","DESCRIÇÃO"],["D","UNID."],["E","QTD MEMÓRIA"],["F",tituloDemao(L.map(l=>l.item)).toUpperCase()],["G","PREVISTO","H"],["I","ACUM. ATÉ BM ANTERIOR"],["J","% NO BM"],["K","MEDIDO NO BM","L"],["M","ACUMULADO","N"],["O","% ACUM."],["P","PREÇO APLICADO"],["Q","VALOR NO BM (R$)","R"]]);
   const Q0=r+1; const QE=Q0+Math.max(L.length,1)-1;
   const ETR0 = QE+6; // linha do 1º lote (seção, item, cabeçalho)
   const ETT = ETR0+Math.max(lotes.length,1); // linha do total de etapas
   L.forEach((l,k)=>{ const rr=Q0+k, ri=row1[l.i], q=m.quadro[l.i];
     put("A"+rr,k+1,{h:"center",b:1}); put("B"+rr,F(`B${ri}`,l.item),{h:"center",b:1}); put("C"+rr,l.P.d,{sz:7}); put("D"+rr,l.P.u,{h:"center"});
-    put("E"+rr,F(memCell[l.i],l.mem),{h:"right",f:"#,##0.000"}); put("F"+rr,F(`P${ri}`,l.dem),{h:"center"});
-    put("G"+rr,F(`ROUND(E${rr}*F${rr},3)`,l.prev),{m:"H"+rr,h:"right",f:"#,##0.000",b:1});
+    put("E"+rr,F(memCell[l.i],l.mem),{h:"right",f:"#,##0.000"}); if(l.usaD) put("F"+rr,F(`P${ri}`,l.dem),{h:"center"}); else put("F"+rr,l.base,{h:"center",sz:8,i:1});
+    put("G"+rr,F(l.usaD?`ROUND(E${rr}*F${rr},3)`:`ROUND(E${rr},3)`,l.prev),{m:"H"+rr,h:"right",f:"#,##0.000",b:1});
     if(l.isEt){ put("I"+rr,F(`M${ETT}-K${ETT}`,l.ant),{h:"right",f:"#,##0.000"}); put("J"+rr,F(`IF(G${rr}=0,0,K${rr}/G${rr})`,l.prev?l.bm/l.prev:0),{h:"center",f:"0.0%"}); put("K"+rr,F(`K${ETT}`,l.bm),{m:"L"+rr,h:"right",f:"#,##0.000",b:1}); }
     else if(num(q.man)!=null){ put("I"+rr,l.ant,{fill:INP,h:"right",f:"#,##0.000"}); put("J"+rr,F(`IF(G${rr}=0,0,K${rr}/G${rr})`,l.prev?l.bm/l.prev:0),{h:"center",f:"0.0%"}); put("K"+rr,l.bm,{m:"L"+rr,h:"right",f:"#,##0.000",b:1,fill:INP}); }
     else { put("I"+rr,l.ant,{fill:INP,h:"right",f:"#,##0.000"}); put("J"+rr,(num(q.pct)||0)/100,{fill:INP,h:"center",f:"0.0%"}); put("K"+rr,F(`ROUND(G${rr}*J${rr},3)`,l.bm),{m:"L"+rr,h:"right",f:"#,##0.000",b:1}); }
