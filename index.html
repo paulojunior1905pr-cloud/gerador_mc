@@ -234,8 +234,15 @@ tfoot td{font-weight:700;background:var(--chip)}
 .alerts{display:flex;flex-direction:column;gap:6px}
 .alert{border-left:3px solid var(--warn);background:color-mix(in srgb,var(--warn) 10%,transparent);padding:6px 10px;border-radius:4px;font-size:13px}
 .alert.bad{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 10%,transparent)}
-.crit{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:6px}
-.crit b{color:var(--ink);font-family:var(--f-mono)}
+.crit{font-size:12.5px;color:var(--ink);display:flex;flex-direction:column;gap:8px}
+.crit .crith{font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--accent)}
+.crit .crith small{text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted)}
+.crit .critit{border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:4px}
+.crit .crt b{font-family:var(--f-mono)} .crit .crt small{color:var(--muted)}
+.crit .crd{color:var(--ink);line-height:1.45}
+.crit .crets{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.crit .crets span{font-weight:600}
+.crit .crets em{font-style:normal;background:var(--entry);border:1px solid var(--entry-line);border-radius:12px;padding:1px 8px;font-size:12px}
+.crit .crdica{color:var(--muted);font-size:12px}
 .photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
 .ph{border:1px solid var(--line);border-radius:6px;overflow:hidden;display:flex;flex-direction:column;background:var(--bg)}
 .ph img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;background:var(--chip)}
@@ -405,9 +412,9 @@ const TMC = {
   costado:{n:"Costado – anéis do tanque (pintura m²)",d:"Pintura e tratamento dos anéis do costado (π × DN × altura do anel).",f:["anel","cil","direto","retoque"],lab:{a:"DN do tanque (m)",b:"Altura do anel (m)",q:"Nº de anéis"},modelo:[["Anel do costado","anel"]]},
   diaria:{n:"Diárias de equipamentos e serviços",d:"PTA, gerador, bomba, guindaste (por período), topografia e caminhão vácuo (por horas ÷ jornada de 8,8 h).",f:["diaria","diasQ","horas"],lab:{a:"Início / horas",b:"Fim / jornada (h)",q:"Qtd de equipamentos"},modelo:[["","diaria"]]},
   estrutura:{n:"Escadas, plataformas e guarda-corpos (pintura m²)",d:"Escada +10% (face superior) e +30% (face inferior), guarda-corpo C × h ÷ 2, grelha × 3.",f:["escSup","escInf","gcReto","gcCirc","grelha","platInf","piso","ret","cil","perfil","retoque"],lab:{a:"Comprimento ou DN (m)",b:"Largura ou altura (m)",bit:"Perfil",q:"Qtd"},modelo:[["Escada – face superior","escSup"],["Escada – face inferior","escInf"],["Corrimão / guarda-corpo","gcReto"],["Plataforma (grelha)","grelha"]]},
-  peso:{n:"Estruturas por peso (kg)",d:"Item 1.76: escadas, plataformas, guarda-corpos, serpentina e ancoragem medidos em kg. O % da etapa (ex.: remoção 20% + preparação 40%) vem da seção de etapas.",f:["pesoDir","pesoPerfil"],lab:{a:"Peso (kg) ou comprimento (m)",b:"kg/m do perfil",q:"Qtd de peças"},modelo:[["Peso conforme desenho / lista de material","pesoDir"]]},
+  peso:{n:"Estruturas por peso (kg)",d:"Item 1.76: escadas, plataformas, guarda-corpos, serpentina e ancoragem medidos em kg. Na coluna “Etapa cobrada” escolha a etapa (ex.: 60% · Remoção + Preparação e fabricação).",f:["pesoDir","pesoPerfil"],lab:{a:"Peso (kg) ou comprimento (m)",b:"kg/m do perfil",q:"Qtd de peças"},modelo:[["Peso conforme desenho / lista de material","pesoDir"]]},
   geral:{n:"Geral – todas as formas",d:"Todas as formas de cálculo disponíveis.",f:Object.keys(FORMAS),lab:{a:"Dim. 1 (C / D / B)",b:"Dim. 2 (L / h / d)",c:"Dim. 3 (altura h)",bit:"Bitola / perfil",q:"Qtd"},modelo:[]},
-  isolamento:{n:"Isolamento térmico (volume m³)",d:"Itens 1.87, 1.88 e 1.89: teto = π × D² ÷ 4 × espessura; costado = π × DN × altura × espessura; trechos retos = C × L × espessura. A etapa (remoção 30% / instalação 70%) vem da seção de etapas.",f:["volCil","volFaixa","volRet","volDir"],lab:{a:"DN do tanque / comprimento (m)",b:"Altura do costado / largura (m)",c:"Espessura (m)",q:"Qtd"},modelo:[["Isolamento do teto (π × D² ÷ 4 × espessura)","volCil"],["Isolamento do costado (π × DN × altura × espessura)","volFaixa"]]},
+  isolamento:{n:"Isolamento térmico (volume m³)",d:"Itens 1.87, 1.88 e 1.89: teto = π × D² ÷ 4 × espessura; costado = π × DN × altura × espessura; trechos retos = C × L × espessura. Na coluna “Etapa cobrada” escolha 30% · Remoção ou 70% · Instalação.",f:["volCil","volFaixa","volRet","volDir"],lab:{a:"DN do tanque / comprimento (m)",b:"Altura do costado / largura (m)",c:"Espessura (m)",q:"Qtd"},modelo:[["Isolamento do teto (π × D² ÷ 4 × espessura)","volCil"],["Isolamento do costado (π × DN × altura × espessura)","volFaixa"]]},
   civil:{n:"Rota de fuga, minidique, muros e muretas",d:"Faixas no perímetro do tanque (π × D × largura), acessos e paredes. Na largura dá para somar: 0,4+2,15+0,4.",f:["faixa","ret","raios","trap","tri","cil","direto"],lab:{a:"C / D / B (m)",b:"Largura / d / b (m)",c:"Altura h (m)",q:"Qtd"},modelo:[["Rota de fuga no perímetro do tanque","faixa"],["Acesso à rota de fuga","ret"],["Parede interna","faixa"],["Parede externa","faixa"],["Faixa amarela","faixa"]]},
   teto:{n:"Teto, fundo, lençol e contraventamento",d:"Círculo (π × D² ÷ 4), coroa entre dois diâmetros (flutuador = teto − lençol) e face inferior +30%.",f:["circ","coroa","coroaInf","cil","ret","direto","retoque"],lab:{a:"Diâmetro D (m)",b:"Diâmetro interno d / altura (m)",q:"Qtd"},modelo:[["Teto / fundo (círculo)","circ"],["Flutuador (coroa: teto − lençol)","coroa"],["Contraventamento – face inferior","coroaInf"]]},
   tubulacao:{n:"Tubulação e suportes",d:"Linhas pelo comprimento × m²/m do diâmetro e suportes pelo perfil.",f:["tubo","perfil","retoque","direto"],lab:{a:"Comprimento (m)",bit:"Diâmetro / perfil",q:"Qtd de peças"},modelo:[["Linha","tubo"],["Suporte","perfil"]]},
@@ -449,7 +456,7 @@ function baseElem(e){
 function novaMC(bm){ return {bm, mc:"", tanque:"", ro:"", servico:"", tipoMC:"geral", itens:Array.from({length:NI},()=>({item:"",metodo:"",demaos:""})),
   elems:Array.from({length:4},()=>novoElem()), quadro:Array.from({length:NI},()=>({ant:"",pct:"",man:""})),
   etapa:{item:"",lotes:[novoLote(),novoLote()]}, obs:"", fotos:[], updatedAt:Date.now()}; }
-function novoElem(tipo=""){ return {desc:"",tipo,a:"",b:"",c:"",bit:"",qtd:"",pct:"",fl:[false,false,false,false,false,false]}; }
+function novoElem(tipo=""){ return {desc:"",tipo,a:"",b:"",c:"",bit:"",qtd:"",pct:"",et:"",fl:[false,false,false,false,false,false]}; }
 function novoLote(){ return {desc:"",tipo:"",area:"",bms:["","","","",""]}; }
 function normaliza(m){ const n=novaMC(m.bm||23); const o=Object.assign(n,m);
   o.itens=Array.from({length:NI},(_,i)=>Object.assign({item:"",metodo:"",demaos:""},(m.itens||[])[i]||{}));
@@ -460,9 +467,17 @@ function normaliza(m){ const n=novaMC(m.bm||23); const o=Object.assign(n,m);
   if(!TMC[o.tipoMC]) o.tipoMC="geral";
   o.fotos=m.fotos||[]; return o; }
 
+/* etapa do critério cobrada na linha da memória: "item|a-b" (faixa de etapas) */
+function etParse(v){ const m=/^([\d.]+)\|(\d+)-(\d+)$/.exec(v||""); if(!m) return null; const et=DATA.etapas[m[1]]; if(!et) return null;
+  const a=+m[2], b=+m[3]; if(a>b||b>=et.length) return null; const sel=et.slice(a,b+1);
+  return {item:m[1],a,b,f:Math.round(sel.reduce((s,x)=>s+x[1],0)*1e4)/1e4,nome:sel.map(x=>x[0]).join(" + ")}; }
+const etFator = e => { const x=etParse(e.et); return x?x.f:1; };
+function etOpcoes(m){ const o=[]; m.itens.forEach(it=>{ const et=DATA.etapas[it.item]; if(!et||o.some(g=>g.item===it.item)) return; const op=[];
+    for(let a=0;a<et.length;a++) for(let b=a;b<et.length;b++){ if(a===0&&b===et.length-1) continue; const x=etParse(`${it.item}|${a}-${b}`); op.push([`${it.item}|${a}-${b}`,`${fmt(x.f*100,0)}% · ${x.nome}`]); }
+    o.push({item:it.item,op}); }); return o; }
 function calcElem(e){
   const k=formaDe(e); if(!k) return null; const base=baseElem(e); const q=numE(e.qtd)??1, p=(numE(e.pct)??100)/100;
-  return r3(base*FORMAS[k][1]*q*p);
+  return r3(base*FORMAS[k][1]*q*p*etFator(e));
 }
 function textoElem(e){
   const k=formaDe(e); if(!k) return ""; const F=FORMAS[k]; const A=numE(e.a), B=numE(e.b), C=numE(e.c), q=numE(e.qtd), p=numE(e.pct);
@@ -477,6 +492,7 @@ function textoElem(e){
   const f=F[1]; if(f===0.5) s+=" ÷ 2"; else if(f!==1) s+=" × "+fmt(f,2);
   if(q!=null && q!==1) s+=" × "+(ehConta(e.qtd)?contaTxt(e.qtd):fmt(q,q%1?2:0));
   if(p!=null && p!==100) s+=" × "+fmt(p,p%1?1:0)+"%";
+  const ex=etParse(e.et); if(ex) s+=" × "+fmt(ex.f*100,0)+"% ("+ex.item+": "+ex.nome+")";
   return s+" = "+fmt(calcElem(e),3);
 }
 function etapasDe(it){ return DATA.etapas[it]||null; }
@@ -514,6 +530,12 @@ function calcMC(m){
     if(l.mem===0 && !l.isEt) alerts.push(["",`Item ${l.item}: nenhuma linha da memória está marcada para este item.`]);
   });
   m.elems.forEach((e,k)=>{ const p=num(e.pct); if(e.tipo && p!=null && p!==100 && !e.desc) alerts.push(["",`Linha ${k+1} da memória usa ${fmt(p,0)}% sem descrição do motivo.`]);
+    const ex=etParse(e.et);
+    if(e.tipo && ex){ const ii=m.itens.findIndex(it=>it.item===ex.item);
+      if(ii<0) alerts.push(["",`Linha ${k+1} da memória cobra etapa do item ${ex.item}, que não está na MC.`]);
+      else if(!e.fl[ii]) alerts.push(["",`Linha ${k+1} da memória cobra etapa do item ${ex.item}, mas não está marcada para ele.`]);
+      if(m.etapa.item===ex.item) alerts.push(["bad",`Item ${ex.item}: a etapa está indicada na memória (linha ${k+1}) e também na seção 4. Use só uma das duas.`]); }
+    if(e.tipo && !e.et) m.itens.forEach((it,i)=>{ if(e.fl[i] && etapasDe(it.item) && m.etapa.item!==it.item) alerts.push(["",`Linha ${k+1}: o item ${it.item} é cobrado por etapas. Escolha na coluna "Etapa cobrada" qual etapa está sendo medida (ou 100% se o serviço está completo).`]); });
     if(e.tipo && el[k]!=null && !e.fl.some(Boolean)) alerts.push(["",`Linha ${k+1} da memória não está marcada para nenhum item.`]); });
   if(!m.mc) alerts.push(["","Informe o número da MC."]);
   return {el,et,linhas,total,alerts};
@@ -600,6 +622,7 @@ function linhaMem(e,k,tp){
       ${colsMem(tp).map(cel).join("")}
       <td><input id="e${k}_q" class="sm num" data-el="${k}" data-f="qtd" inputmode="decimal" value="${esc(e.qtd)}" placeholder="1"></td>
       <td><input id="e${k}_p" class="sm num" data-el="${k}" data-f="pct" inputmode="decimal" value="${esc(e.pct)}" placeholder="100"></td>
+      ${(()=>{ const g=etOpcoes(cur); if(!g.length) return ""; return `<td><select id="e${k}_et" data-el="${k}" data-f="et" style="min-width:230px"><option value="">— escolha —</option><option value="100" ${e.et==="100"?"selected":""}>100% · serviço completo (todas as etapas)</option>${g.map(x=>`<optgroup label="Item ${esc(x.item)}">${x.op.map(([v,l])=>opt(v,l,e.et)).join("")}</optgroup>`).join("")}${e.et&&e.et!=="100"&&!etParse(e.et)?opt(e.et,"(etapa inválida)",e.et):""}</select></td>`; })()}
       ${e.fl.map((f,i)=>`<td class="c"><input type="checkbox" id="e${k}_f${i}" data-el="${k}" data-fl="${i}" ${f?"checked":""} aria-label="Aplica ao item ${i+1}"></td>`).join("")}
       <td class="r"><span class="out" id="o_e${k}"></span></td><td><span class="txt" id="o_t${k}"></span></td>
       <td><button class="ghost" data-del-el="${k}" aria-label="Remover linha">✕</button></td></tr>`;
@@ -669,10 +692,10 @@ function renderEditor(){
   </section>
 
   <section class="blk"><h2><span class="num">2</span> Memória de cálculo <small>${esc(tp.n)}. Uma linha por elemento; marque os itens a que a área se aplica.</small></h2>
-    <div class="tblw"><table><thead><tr><th>Nº</th><th>Descrição / origem da medida</th><th>Forma de cálculo</th>${colsMem(tp).map(([k,l])=>`<th class="${k==="bit"?"":"r"}">${esc(l)}</th>`).join("")}<th class="r">${esc(tp.lab.q||"Qtd")}</th><th class="r">% consid.</th>
+    <div class="tblw"><table><thead><tr><th>Nº</th><th>Descrição / origem da medida</th><th>Forma de cálculo</th>${colsMem(tp).map(([k,l])=>`<th class="${k==="bit"?"":"r"}">${esc(l)}</th>`).join("")}<th class="r">${esc(tp.lab.q||"Qtd")}</th><th class="r">% consid.</th>${etOpcoes(m).length?`<th>Etapa cobrada (critério)</th>`:""}
       ${m.itens.map((it,i)=>`<th class="c" id="o_fh${i}">${esc(it.item||"Item "+(i+1))}</th>`).join("")}<th class="r">Resultado</th><th>Cálculo</th><th></th></tr></thead><tbody>
     ${m.elems.map((e,k)=>linhaMem(e,k,tp)).join("")}
-    </tbody><tfoot><tr><td colspan="${5+colsMem(tp).length}" class="r">Quantidade por item</td>${m.itens.map((_,i)=>`<td class="c"><span class="out" id="o_fs${i}"></span></td>`).join("")}<td colspan="3"></td></tr></tfoot></table></div>
+    </tbody><tfoot><tr><td colspan="${5+colsMem(tp).length+(etOpcoes(m).length?1:0)}" class="r">Quantidade por item</td>${m.itens.map((_,i)=>`<td class="c"><span class="out" id="o_fs${i}"></span></td>`).join("")}<td colspan="3"></td></tr></tfoot></table></div>
     <div class="row" style="margin-top:8px"><button id="bAddEl">+ Linha</button><span class="hint">Nas medidas você pode digitar a conta, por exemplo <b>32,44+2*(3,30+0,40)</b>: ela aparece na MC e no Excel. Fatores do contrato já entram pela forma escolhida.</span></div>
   </section>
 
@@ -686,7 +709,7 @@ function renderEditor(){
     </tbody><tfoot><tr><td colspan="11" class="r">Total da MC no BM</td><td class="r"><span class="out" id="o_qt"></span></td></tr></tfoot></table></div>
   </section>
 
-  <section class="blk"><h2><span class="num">4</span> Medição por etapas <small>Para itens como 1.22, 1.23 e 1.25. Em cada etapa digite o nº do BM em que ela foi concluída, ou N/A.</small></h2>
+  <section class="blk"><h2><span class="num">4</span> Acompanhamento por etapas e BMs (opcional) <small>Alternativa à coluna "Etapa cobrada": registra, por lote, o BM em que cada etapa foi concluída (ou N/A).</small></h2>
     <div class="grid" style="max-width:520px"><label class="f">Item com etapas<select id="et_item" data-k2="item"><option value="">— nenhum —</option>${Object.keys(DATA.etapas).map(it=>opt(it,it+" · "+PPU[it].d.slice(0,50),m.etapa.item)).join("")}</select></label></div>
     <div id="et_box"></div>
   </section>
@@ -757,8 +780,9 @@ function updateOut(){ kpis(); tqInfo();
       const ant=document.getElementById(`q${i}_ant`); if(ant){ ant.disabled=l.isEt; document.getElementById(`q${i}_pct`).disabled=l.isEt; document.getElementById(`q${i}_man`).disabled=l.isEt; if(l.isEt) ant.value=fmt(l.ant,3); } }
   });
   m.elems.forEach((e,k)=>{ set("o_e"+k,c.el[k]==null?"":fmt(c.el[k],3)); set("o_t"+k,textoElem(e)); });
-  $("#o_crit").innerHTML=m.itens.filter(it=>PPU[it.item]).map(it=>{ const P=PPU[it.item]; const et=etapasDe(it.item);
-    return `<div><b>${esc(it.item)}</b> – ${esc(P.c)}${et?" Etapas: "+et.map(([n,p])=>fmt(p*100,0)+"% "+n).join("; ")+".":""}</div>`; }).join("");
+  const its=m.itens.filter((it,i)=>PPU[it.item]&&m.itens.findIndex(x=>x.item===it.item)===i);
+  $("#o_crit").innerHTML=its.length?`<div class="crith">Critério de medição <small>(Anexo 1 do contrato)</small></div>`+its.map(it=>{ const P=PPU[it.item]; const et=etapasDe(it.item);
+    return `<div class="critit"><div class="crt"><b>${esc(it.item)}</b> ${esc(P.d)} <small>(${esc(P.u)})</small></div><div class="crd">${esc(P.c)}</div>${et?`<div class="crets"><span>Cobrança por etapa:</span>${et.map(([n,p])=>`<em>${fmt(p*100,0)}% ${esc(n)}</em>`).join("")}</div><div class="crdica">Na memória, escolha na coluna <b>Etapa cobrada</b> qual etapa está sendo medida em cada linha (ou use a seção 4 para acompanhar por BM).</div>`:""}</div>`; }).join(""):"";
   if(etapasDe(m.etapa.item)){ m.etapa.lotes.forEach((l,k)=>{ const q=c.et.lotes[k]; set("o_lpb"+k,num(l.area)!=null?pctf(q.pb):""); set("o_lqb"+k,q.qb!=null?fmt(q.qb,3):""); set("o_lpa"+k,num(l.area)!=null?pctf(q.pa):""); set("o_lqa"+k,q.qa!=null?fmt(q.qa,3):""); });
     set("o_ltb",fmt(c.et.bm,3)); set("o_lta",fmt(c.et.acum,3)); }
 }
@@ -1041,7 +1065,7 @@ async function folhaMC(wb, nome, m){
     put("G"+rr,kind==="bit"?(M2M[e.bit]||0):null,{h:"center",f:"0.00"});
     put("H"+rr,ehConta(e.qtd)&&contaXL(e.qtd)?F(contaXL(e.qtd),numE(e.qtd)):(numE(e.qtd)??1),{fill:INP,h:"center",f:"#,##0.##"}); put("I"+rr,Fm[1],{h:"center",f:"0.00"}); put("J"+rr,(numE(e.pct)??100)/100,{fill:INP,h:"center",f:"0%"});
     const base={direto:`D${rr}`,ret:`D${rr}*E${rr}`,tri:`D${rr}*E${rr}/2`,trap:`(D${rr}+E${rr})/2*F${rr}`,cil:`${PI}*D${rr}*E${rr}`,circ:`${PI}*D${rr}^2/4`,coroa:`${PI}*(D${rr}^2-E${rr}^2)/4`,raios:`${PI}*(D${rr}^2-E${rr}^2)`,bit:`D${rr}*G${rr}`,retoque:"0.15",diaria:`(E${rr}-D${rr}+1)`,dias:"1",un:"1",horas:`D${rr}/E${rr}`,vret:`D${rr}*E${rr}*F${rr}`,vcil:`${PI}*D${rr}^2/4*F${rr}`,vfaixa:`${PI}*D${rr}*E${rr}*F${rr}`}[kind];
-    put("K"+rr,F(`ROUND(${base}*I${rr}*H${rr}*J${rr},3)`,x.v),{h:"right",f:"#,##0.000",b:1});
+    put("K"+rr,F(`ROUND(${base}*I${rr}*H${rr}*J${rr}${etParse(e.et)?"*"+etFator(e):""},3)`,x.v),{h:"right",f:"#,##0.000",b:1});
     L.forEach((l,k)=>put(C(12+k)+rr,e.fl[l.i]?"x":null,{fill:INP,h:"center",b:1})); for(let k=L.length;k<6;k++) put(C(12+k)+rr,null,{});
     put("R"+rr,textoElem(e),{sz:8}); });
   const ME=M0+Math.max(els.length,1)-1; r=ME+1;
