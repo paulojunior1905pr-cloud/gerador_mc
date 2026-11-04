@@ -554,6 +554,7 @@ const BM_ATUAL_PADRAO = 24;
 function status(s){ $("#status").textContent=s; }
 
 async function boot(){
+  cur=novaMC(BM_ATUAL_PADRAO); curId=null; /* sempre abre numa MC nova; ela só é salva quando algo for digitado */
   renderList(); renderEditor();
   const to=setTimeout(()=>{ if(!db && !window.__aguardandoLogin){ status("Sem conexão com o armazenamento"); $("#list").innerHTML='<div class="empty">Não foi possível carregar as MCs salvas. Você pode montar e baixar uma MC, mas ela não ficará salva.</div>'; } },10000);
   db = await claude.use("db");
@@ -565,7 +566,6 @@ async function boot(){
     status(snap.size+" MC(s) salvas");
     if(curId && MCS[curId] && !saveT && !document.activeElement?.closest("#ed")) { cur=MCS[curId]; renderEditor(); }
     renderList();
-    if(!cur && snap.size){ const ids=idsFiltrados(); if(ids.length) abrir(ids[0]); }
   }, err=>{ clearTimeout(to); status("Erro ao ler: "+err.code); });
 }
 function idsFiltrados(){ return Object.keys(MCS).filter(id=>filtroBM==null||MCS[id].bm===filtroBM)
