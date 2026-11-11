@@ -312,7 +312,7 @@ input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:n
 </style>
 
 <header class="top">
-  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 11/11 13:34 (com logos)</span></div>
+  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 11/11 14:35 (com logos)</span></div>
   <div class="sp"></div>
   <span class="status" id="status">Conectando…</span>
   <label class="tema">Tema<select id="selTema"><option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
@@ -457,7 +457,7 @@ function baseElem(e){
 /* ---------- modelo ---------- */
 function novaMC(bm){ return {bm, mc:"", tanque:"", ro:"", servico:"", tipoMC:"geral", itens:Array.from({length:NI},()=>({item:"",metodo:"",demaos:""})),
   elems:Array.from({length:4},()=>novoElem()), quadro:Array.from({length:NI},()=>({ant:"",pct:"",man:""})),
-  etapa:{item:"",lotes:[novoLote(),novoLote()]}, modoAv:"acum", obs:"", fotos:[], updatedAt:Date.now()}; }
+  etapa:{item:"",lotes:[novoLote(),novoLote()]}, modoAv:"acum", obsMem:"", obs:"", fotos:[], updatedAt:Date.now()}; }
 function novoElem(tipo=""){ return {desc:"",tipo,a:"",b:"",c:"",bit:"",qtd:"",pct:"",et:"",fl:[false,false,false,false,false,false]}; }
 function novoLote(){ return {desc:"",tipo:"",area:"",bms:["","","","",""]}; }
 function normaliza(m){ const n=novaMC(m.bm||23); const o=Object.assign(n,m);
@@ -703,6 +703,7 @@ function renderEditor(){
     ${m.elems.map((e,k)=>linhaMem(e,k,tp)).join("")}
     </tbody><tfoot><tr><td colspan="${5+colsMem(tp).length+(etOpcoes(m).length?1:0)}" class="r">Quantidade por item</td>${m.itens.map((_,i)=>`<td class="c"><span class="out" id="o_fs${i}"></span></td>`).join("")}<td colspan="3"></td></tr></tfoot></table></div>
     <div class="row" style="margin-top:8px"><button id="bAddEl">+ Linha</button><span class="hint">Nas medidas você pode digitar a conta, por exemplo <b>32,44+2*(3,30+0,40)</b>: ela aparece na MC e no Excel. Fatores do contrato já entram pela forma escolhida.</span></div>
+    <label class="f" style="margin-top:10px">OBS. da memória de cálculo <small>(informação adicional do cálculo; sai no PDF e no Excel logo abaixo da memória)</small><textarea id="obsMem" data-k="obsMem" placeholder="Ex.: área dos anéis considerada igual (altura total ÷ 6). ZTAs conforme levantamento de campo.">${esc(m.obsMem)}</textarea></label>
   </section>
 
   <section class="blk"><h2><span class="num">3</span> Medição e avanço por item <small>${m.modoAv==="acum"?"Digite o acumulado até o BM anterior e o % acumulado até este BM (avanço total). O site calcula este BM = previsto × % acumulado − anterior.":"Digite o acumulado até o BM anterior e o % (ou a quantidade) só deste BM."}</small></h2>
@@ -948,6 +949,7 @@ async function pdfMC(doc, m, VERT){
     foot:[[{content:"QUANTIDADE DA MEMÓRIA POR ITEM",colSpan:5,styles:{halign:"right"}},...L.map(l=>({content:fmt(l.mem,3),styles:{halign:"center"}}))]],
     columnStyles:Object.assign({0:{cellWidth:7,halign:"center"},2:{cellWidth:VERT?28:40},4:{cellWidth:20}},Object.fromEntries(L.map((_,k)=>[5+k,{cellWidth:VERT?13:16}])))});
   const dem=somaItens(m,c); if(dem){ y-=2; T({body:[[pdfTxt(dem)]],styles:{fontSize:FS-0.5,fontStyle:"italic",fillColor:[248,248,248]}}); }
+  if((m.obsMem||"").trim()){ y-=2; T({body:[[{content:"OBS.:",styles:{fontStyle:"bold",cellWidth:16}},pdfTxt(m.obsMem.trim())]],styles:{fontSize:FS-0.5}}); }
   // 3 quadro
   sec("MEDIÇÃO E AVANÇO POR ITEM");
   T({head:[["ITEM","DESCRIÇÃO","UNID.","QTD MEMÓRIA",tituloDemao(L.map(l=>l.item)).toUpperCase(),"PREVISTO","ACUM. ANTERIOR","MEDIDO NO BM","ACUMULADO","% ACUM.","SALDO","PREÇO APLIC.","VALOR NO BM (R$)"]],
@@ -1020,7 +1022,7 @@ function folhaPPU(wb){
 async function folhaMC(wb, nome, m){
   const VERT=ORI==="portrait", HF=VERT?1.4:1.15;
   const c=calcMC(m), ws=wb.addWorksheet(nome,{pageSetup:{orientation:VERT?"portrait":"landscape",paperSize:9,fitToPage:true,fitToWidth:1,fitToHeight:0,margins:{left:.3,right:.3,top:.4,bottom:.4,header:.2,footer:.2}},views:[{showGridLines:false}]});
-  const W=VERT?[4,22,20,10,10,11,7,7,7,8,11,8,8,8,8,8,8,24]:[5,32,30,12,12,16,8,8,8,9,13,9,9,9,9,9,9,40]; W.forEach((w,i)=>ws.getColumn(i+1).width=w);
+  const W=VERT?[4,20,20,10,10,11,7,7,7,8,11,8,10,10,8,8,8,22]:[5,32,30,12,12,16,8,8,8,9,13,9,9,9,9,9,9,40]; W.forEach((w,i)=>ws.getColumn(i+1).width=w);
   const C=i=>String.fromCharCode(64+i);
   const thin={style:"thin",color:{argb:"FF808080"}}, BOX={top:thin,left:thin,bottom:thin,right:thin};
   const AZ={type:"pattern",pattern:"solid",fgColor:{argb:"FF1F4E78"}}, SEC={type:"pattern",pattern:"solid",fgColor:{argb:"FFDDEBF7"}}, INP={type:"pattern",pattern:"solid",fgColor:{argb:"FFFFF2CC"}}, TOT={type:"pattern",pattern:"solid",fgColor:{argb:"FFE2EFDA"}};
@@ -1084,6 +1086,7 @@ async function folhaMC(wb, nome, m){
   const memCell={}; L.forEach((l,k)=>{ const col=C(12+k); memCell[l.i]=col+r; put(col+r,F(`SUMIF(${col}${M0}:${col}${ME},"x",$K$${M0}:$K$${ME})`,l.mem),{fill:TOT,b:1,sz:8,h:"center",f:"#,##0.00"}); });
   for(let k=L.length;k<6;k++) put(C(12+k)+r,null,{fill:TOT}); put("R"+r,null,{fill:TOT}); r++;
   const dem=somaItens(m,c); if(dem){ put("A"+r,dem,{m:"R"+r,sz:8,i:1}); ws.getRow(r).height=Math.max(15,13*dem.split("\n").length); r++; }
+  if((m.obsMem||"").trim()){ const ob=m.obsMem.trim(); put("A"+r,"OBS.:",{m:"B"+r,b:1,h:"center"}); put("C"+r,ob,{m:"R"+r,sz:8,fill:INP}); ws.getRow(r).height=Math.max(18,13*(ob.split("\n").length+Math.floor(ob.length/160))); r++; }
   r++;
   // 4 etapas (antes do quadro para as referências) -> posicionado depois; calculamos linhas
   const et=etapasDe(m.etapa.item); const lotes=et?m.etapa.lotes.filter(l=>num(l.area)!=null):[];
