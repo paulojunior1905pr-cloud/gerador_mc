@@ -315,7 +315,7 @@ input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:n
 </style>
 
 <header class="top">
-  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 11/11 15:11 (com logos)</span></div>
+  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 11/11 15:14 (com logos)</span></div>
   <div class="sp"></div>
   <span class="status" id="status">Conectando…</span>
   <label class="tema">Tema<select id="selTema"><option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
@@ -669,17 +669,17 @@ function htmlGrade(m){
   const tot=D&&H?PI*D*H:null;
   const inp=(id,attrs,val,ph,cls="num")=>`<input id="${id}" class="${cls}" ${attrs} inputmode="decimal" value="${esc(val)}" placeholder="${ph}">`;
   return `<div class="grade">
-    <div class="gh"><b>Quadro dos anéis</b> <small>Preencha os dados do tanque e, na grade, quantas demãos cada anel recebe em cada item (nos itens de limpeza/tratamento não há demão: digite 1 nos anéis que entram na medição e deixe vazio nos que não entram). O site monta as linhas da memória sozinho.</small></div>
+    <div class="gh"><b>Quadro dos anéis</b> <small>Preencha os dados do tanque e, na grade, quantas demãos cada anel recebe em cada item (itens de pintura: digite o nº de demãos; itens de limpeza/tratamento, que não têm demão: marque a caixinha dos anéis que foram limpos). O site monta as linhas da memória sozinho.</small></div>
     <div class="grid" style="max-width:620px">
       <label class="f">DN do tanque (m)${inp("an_dn",'data-anh="dn"',g.dn,"98,5")}</label>
       <label class="f">Altura total do costado (m)${inp("an_h",'data-anh="h"',g.h,"14,72")}</label>
       <label class="f">Nº de anéis${inp("an_n",'data-anh="n"',g.n,"6")}</label></div>
     <p class="hint" id="o_angr">${tot?`Área total = DN ${fmt(D,2)} × ALT ${fmt(H,2)} × π ${fmt(PI,4)} = <b>${fmt(tot,3)} m²</b>`+(N?` · por anel = ${fmt(tot,3)} ÷ ${fmt(N,0)} = <b>${fmt(tot/N,3)} m²</b> (altura do anel ${fmt(H/N,4)} m)`:""):"Informe DN e altura total para ver a área."}</p>
-    ${its.length?`<div class="tblw" style="margin-top:8px"><table><thead><tr><th>Anéis / área</th><th class="r">Nº de anéis ou área (m²)</th><th class="r">Altura do anel (m)</th>${its.map(([it])=>`<th class="c">${esc(it.item)}<br><small>${usaDemao(it.item)?"nº de demãos":"1 = medir"}</small></th>`).join("")}<th></th></tr></thead><tbody>
+    ${its.length?`<div class="tblw" style="margin-top:8px"><table><thead><tr><th>Anéis / área</th><th class="r">Nº de anéis ou área (m²)</th><th class="r">Altura do anel (m)</th>${its.map(([it])=>`<th class="c">${esc(it.item)}<br><small>${usaDemao(it.item)?"nº de demãos":"marque os anéis"}</small></th>`).join("")}<th></th></tr></thead><tbody>
     ${g.linhas.map((l,r)=>`<tr><td><input id="an${r}_desc" data-an="${r}" data-f="desc" value="${esc(l.desc)}" placeholder="${l.tipo==="anel"?"Ex.: 1º ao 5º anel":"Ex.: ZTAs (levantamento)"}" style="min-width:190px"></td>
       <td>${l.tipo==="anel"?inp(`an${r}_qtd`,`data-an="${r}" data-f="qtd"`,l.qtd,"1"):inp(`an${r}_area`,`data-an="${r}" data-f="area"`,l.area,"m²")}</td>
       <td>${l.tipo==="anel"?inp(`an${r}_alt`,`data-an="${r}" data-f="alt"`,l.alt,H&&N?fmt(H/N,4):"total ÷ nº"):`<span class="hint">área informada</span>`}</td>
-      ${its.map(([it,i])=>`<td class="c">${inp(`an${r}_d${i}`,`data-an="${r}" data-ad="${i}"`,l.d[i],"–","sm num")}</td>`).join("")}
+      ${its.map(([it,i])=>`<td class="c">${usaDemao(it.item)?inp(`an${r}_d${i}`,`data-an="${r}" data-ad="${i}"`,l.d[i],"–","sm num"):`<input type="checkbox" id="an${r}_d${i}" data-an="${r}" data-ad="${i}" ${parseInt(l.d[i])>0?"checked":""} aria-label="Esta linha entra no item ${esc(it.item)}">`}</td>`).join("")}
       <td><button class="ghost" data-del-an="${r}" aria-label="Remover linha da grade">✕</button></td></tr>`).join("")}
     </tbody></table></div>
     <div class="row" style="margin-top:8px"><button id="bAnAdd">+ Linha de anéis</button><button id="bAnExtra">+ Área extra (ZTAs, remendos…)</button>
@@ -856,7 +856,7 @@ ED.addEventListener("input",e=>{
   else if(d.lo!=null){ cur.etapa.lotes[+d.lo][d.f]=t.value; }
   else if(d.ft!=null){ cur.fotos[+d.ft].legenda=t.value; }
   else if(d.anh){ cur.aneis[d.anh]=t.value; geraGrade(cur); estrutura=true; }
-  else if(d.an!=null&&d.ad!=null){ cur.aneis.linhas[+d.an].d[+d.ad]=t.value; geraGrade(cur); estrutura=true; }
+  else if(d.an!=null&&d.ad!=null){ cur.aneis.linhas[+d.an].d[+d.ad]=t.type==="checkbox"?(t.checked?"1":""):t.value; geraGrade(cur); estrutura=true; }
   else if(d.an!=null){ cur.aneis.linhas[+d.an][d.f]=t.value; geraGrade(cur); estrutura=true; }
   else return;
   if(estrutura && t.id!=="h_bm"){ const id=t.id; let ss=null; try{ ss=t.selectionStart; }catch(_){} const sy=window.scrollY; renderEditor(); const n=document.getElementById(id); if(n){ n.focus({preventScroll:true}); try{ if(ss!=null) n.setSelectionRange(ss,ss); }catch(_){} } window.scrollTo(0,sy); } else updateOut();
