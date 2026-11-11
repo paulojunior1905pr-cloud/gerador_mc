@@ -312,7 +312,7 @@ input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:n
 </style>
 
 <header class="top">
-  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 04/11 13:10 (com logos)</span></div>
+  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 11/11 13:34 (com logos)</span></div>
   <div class="sp"></div>
   <span class="status" id="status">Conectando…</span>
   <label class="tema">Tema<select id="selTema"><option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
@@ -378,7 +378,8 @@ const FORMAS = {
   tri:["Triângulo (b × h ÷ 2)",1,"ab","tri"],
   trap:["Trapézio ((B + b) ÷ 2 × h)",1,"abc","trap"],
   cil:["Cilindro / perímetro (π × D × h)",1,"ab","cil"],
-  anel:["Anel do costado (π × DN × altura do anel)",1,"ab","cil"],
+  anel:["Anel do costado (DN × altura do anel × π)",1,"ab","cil"],
+  trecho:["Trecho do anel (comprimento × altura)",1,"ab","ret"],
   faixa:["Faixa circular (π × D × largura)",1,"ab","cil"],
   circ:["Círculo – teto / fundo / lençol (π × D² ÷ 4)",1,"a","circ"],
   coroa:["Coroa circular (π × (D² − d²) ÷ 4)",1,"ab","coroa"],
@@ -410,7 +411,7 @@ const JORNADA=8.8;
 const TMC = {
   volume:{n:"Canaletas, diques e limpeza de tanque (volume m³)",d:"Limpeza de produto 1.2 / 1.3 (área do fundo × altura do produto) e limpeza de canaleta, dique e minidique 1.137.",f:["volCil","volRet","volFaixa","volDir"],lab:{a:"D / comprimento C (m)",b:"Largura L (m)",c:"Altura / profundidade h (m)",q:"Qtd"},modelo:[["Produto removido (área do fundo × altura)","volCil"],["Canaleta do dique","volRet"],["Canaleta do minidique (perímetro)","volFaixa"]]},
   chapas:{n:"Chapas – substituição e sobreposição (m²)",d:"Chapas de teto, lençol, flutuador e costado contadas pela quantidade (C × L × nº de chapas). Use o Saldo do quadro para acompanhar o orçado.",f:["chapa","ret","direto"],lab:{a:"Comprimento (m)",b:"Largura (m)",q:"Nº de chapas"},modelo:[["Chapas","chapa"]]},
-  costado:{n:"Costado – anéis do tanque (pintura m²)",d:"Pintura e tratamento dos anéis do costado (π × DN × altura do anel).",f:["anel","cil","direto","retoque"],lab:{a:"DN do tanque (m)",b:"Altura do anel (m)",q:"Nº de anéis"},modelo:[["Anel do costado","anel"]]},
+  costado:{n:"Costado – anéis do tanque (pintura m²)",d:"Pintura e tratamento dos anéis do costado. Anel inteiro: DN × altura do anel × π. Só uma parte do anel (remendos, pontos): Trecho do anel = comprimento × altura.",f:["anel","trecho","direto"],lab:{a:"DN ou comprimento (m)",b:"Altura do anel (m)",q:"Nº de anéis"},modelo:[["Anel do costado","anel"]]},
   diaria:{n:"Diárias de equipamentos e serviços",d:"PTA, gerador, bomba, guindaste (por período), topografia e caminhão vácuo (por horas ÷ jornada de 8,8 h).",f:["diaria","diasQ","horas"],lab:{a:"Início / horas",b:"Fim / jornada (h)",q:"Qtd de equipamentos"},modelo:[["","diaria"]]},
   estrutura:{n:"Escadas, plataformas e guarda-corpos (pintura m²)",d:"Escada +10% (face superior) e +30% (face inferior), guarda-corpo C × h ÷ 2, grelha × 3.",f:["escSup","escInf","gcReto","gcCirc","grelha","platInf","piso","ret","cil","perfil","retoque"],lab:{a:"Comprimento ou DN (m)",b:"Largura ou altura (m)",bit:"Perfil",q:"Qtd"},modelo:[["Escada – face superior","escSup"],["Escada – face inferior","escInf"],["Corrimão / guarda-corpo","gcReto"],["Plataforma (grelha)","grelha"]]},
   peso:{n:"Estruturas por peso (kg)",d:"Item 1.76: escadas, plataformas, guarda-corpos, serpentina e ancoragem medidos em kg. Na coluna “Etapa cobrada” escolha a etapa (ex.: 60% · Remoção + Preparação e fabricação).",f:["pesoDir","pesoPerfil"],lab:{a:"Peso (kg) ou comprimento (m)",b:"kg/m do perfil",q:"Qtd de peças"},modelo:[["Peso conforme desenho / lista de material","pesoDir"]]},
@@ -456,7 +457,7 @@ function baseElem(e){
 /* ---------- modelo ---------- */
 function novaMC(bm){ return {bm, mc:"", tanque:"", ro:"", servico:"", tipoMC:"geral", itens:Array.from({length:NI},()=>({item:"",metodo:"",demaos:""})),
   elems:Array.from({length:4},()=>novoElem()), quadro:Array.from({length:NI},()=>({ant:"",pct:"",man:""})),
-  etapa:{item:"",lotes:[novoLote(),novoLote()]}, obs:"", fotos:[], updatedAt:Date.now()}; }
+  etapa:{item:"",lotes:[novoLote(),novoLote()]}, modoAv:"acum", obs:"", fotos:[], updatedAt:Date.now()}; }
 function novoElem(tipo=""){ return {desc:"",tipo,a:"",b:"",c:"",bit:"",qtd:"",pct:"",et:"",fl:[false,false,false,false,false,false]}; }
 function novoLote(){ return {desc:"",tipo:"",area:"",bms:["","","","",""]}; }
 function normaliza(m){ const n=novaMC(m.bm||23); const o=Object.assign(n,m);
@@ -466,6 +467,7 @@ function normaliza(m){ const n=novaMC(m.bm||23); const o=Object.assign(n,m);
   o.etapa=Object.assign({item:"",lotes:[]},m.etapa||{}); o.etapa.lotes=(o.etapa.lotes.length?o.etapa.lotes:[novoLote()]).map(l=>Object.assign(novoLote(),l,{bms:Array.from({length:5},(_,i)=>(l.bms||[])[i]??"")}));
   o.elems.forEach(e=>{ if(e.tipo && !FORMAS[e.tipo]) e.tipo=FORMA_ANTIGA[e.tipo]||"direto"; });
   if(!TMC[o.tipoMC]) o.tipoMC="geral";
+  if(!m.modoAv) o.modoAv="bm";
   o.fotos=m.fotos||[]; return o; }
 
 /* etapa do critério cobrada na linha da memória: "item|a-b" (faixa de etapas) */
@@ -480,11 +482,13 @@ function calcElem(e){
   const k=formaDe(e); if(!k) return null; const base=baseElem(e); const q=numE(e.qtd)??1, p=(numE(e.pct)??100)/100;
   return r3(base*FORMAS[k][1]*q*p*etFator(e));
 }
+const NOMES={anel:["DN","ALT"],trecho:["C","ALT"]};
+const rot=k=>{ let s=""; k++; while(k>0){ const r=(k-1)%26; s=String.fromCharCode(65+r)+s; k=Math.floor((k-1)/26); } return s; };
 function textoElem(e){
   const k=formaDe(e); if(!k) return ""; const F=FORMAS[k]; const A=numE(e.a), B=numE(e.b), C=numE(e.c), q=numE(e.qtd), p=numE(e.pct);
   const a=dimTxt(e.a,A), b=dimTxt(e.b,B), c=dimTxt(e.c,C); let s;
-  switch(F[3]){ case "direto": s=a; break; case "ret": s=a+" × "+b; break; case "tri": s=a+" × "+b+" ÷ 2"; break; case "trap": s="("+a+" + "+b+") ÷ 2 × "+c; break;
-    case "cil": s="π × "+a+" × "+b; break; case "circ": s="π × "+a+"² ÷ 4"; break; case "coroa": s="π × ("+a+"² − "+b+"²) ÷ 4"; break; case "raios": s="π × ("+a+"² − "+b+"²)"; break;
+  switch(F[3]){ case "direto": s=a; break; case "ret": s=NOMES[k]?NOMES[k][0]+" "+a+" × "+NOMES[k][1]+" "+b:a+" × "+b; break; case "tri": s=a+" × "+b+" ÷ 2"; break; case "trap": s="("+a+" + "+b+") ÷ 2 × "+c; break;
+    case "cil": s=NOMES[k]?NOMES[k][0]+" "+a+" × "+NOMES[k][1]+" "+b+" × π "+fmt(PI,4):"π × "+a+" × "+b; break; case "circ": s="π × "+a+"² ÷ 4"; break; case "coroa": s="π × ("+a+"² − "+b+"²) ÷ 4"; break; case "raios": s="π × ("+a+"² − "+b+"²)"; break;
     case "bit": s=a+" m × "+fmt(M2M[e.bit]||0,2)+" m²/m ("+(e.bit||"escolha")+")"; break; case "retoque": s="0,15 m²"; break;
     case "diaria": s=`(${dBR(e.b)} − ${dBR(e.a)} + 1 dia)`; break;
     case "dias": s="1 dia"; break;
@@ -494,7 +498,7 @@ function textoElem(e){
   if(q!=null && q!==1) s+=" × "+(ehConta(e.qtd)?contaTxt(e.qtd):fmt(q,q%1?2:0));
   if(p!=null && p!==100) s+=" × "+fmt(p,p%1?1:0)+"%";
   const ex=etParse(e.et); if(ex) s+=" × "+fmt(ex.f*100,0)+"% ("+ex.item+": "+ex.nome+")";
-  return s+" = "+fmt(calcElem(e),3);
+  return s+" = "+fmt(calcElem(e),3)+(FORMAS[k][4]==="m3"?" m³":FORMAS[k][4]==="kg"?" kg":/^(cil|ret|tri|trap|circ|coroa|raios|bit|retoque)$/.test(F[3])?" m²":"");
 }
 function etapasDe(it){ return DATA.etapas[it]||null; }
 function calcEtapas(m){
@@ -517,7 +521,7 @@ function calcMC(m){
     let ant=num(q.ant)||0, bm;
     if(isEt){ bm=et.bm; ant=r3(et.acum-et.bm); }
     else if(numE(q.man)!=null) bm=numE(q.man);
-    else if(num(q.pct)!=null) bm=r3(prev*num(q.pct)/100);
+    else if(num(q.pct)!=null) bm=m.modoAv==="acum"?r3(r3(prev*num(q.pct)/100)-ant):r3(prev*num(q.pct)/100);
     else bm=0;
     const acum=r3(ant+bm);
     return {i,item:it.item,P,faixa,fat,precoAp,dem,usaD,base:usaD?null:baseMed(it.item),mem,prev,ant,bm,acum,pa:prev?acum/prev:null,saldo:r3(prev-acum),valor:r2(bm*precoAp),isEt,metodo:it.metodo};
@@ -525,19 +529,20 @@ function calcMC(m){
   const total=r2(linhas.reduce((s,l)=>s+(l?l.valor:0),0));
   const alerts=[];
   linhas.forEach(l=>{ if(!l) return;
+    if(l.bm<-0.0005) alerts.push(["bad",`Item ${l.item}: o medido neste BM ficou negativo (${fmt(l.bm,3)}). Confira o acumulado anterior e o % acumulado.`]);
     if(l.acum>l.prev+0.0005) alerts.push(["bad",`Item ${l.item}: o acumulado (${fmt(l.acum,3)}) passa da quantidade prevista (${fmt(l.prev,3)}).`]);
     if(l.faixa && !l.metodo) alerts.push(["",`Item ${l.item}: informe o método. Se for convencional (operador no bico/pistola), o preço cai 30%.`]);
     if(l.faixa && l.prev>1000 && l.metodo==="conv") alerts.push(["",`Item ${l.item}: área acima de 1.000 m² exige robô (Esclarecimento, resposta 07).`]);
     if(l.mem===0 && !l.isEt) alerts.push(["",`Item ${l.item}: nenhuma linha da memória está marcada para este item.`]);
   });
-  m.elems.forEach((e,k)=>{ const p=num(e.pct); if(e.tipo && p!=null && p!==100 && !e.desc) alerts.push(["",`Linha ${k+1} da memória usa ${fmt(p,0)}% sem descrição do motivo.`]);
+  m.elems.forEach((e,k)=>{ const p=num(e.pct); if(e.tipo && p!=null && p!==100 && !e.desc) alerts.push(["",`Cálculo ${rot(k)} da memória usa ${fmt(p,0)}% sem descrição do motivo.`]);
     const ex=etParse(e.et);
     if(e.tipo && ex){ const ii=m.itens.findIndex(it=>it.item===ex.item);
-      if(ii<0) alerts.push(["",`Linha ${k+1} da memória cobra etapa do item ${ex.item}, que não está na MC.`]);
-      else if(!e.fl[ii]) alerts.push(["",`Linha ${k+1} da memória cobra etapa do item ${ex.item}, mas não está marcada para ele.`]);
-      if(m.etapa.item===ex.item) alerts.push(["bad",`Item ${ex.item}: a etapa está indicada na memória (linha ${k+1}) e também na seção 4. Use só uma das duas.`]); }
-    if(e.tipo && !e.et) m.itens.forEach((it,i)=>{ if(e.fl[i] && etapasDe(it.item) && m.etapa.item!==it.item) alerts.push(["",`Linha ${k+1}: o item ${it.item} é cobrado por etapas. Escolha na coluna "Etapa cobrada" qual etapa está sendo medida (ou 100% se o serviço está completo).`]); });
-    if(e.tipo && el[k]!=null && !e.fl.some(Boolean)) alerts.push(["",`Linha ${k+1} da memória não está marcada para nenhum item.`]); });
+      if(ii<0) alerts.push(["",`Cálculo ${rot(k)} da memória cobra etapa do item ${ex.item}, que não está na MC.`]);
+      else if(!e.fl[ii]) alerts.push(["",`Cálculo ${rot(k)} da memória cobra etapa do item ${ex.item}, mas não está marcada para ele.`]);
+      if(m.etapa.item===ex.item) alerts.push(["bad",`Item ${ex.item}: a etapa está indicada na memória (cálculo ${rot(k)}) e também na seção 4. Use só uma das duas.`]); }
+    if(e.tipo && !e.et) m.itens.forEach((it,i)=>{ if(e.fl[i] && etapasDe(it.item) && m.etapa.item!==it.item) alerts.push(["",`Cálculo ${rot(k)}: o item ${it.item} é cobrado por etapas. Escolha na coluna "Etapa cobrada" qual etapa está sendo medida (ou 100% se o serviço está completo).`]); });
+    if(e.tipo && el[k]!=null && !e.fl.some(Boolean)) alerts.push(["",`Cálculo ${rot(k)} da memória não está marcada para nenhum item.`]); });
   if(!m.mc) alerts.push(["","Informe o número da MC."]);
   return {el,et,linhas,total,alerts};
 }
@@ -617,7 +622,7 @@ function linhaMem(e,k,tp){
     if(c==="bit"){ const L=k0==="tubo"?TUBOS:k0==="perfil"?PERFIS:BITOLAS; return `<td><select id="e${k}_bit" data-el="${k}" data-f="bit">${'<option value="">—</option>'+L.map(b=>opt(b[0],b[0]+" ("+fmt(b[1],2)+" m²/m)",e.bit)).join("")}</select></td>`; }
     if(F[3]==="diaria") return `<td><input type="date" id="e${k}_${c}" data-el="${k}" data-f="${c}" value="${esc(e[c])}"></td>`;
     return `<td><input id="e${k}_${c}" class="num" data-el="${k}" data-f="${c}" inputmode="decimal" value="${esc(e[c])}"></td>`; };
-  return `<tr><td class="c">${k+1}</td>
+  return `<tr><td class="c"><b>${rot(k)}</b></td>
       <td><input id="e${k}_desc" data-el="${k}" data-f="desc" value="${esc(e.desc)}" style="min-width:200px"></td>
       <td><select id="e${k}_tipo" data-el="${k}" data-f="tipo" style="min-width:220px">${'<option value="">—</option>'+lista.sort((x,y)=>FORMAS[x][0].localeCompare(FORMAS[y][0],"pt")).map(f=>opt(f,FORMAS[f][0],e.tipo)).join("")}</select></td>
       ${colsMem(tp).map(cel).join("")}
@@ -630,8 +635,8 @@ function linhaMem(e,k,tp){
 }
 function somaItens(m,c){
   const els=m.elems.map((e,k)=>({e,v:c.el[k]})).filter(x=>formaDe(x.e));
-  return c.linhas.filter(Boolean).map(l=>{ const idx=[], vs=[]; els.forEach((x,j)=>{ if(x.e.fl[l.i]&&x.v!=null){ idx.push(j+1); vs.push(fmt(x.v,3)); } });
-    if(!vs.length) return null; return `Item ${l.item}: `+(vs.length>1?`linhas ${idx.join(" + ")} = ${vs.join(" + ")} = `:`linha ${idx[0]} = `)+`${fmt(l.mem,3)} ${l.P.u}`+(l.dem>1?` × ${l.dem} demãos = ${fmt(l.prev,3)} ${l.P.u}`:""); }).filter(Boolean).join("\n");
+  return c.linhas.filter(Boolean).map(l=>{ const idx=[], vs=[]; els.forEach((x,j)=>{ if(x.e.fl[l.i]&&x.v!=null){ idx.push(rot(j)); vs.push(fmt(x.v,3)); } });
+    if(!vs.length) return null; return `Item ${l.item}: `+(vs.length>1?`cálculos ${idx.join(" + ")} = ${vs.join(" + ")} = `:`cálculo ${idx[0]} = `)+`${fmt(l.mem,3)} ${l.P.u}`+(l.dem>1?` × ${l.dem} demãos = ${fmt(l.prev,3)} ${l.P.u}`:""); }).filter(Boolean).join("\n");
 }
 function critTxt(l){ const et=etapasDe(l.item); return l.P.c+(et?"\nEtapas: "+et.map(([n,p])=>Math.round(p*100)+"% "+n).join("; ")+".":""); }
 function memVazia(m){ return m.elems.every(e=>!e.desc && !e.a && !e.b && !e.c && !e.qtd); }
@@ -700,8 +705,9 @@ function renderEditor(){
     <div class="row" style="margin-top:8px"><button id="bAddEl">+ Linha</button><span class="hint">Nas medidas você pode digitar a conta, por exemplo <b>32,44+2*(3,30+0,40)</b>: ela aparece na MC e no Excel. Fatores do contrato já entram pela forma escolhida.</span></div>
   </section>
 
-  <section class="blk"><h2><span class="num">3</span> Medição e avanço por item <small>Digite o acumulado até o BM anterior e o % (ou a quantidade) deste BM.</small></h2>
-    <div class="tblw"><table><thead><tr><th>Item</th><th class="r">Qtd memória</th><th class="c">${tituloDemao(m.itens.map(x=>x.item))}</th><th class="r">Previsto</th><th class="r">Acum. anterior</th><th class="r">% no BM</th><th class="r">Qtd no BM (opcional)</th><th class="r">Medido no BM</th><th class="r">Acumulado</th><th class="r">% acum.</th><th class="r">Saldo</th><th class="r">Valor no BM</th></tr></thead><tbody>
+  <section class="blk"><h2><span class="num">3</span> Medição e avanço por item <small>${m.modoAv==="acum"?"Digite o acumulado até o BM anterior e o % acumulado até este BM (avanço total). O site calcula este BM = previsto × % acumulado − anterior.":"Digite o acumulado até o BM anterior e o % (ou a quantidade) só deste BM."}</small></h2>
+    <div class="grid" style="max-width:520px;margin-bottom:8px"><label class="f">Como informar o avanço<select id="h_modo" data-k="modoAv">${opt("acum","% acumulado até este BM (avanço total)",m.modoAv)}${opt("bm","% só deste BM",m.modoAv)}</select></label></div>
+    <div class="tblw"><table><thead><tr><th>Item</th><th class="r">Qtd memória</th><th class="c">${tituloDemao(m.itens.map(x=>x.item))}</th><th class="r">Previsto</th><th class="r">Acum. anterior</th><th class="r">${m.modoAv==="acum"?"% acumulado":"% no BM"}</th><th class="r">Qtd no BM (opcional)</th><th class="r">Medido no BM</th><th class="r">Acumulado</th><th class="r">% acum.</th><th class="r">Saldo</th><th class="r">Valor no BM</th></tr></thead><tbody>
     ${m.quadro.map((q,i)=>`<tr id="qr${i}"><td><span class="out" id="o_qi${i}"></span></td><td class="r"><span class="out" id="o_qm${i}"></span></td><td class="c"><span class="out" id="o_qd${i}"></span></td><td class="r"><span class="out" id="o_qp${i}"></span></td>
       <td><input id="q${i}_ant" class="num" data-q="${i}" data-f="ant" inputmode="decimal" value="${esc(q.ant)}"></td>
       <td><input id="q${i}_pct" class="sm num" data-q="${i}" data-f="pct" inputmode="decimal" value="${esc(q.pct)}" placeholder="%"></td>
@@ -790,7 +796,7 @@ function updateOut(){ kpis(); tqInfo();
 const ED=$("#ed");
 ED.addEventListener("input",e=>{
   const t=e.target, d=t.dataset; if(!cur) return; let estrutura=false;
-  if(d.k){ cur[d.k]= d.k==="bm" ? (parseInt(t.value)||cur.bm) : t.value; if(d.k==="bm") estrutura=true; if(d.k==="tipoMC"){ aplicaModelo(cur); estrutura=true; } }
+  if(d.k){ cur[d.k]= d.k==="bm" ? (parseInt(t.value)||cur.bm) : t.value; if(d.k==="bm") estrutura=true; if(d.k==="tipoMC"){ aplicaModelo(cur); estrutura=true; } if(d.k==="modoAv") estrutura=true; }
   else if(d.it!=null){ cur.itens[+d.it][d.f]=t.value; if(d.f==="item") estrutura=true; }
   else if(d.el!=null&&d.fl!=null){ cur.elems[+d.el].fl[+d.fl]=t.checked; }
   else if(d.el!=null){ cur.elems[+d.el][d.f]=t.value; if(d.f==="tipo") estrutura=true; }
@@ -938,7 +944,7 @@ async function pdfMC(doc, m, VERT){
   sec("MEMÓRIA DE CÁLCULO – "+tipoMC(m).n.toUpperCase());
   const els=m.elems.map((e,k)=>({e,v:c.el[k]})).filter(x=>formaDe(x.e));
   T({head:[["Nº","DESCRIÇÃO DO ELEMENTO / ORIGEM","FORMA DE CÁLCULO","CÁLCULO DEMONSTRADO","RESULTADO",...L.map(l=>l.item)]],
-    body:els.map((x,j)=>[j+1,pdfTxt(x.e.desc),pdfTxt(FORMAS[formaDe(x.e)][0]),pdfTxt(textoElem(x.e)),{content:fmt(x.v,3),styles:{fontStyle:"bold",halign:"right"}},...L.map(l=>({content:x.e.fl[l.i]?"x":"",styles:{halign:"center",fontStyle:"bold"}}))]),
+    body:els.map((x,j)=>[rot(j),pdfTxt(x.e.desc),pdfTxt(FORMAS[formaDe(x.e)][0]),pdfTxt(textoElem(x.e)),{content:fmt(x.v,3),styles:{fontStyle:"bold",halign:"right"}},...L.map(l=>({content:x.e.fl[l.i]?"x":"",styles:{halign:"center",fontStyle:"bold"}}))]),
     foot:[[{content:"QUANTIDADE DA MEMÓRIA POR ITEM",colSpan:5,styles:{halign:"right"}},...L.map(l=>({content:fmt(l.mem,3),styles:{halign:"center"}}))]],
     columnStyles:Object.assign({0:{cellWidth:7,halign:"center"},2:{cellWidth:VERT?28:40},4:{cellWidth:20}},Object.fromEntries(L.map((_,k)=>[5+k,{cellWidth:VERT?13:16}])))});
   const dem=somaItens(m,c); if(dem){ y-=2; T({body:[[pdfTxt(dem)]],styles:{fontSize:FS-0.5,fontStyle:"italic",fillColor:[248,248,248]}}); }
@@ -1063,13 +1069,13 @@ async function folhaMC(wb, nome, m){
   const M0=r+1; const els=m.elems.map((e,k)=>({e,k,v:c.el[k]})).filter(x=>formaDe(x.e));
   const dimXL=(raw,usa)=>{ if(!usa) return null; if(ehConta(raw)){ const f=contaXL(raw); return f?F(f,numE(raw)):numE(raw); } return numE(raw)??0; };
   els.forEach((x,j)=>{ const e=x.e, rr=M0+j, k0=formaDe(e), Fm=FORMAS[k0], kind=Fm[3], u=cc=>Fm[2].includes(cc);
-    put("A"+rr,j+1,{h:"center"}); put("B"+rr,e.desc,{fill:INP,sz:8}); put("C"+rr,Fm[0],{sz:8});
+    put("A"+rr,rot(j),{h:"center",b:1}); put("B"+rr,e.desc,{fill:INP,sz:8}); put("C"+rr,Fm[0],{sz:8});
     if(kind==="diaria"){ put("D"+rr,dataISO(e.a),{fill:INP,h:"center",f:"dd/mm/yyyy"}); put("E"+rr,dataISO(e.b),{fill:INP,h:"center",f:"dd/mm/yyyy"}); }
     else { put("D"+rr,dimXL(e.a,u("a")),{fill:u("a")?INP:null,h:"right",f:"#,##0.00##"}); put("E"+rr,kind==="horas"&&numE(e.b)==null?JORNADA:dimXL(e.b,u("b")),{fill:u("b")?INP:null,h:"right",f:"#,##0.00##"}); }
     if(kind==="bit") put("F"+rr,e.bit||null,{fill:INP,sz:8,h:"center"}); else put("F"+rr,dimXL(e.c,u("c")),{fill:u("c")?INP:null,h:"right",f:"#,##0.00##"});
     put("G"+rr,kind==="bit"?(M2M[e.bit]||0):null,{h:"center",f:"0.00"});
-    put("H"+rr,ehConta(e.qtd)&&contaXL(e.qtd)?F(contaXL(e.qtd),numE(e.qtd)):(numE(e.qtd)??1),{fill:INP,h:"center",f:"#,##0.##"}); put("I"+rr,Fm[1],{h:"center",f:"0.00"}); put("J"+rr,(numE(e.pct)??100)/100,{fill:INP,h:"center",f:"0%"});
-    const base={direto:`D${rr}`,ret:`D${rr}*E${rr}`,tri:`D${rr}*E${rr}/2`,trap:`(D${rr}+E${rr})/2*F${rr}`,cil:`${PI}*D${rr}*E${rr}`,circ:`${PI}*D${rr}^2/4`,coroa:`${PI}*(D${rr}^2-E${rr}^2)/4`,raios:`${PI}*(D${rr}^2-E${rr}^2)`,bit:`D${rr}*G${rr}`,retoque:"0.15",diaria:`(E${rr}-D${rr}+1)`,dias:"1",un:"1",horas:`D${rr}/E${rr}`,vret:`D${rr}*E${rr}*F${rr}`,vcil:`${PI}*D${rr}^2/4*F${rr}`,vfaixa:`${PI}*D${rr}*E${rr}*F${rr}`}[kind];
+    put("H"+rr,ehConta(e.qtd)&&contaXL(e.qtd)?F(contaXL(e.qtd),numE(e.qtd)):(numE(e.qtd)??1),{fill:INP,h:"center",f:"#,##0.##"}); put("I"+rr,kind==="cil"?PI*Fm[1]:Fm[1],{h:"center",f:kind==="cil"?"0.0000":"0.00"}); put("J"+rr,(numE(e.pct)??100)/100,{fill:INP,h:"center",f:"0%"});
+    const base={direto:`D${rr}`,ret:`D${rr}*E${rr}`,tri:`D${rr}*E${rr}/2`,trap:`(D${rr}+E${rr})/2*F${rr}`,cil:`D${rr}*E${rr}`,circ:`${PI}*D${rr}^2/4`,coroa:`${PI}*(D${rr}^2-E${rr}^2)/4`,raios:`${PI}*(D${rr}^2-E${rr}^2)`,bit:`D${rr}*G${rr}`,retoque:"0.15",diaria:`(E${rr}-D${rr}+1)`,dias:"1",un:"1",horas:`D${rr}/E${rr}`,vret:`D${rr}*E${rr}*F${rr}`,vcil:`${PI}*D${rr}^2/4*F${rr}`,vfaixa:`${PI}*D${rr}*E${rr}*F${rr}`}[kind];
     put("K"+rr,F(`ROUND(${base}*I${rr}*H${rr}*J${rr}${etParse(e.et)?"*"+etFator(e):""},3)`,x.v),{h:"right",f:"#,##0.000",b:1});
     L.forEach((l,k)=>put(C(12+k)+rr,e.fl[l.i]?"x":null,{fill:INP,h:"center",b:1})); for(let k=L.length;k<6;k++) put(C(12+k)+rr,null,{});
     put("R"+rr,textoElem(e),{sz:8}); });
@@ -1083,7 +1089,7 @@ async function folhaMC(wb, nome, m){
   const et=etapasDe(m.etapa.item); const lotes=et?m.etapa.lotes.filter(l=>num(l.area)!=null):[];
   // 3 quadro
   sec(r,"3. MEDIÇÃO E AVANÇO POR ITEM"); r++;
-  head(r,[["A","Nº"],["B","ITEM"],["C","DESCRIÇÃO"],["D","UNID."],["E","QTD MEMÓRIA"],["F",tituloDemao(L.map(l=>l.item)).toUpperCase()],["G","PREVISTO","H"],["I","ACUM. ATÉ BM ANTERIOR"],["J","% NO BM"],["K","MEDIDO NO BM","L"],["M","ACUMULADO"],["N","SALDO"],["O","% ACUM."],["P","PREÇO APLICADO"],["Q","VALOR NO BM (R$)","R"]]);
+  head(r,[["A","Nº"],["B","ITEM"],["C","DESCRIÇÃO"],["D","UNID."],["E","QTD MEMÓRIA"],["F",tituloDemao(L.map(l=>l.item)).toUpperCase()],["G","PREVISTO","H"],["I","ACUM. ATÉ BM ANTERIOR"],["J",m.modoAv==="acum"?"% AVANÇO TOTAL":"% NO BM"],["K","MEDIDO NO BM","L"],["M","ACUMULADO"],["N","SALDO"],["O","% ACUM."],["P","PREÇO APLICADO"],["Q","VALOR NO BM (R$)","R"]]);
   const Q0=r+1; const QE=Q0+Math.max(L.length,1)-1;
   const ETR0 = QE+6; // linha do 1º lote (seção, item, cabeçalho)
   const ETT = ETR0+Math.max(lotes.length,1); // linha do total de etapas
@@ -1093,7 +1099,7 @@ async function folhaMC(wb, nome, m){
     put("G"+rr,F(l.usaD?`ROUND(E${rr}*F${rr},3)`:`ROUND(E${rr},3)`,l.prev),{m:"H"+rr,h:"right",f:"#,##0.000",b:1});
     if(l.isEt){ put("I"+rr,F(`M${ETT}-K${ETT}`,l.ant),{h:"right",f:"#,##0.000"}); put("J"+rr,F(`IF(G${rr}=0,0,K${rr}/G${rr})`,l.prev?l.bm/l.prev:0),{h:"center",f:"0.0%"}); put("K"+rr,F(`K${ETT}`,l.bm),{m:"L"+rr,h:"right",f:"#,##0.000",b:1}); }
     else if(numE(q.man)!=null){ put("I"+rr,l.ant,{fill:INP,h:"right",f:"#,##0.000"}); put("J"+rr,F(`IF(G${rr}=0,0,K${rr}/G${rr})`,l.prev?l.bm/l.prev:0),{h:"center",f:"0.0%"}); put("K"+rr,l.bm,{m:"L"+rr,h:"right",f:"#,##0.000",b:1,fill:INP}); }
-    else { put("I"+rr,l.ant,{fill:INP,h:"right",f:"#,##0.000"}); put("J"+rr,(num(q.pct)||0)/100,{fill:INP,h:"center",f:"0.0%"}); put("K"+rr,F(`ROUND(G${rr}*J${rr},3)`,l.bm),{m:"L"+rr,h:"right",f:"#,##0.000",b:1}); }
+    else { put("I"+rr,l.ant,{fill:INP,h:"right",f:"#,##0.000"}); put("J"+rr,(num(q.pct)||0)/100,{fill:INP,h:"center",f:"0.0%"}); put("K"+rr,F(m.modoAv==="acum"?`ROUND(G${rr}*J${rr},3)-I${rr}`:`ROUND(G${rr}*J${rr},3)`,l.bm),{m:"L"+rr,h:"right",f:"#,##0.000",b:1}); }
     put("M"+rr,F(`I${rr}+K${rr}`,l.acum),{h:"right",f:"#,##0.000"}); put("N"+rr,F(`G${rr}-M${rr}`,l.saldo),{h:"right",f:"#,##0.000"}); put("O"+rr,F(`IF(G${rr}=0,"",M${rr}/G${rr})`,l.pa??""),{h:"center",f:"0.0%",b:1});
     put("P"+rr,F(`N${ri}`,l.precoAp),{h:"right",f:"#,##0.00"}); put("Q"+rr,F(`ROUND(K${rr}*P${rr},2)`,l.valor),{m:"R"+rr,h:"right",f:"#,##0.00",b:1}); ws.getRow(rr).height=26; });
   r=QE+1; put("A"+r,"TOTAL DA MC NO BM (R$)",{m:"P"+r,fill:TOT,b:1,sz:10,h:"right"}); put("Q"+r,F(`SUM(Q${Q0}:Q${QE})`,c.total),{m:"R"+r,fill:TOT,b:1,sz:11,h:"right",f:"#,##0.00"});
