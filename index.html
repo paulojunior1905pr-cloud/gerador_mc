@@ -231,6 +231,9 @@ tfoot td{font-weight:700;background:var(--chip)}
 .total{display:flex;align-items:baseline;gap:10px;justify-content:flex-end;flex-wrap:wrap}
 .total .big{font-family:var(--f-mono);font-size:22px;font-weight:600;color:var(--accent);font-variant-numeric:tabular-nums}
 .hint{font-size:12px;color:var(--muted);margin:8px 0 0}
+.grade{border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:8px;padding:10px 12px;margin:0 0 14px;background:color-mix(in srgb,var(--accent) 5%,var(--panel))}
+tr.gen input,tr.gen select{background:var(--panel)!important;border-style:dashed!important;opacity:.85}
+.grade .gh{margin-bottom:8px}.grade .gh small{color:var(--muted);font-weight:400}
 .alerts{display:flex;flex-direction:column;gap:6px}
 .alert{border-left:3px solid var(--warn);background:color-mix(in srgb,var(--warn) 10%,transparent);padding:6px 10px;border-radius:4px;font-size:13px}
 .alert.bad{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 10%,transparent)}
@@ -312,7 +315,7 @@ input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:n
 </style>
 
 <header class="top">
-  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 11/11 14:35 (com logos)</span></div>
+  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 11/11 14:49 (com logos)</span></div>
   <div class="sp"></div>
   <span class="status" id="status">Conectando…</span>
   <label class="tema">Tema<select id="selTema"><option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
@@ -457,7 +460,9 @@ function baseElem(e){
 /* ---------- modelo ---------- */
 function novaMC(bm){ return {bm, mc:"", tanque:"", ro:"", servico:"", tipoMC:"geral", itens:Array.from({length:NI},()=>({item:"",metodo:"",demaos:""})),
   elems:Array.from({length:4},()=>novoElem()), quadro:Array.from({length:NI},()=>({ant:"",pct:"",man:""})),
-  etapa:{item:"",lotes:[novoLote(),novoLote()]}, modoAv:"acum", obsMem:"", obs:"", fotos:[], updatedAt:Date.now()}; }
+  etapa:{item:"",lotes:[novoLote(),novoLote()]}, modoAv:"acum", aneis:novaGrade(), obsMem:"", obs:"", fotos:[], updatedAt:Date.now()}; }
+function novaGrade(){ return {dn:"",h:"",n:"",linhas:[novaLinhaAnel("anel")]}; }
+function novaLinhaAnel(tipo){ return {tipo,desc:"",qtd:"",alt:"",area:"",d:["","","","","",""]}; }
 function novoElem(tipo=""){ return {desc:"",tipo,a:"",b:"",c:"",bit:"",qtd:"",pct:"",et:"",fl:[false,false,false,false,false,false]}; }
 function novoLote(){ return {desc:"",tipo:"",area:"",bms:["","","","",""]}; }
 function normaliza(m){ const n=novaMC(m.bm||23); const o=Object.assign(n,m);
@@ -468,6 +473,7 @@ function normaliza(m){ const n=novaMC(m.bm||23); const o=Object.assign(n,m);
   o.elems.forEach(e=>{ if(e.tipo && !FORMAS[e.tipo]) e.tipo=FORMA_ANTIGA[e.tipo]||"direto"; });
   if(!TMC[o.tipoMC]) o.tipoMC="geral";
   if(!m.modoAv) o.modoAv="bm";
+  o.aneis=Object.assign(novaGrade(),m.aneis||{}); o.aneis.linhas=(o.aneis.linhas&&o.aneis.linhas.length?o.aneis.linhas:[novaLinhaAnel("anel")]).map(l=>Object.assign(novaLinhaAnel(l.tipo||"anel"),l,{d:Array.from({length:NI},(_,i)=>(l.d||[])[i]??"")}));
   o.fotos=m.fotos||[]; return o; }
 
 /* etapa do critério cobrada na linha da memória: "item|a-b" (faixa de etapas) */
@@ -615,7 +621,9 @@ $("#bNova").addEventListener("click",()=>{ curId=null; cur=novaMC(filtroBM||BM_A
 const opt=(v,l,sel)=>`<option value="${esc(v)}" ${v===sel?"selected":""}>${esc(l)}</option>`;
 const itemOpts = sel => '<option value="">—</option>'+ITENS.map(it=>opt(it,it+" · "+PPU[it].d.slice(0,60),sel)).join("");
 function colsMem(tp){ return [["a",tp.lab.a||"Dim. 1"],["b",tp.lab.b||"Dim. 2"],["c",tp.lab.c||"Dim. 3"],["bit",tp.lab.bit||"Bitola / perfil"]].filter(([k])=>usaCampo(tp,k)); }
-function linhaMem(e,k,tp){
+function linhaMem(e,k,tp){ const h=linhaMem0(e,k,tp); if(!e.gen) return h;
+  return h.replace(/^<tr>/,'<tr class="gen">').replace(/<input (?![^>]*type="checkbox")/g,'<input disabled ').replace(/<select /g,'<select disabled ').replace(/<input type="checkbox"/g,'<input type="checkbox" disabled').replace(/<button class="ghost" data-del-el="\d+"[^>]*>✕<\/button>/,'<span class="hint" title="Linha montada pelo Quadro dos anéis. Altere na grade.">grade</span>'); }
+function linhaMem0(e,k,tp){
   const k0=formaDe(e), F=k0?FORMAS[k0]:null, usa=c=> F && (c==="bit" ? F[3]==="bit" : F[2].includes(c));
   const lista=[...tp.f]; if(k0 && !lista.includes(k0)) lista.push(k0);
   const cel=([c])=>{ if(!usa(c)) return `<td class="na">—</td>`;
@@ -639,6 +647,46 @@ function somaItens(m,c){
     if(!vs.length) return null; return `Item ${l.item}: `+(vs.length>1?`cálculos ${idx.join(" + ")} = ${vs.join(" + ")} = `:`cálculo ${idx[0]} = `)+`${fmt(l.mem,3)} ${l.P.u}`+(l.dem>1?` × ${l.dem} demãos = ${fmt(l.prev,3)} ${l.P.u}`:""); }).filter(Boolean).join("\n");
 }
 function critTxt(l){ const et=etapasDe(l.item); return l.P.c+(et?"\nEtapas: "+et.map(([n,p])=>Math.round(p*100)+"% "+n).join("; ")+".":""); }
+/* ---------- Quadro dos anéis (tipo Costado) ---------- */
+const gradeOn = m => m.tipoMC==="costado";
+const demGrade = (m,l,i) => { const it=m.itens[i].item; if(!PPU[it]) return 0; let v=parseInt(l.d[i])||0; if(v<0) v=0; if(!usaDemao(it)) v=Math.min(v,1); return v; };
+const gradeUsada = m => gradeOn(m) && m.aneis.linhas.some(l=>m.itens.some((_,i)=>demGrade(m,l,i)>0));
+const itemNaGrade = (m,i) => gradeUsada(m) && m.aneis.linhas.some(l=>demGrade(m,l,i)>0);
+function geraGrade(m){
+  if(!gradeOn(m)) return; const g=m.aneis; const ger=[];
+  if(gradeUsada(m)) g.linhas.forEach(l=>{ const vs=m.itens.map((_,i)=>demGrade(m,l,i)); const mx=Math.max(0,...vs);
+    for(let k=1;k<=mx;k++){ const nome=(l.desc||(l.tipo==="anel"?"Anel":"Área extra"))+(k>1?` – ${k}ª demão`:"");
+      const e=l.tipo==="anel" ? Object.assign(novoElem("anel"),{desc:nome,a:g.dn,b:l.alt||(g.h&&g.n?g.h+"/"+g.n:""),qtd:l.qtd||"1"})
+                              : Object.assign(novoElem("direto"),{desc:nome,a:l.area});
+      e.fl=vs.map(v=>v>=k); e.gen=true; ger.push(e); } });
+  m.itens.forEach((it,i)=>{ if(itemNaGrade(m,i) && usaDemao(it.item)) it.demaos="1"; });
+  const manuais=m.elems.filter(e=>!e.gen && (e.a||e.b||e.c||e.qtd));
+  m.elems=ger.concat(manuais); if(!m.elems.length) m.elems.push(novoElem("anel"));
+}
+function htmlGrade(m){
+  if(!gradeOn(m)) return ""; const g=m.aneis, D=numE(g.dn), H=numE(g.h), N=numE(g.n);
+  const its=m.itens.map((it,i)=>[it,i]).filter(([it])=>PPU[it.item]);
+  const tot=D&&H?PI*D*H:null;
+  const inp=(id,attrs,val,ph,cls="num")=>`<input id="${id}" class="${cls}" ${attrs} inputmode="decimal" value="${esc(val)}" placeholder="${ph}">`;
+  return `<div class="grade">
+    <div class="gh"><b>Quadro dos anéis</b> <small>Preencha os dados do tanque e, na grade, quantas demãos cada anel recebe em cada item (para limpeza/tratamento use 1). O site monta as linhas da memória sozinho.</small></div>
+    <div class="grid" style="max-width:620px">
+      <label class="f">DN do tanque (m)${inp("an_dn",'data-anh="dn"',g.dn,"98,5")}</label>
+      <label class="f">Altura total do costado (m)${inp("an_h",'data-anh="h"',g.h,"14,72")}</label>
+      <label class="f">Nº de anéis${inp("an_n",'data-anh="n"',g.n,"6")}</label></div>
+    <p class="hint" id="o_angr">${tot?`Área total = DN ${fmt(D,2)} × ALT ${fmt(H,2)} × π ${fmt(PI,4)} = <b>${fmt(tot,3)} m²</b>`+(N?` · por anel = ${fmt(tot,3)} ÷ ${fmt(N,0)} = <b>${fmt(tot/N,3)} m²</b> (altura do anel ${fmt(H/N,4)} m)`:""):"Informe DN e altura total para ver a área."}</p>
+    ${its.length?`<div class="tblw" style="margin-top:8px"><table><thead><tr><th>Anéis / área</th><th class="r">Nº de anéis ou área (m²)</th><th class="r">Altura do anel (m)</th>${its.map(([it])=>`<th class="c">${esc(it.item)}<br><small>${usaDemao(it.item)?"demãos":"0 ou 1"}</small></th>`).join("")}<th></th></tr></thead><tbody>
+    ${g.linhas.map((l,r)=>`<tr><td><input id="an${r}_desc" data-an="${r}" data-f="desc" value="${esc(l.desc)}" placeholder="${l.tipo==="anel"?"Ex.: 1º ao 5º anel":"Ex.: ZTAs (levantamento)"}" style="min-width:190px"></td>
+      <td>${l.tipo==="anel"?inp(`an${r}_qtd`,`data-an="${r}" data-f="qtd"`,l.qtd,"1"):inp(`an${r}_area`,`data-an="${r}" data-f="area"`,l.area,"m²")}</td>
+      <td>${l.tipo==="anel"?inp(`an${r}_alt`,`data-an="${r}" data-f="alt"`,l.alt,H&&N?fmt(H/N,4):"total ÷ nº"):`<span class="hint">área informada</span>`}</td>
+      ${its.map(([it,i])=>`<td class="c">${inp(`an${r}_d${i}`,`data-an="${r}" data-ad="${i}"`,l.d[i],"–","sm num")}</td>`).join("")}
+      <td><button class="ghost" data-del-an="${r}" aria-label="Remover linha da grade">✕</button></td></tr>`).join("")}
+    </tbody></table></div>
+    <div class="row" style="margin-top:8px"><button id="bAnAdd">+ Linha de anéis</button><button id="bAnExtra">+ Área extra (ZTAs, remendos…)</button>
+    <span class="hint">Altura do anel em branco = altura total ÷ nº de anéis. Quando um anel tem 2 demãos num item, a 2ª demão vira uma linha própria na memória.</span></div>`
+    :`<p class="hint">Escolha os itens da PPU na seção 1 para montar a grade.</p>`}
+  </div>`;
+}
 function memVazia(m){ return m.elems.every(e=>!e.desc && !e.a && !e.b && !e.c && !e.qtd); }
 function aplicaModelo(m){ const tp=tipoMC(m); if(!memVazia(m)) return;
   const comp=(f,it)=>{ const P=PPU[it]; if(!P) return false; const k=FORMAS[f][3], g=FORMAS[f][4]; if(g) return g==="m3"?P.u==="m³":g==="kg"?/^kg$/i.test(P.u):g==="dia"?P.u==="Diária":false; return k==="diaria"||k==="dias" ? P.u==="Diária" : k==="un" ? !["m²","m","Diária"].includes(P.u) : ["m²","m"].includes(P.u); };
@@ -691,13 +739,14 @@ function renderEditor(){
       <td id="o_u${i}"></td><td class="r"><span class="out" id="o_p${i}"></span></td>
       <td><select id="mt_${i}" data-it="${i}" data-f="metodo">${METODOS.map(x=>opt(x[0],x[2],it.metodo)).join("")}</select></td>
       <td class="r"><span class="out" id="o_pa${i}"></span></td>
-      <td class="c">${!it.item||usaDemao(it.item)?`<input id="dm_${i}" class="sm num" data-it="${i}" data-f="demaos" inputmode="numeric" value="${esc(it.demaos)}" placeholder="1">`:`<span class="base">${esc(baseMed(it.item))}</span>`}</td>
+      <td class="c">${itemNaGrade(m,i)?`<span class="base" title="As demãos deste item estão no Quadro dos anéis">na grade</span>`:!it.item||usaDemao(it.item)?`<input id="dm_${i}" class="sm num" data-it="${i}" data-f="demaos" inputmode="numeric" value="${esc(it.demaos)}" placeholder="1">`:`<span class="base">${esc(baseMed(it.item))}</span>`}</td>
       <td class="c">${it.item?`<button class="ghost" data-limpa-it="${i}" title="Tira o item desta linha e desmarca as caixinhas dele na memória">Limpar</button>`:""}</td></tr>`).join("")}
     </tbody></table></div>
     <div class="crit" id="o_crit" style="margin-top:10px"></div>
   </section>
 
   <section class="blk"><h2><span class="num">2</span> Memória de cálculo <small>${esc(tp.n)}. Uma linha por elemento; marque os itens a que a área se aplica.</small></h2>
+    ${htmlGrade(m)}
     <div class="tblw"><table><thead><tr><th>Nº</th><th>Descrição / origem da medida</th><th>Forma de cálculo</th>${colsMem(tp).map(([k,l])=>`<th class="${k==="bit"?"":"r"}">${esc(l)}</th>`).join("")}<th class="r">${esc(tp.lab.q||"Qtd")}</th><th class="r">% consid.</th>${etOpcoes(m).length?`<th>Etapa cobrada (critério)</th>`:""}
       ${m.itens.map((it,i)=>`<th class="c" id="o_fh${i}">${esc(it.item||"Item "+(i+1))}</th>`).join("")}<th class="r">Resultado</th><th>Cálculo</th><th></th></tr></thead><tbody>
     ${m.elems.map((e,k)=>linhaMem(e,k,tp)).join("")}
@@ -798,7 +847,7 @@ const ED=$("#ed");
 ED.addEventListener("input",e=>{
   const t=e.target, d=t.dataset; if(!cur) return; let estrutura=false;
   if(d.k){ cur[d.k]= d.k==="bm" ? (parseInt(t.value)||cur.bm) : t.value; if(d.k==="bm") estrutura=true; if(d.k==="tipoMC"){ aplicaModelo(cur); estrutura=true; } if(d.k==="modoAv") estrutura=true; }
-  else if(d.it!=null){ cur.itens[+d.it][d.f]=t.value; if(d.f==="item") estrutura=true; }
+  else if(d.it!=null){ cur.itens[+d.it][d.f]=t.value; if(d.f==="item"){ estrutura=true; geraGrade(cur); } }
   else if(d.el!=null&&d.fl!=null){ cur.elems[+d.el].fl[+d.fl]=t.checked; }
   else if(d.el!=null){ cur.elems[+d.el][d.f]=t.value; if(d.f==="tipo") estrutura=true; }
   else if(d.q!=null){ cur.quadro[+d.q][d.f]=t.value; }
@@ -806,13 +855,16 @@ ED.addEventListener("input",e=>{
   else if(d.lo!=null&&d.bm!=null){ cur.etapa.lotes[+d.lo].bms[+d.bm]=t.value; }
   else if(d.lo!=null){ cur.etapa.lotes[+d.lo][d.f]=t.value; }
   else if(d.ft!=null){ cur.fotos[+d.ft].legenda=t.value; }
+  else if(d.anh){ cur.aneis[d.anh]=t.value; geraGrade(cur); estrutura=true; }
+  else if(d.an!=null&&d.ad!=null){ cur.aneis.linhas[+d.an].d[+d.ad]=t.value; geraGrade(cur); estrutura=true; }
+  else if(d.an!=null){ cur.aneis.linhas[+d.an][d.f]=t.value; geraGrade(cur); estrutura=true; }
   else return;
-  if(estrutura && t.id!=="h_bm"){ const id=t.id; renderEditor(); document.getElementById(id)?.focus(); } else updateOut();
+  if(estrutura && t.id!=="h_bm"){ const id=t.id; let ss=null; try{ ss=t.selectionStart; }catch(_){} const sy=window.scrollY; renderEditor(); const n=document.getElementById(id); if(n){ n.focus({preventScroll:true}); try{ if(ss!=null) n.setSelectionRange(ss,ss); }catch(_){} } window.scrollTo(0,sy); } else updateOut();
   salvar();
 });
 ED.addEventListener("change",e=>{ if(e.target.id==="h_bm"){ renderEditor(); } });
 ED.addEventListener("click",async e=>{
-  const t=e.target.closest("button,[data-del-el],[data-del-lo],[data-del-ft]"); if(!t||!cur) return;
+  const t=e.target.closest("button,[data-del-el],[data-del-lo],[data-del-ft],[data-del-an]"); if(!t||!cur) return;
   if(t.dataset.delEl!=null){ cur.elems.splice(+t.dataset.delEl,1); if(!cur.elems.length) cur.elems.push(novoElem()); renderEditor(); salvar(); }
   else if(t.dataset.delLo!=null){ cur.etapa.lotes.splice(+t.dataset.delLo,1); if(!cur.etapa.lotes.length) cur.etapa.lotes.push(novoLote()); renderEtapas(); updateOut(); salvar(); }
   else if(t.dataset.limpaIt!=null){ const i=+t.dataset.limpaIt, cod=cur.itens[i].item;
@@ -820,6 +872,8 @@ ED.addEventListener("click",async e=>{
     renderEditor(); salvar(); toast(`Item ${cod} retirado da MC`); }
   else if(t.dataset.delFt!=null){ const [f]=cur.fotos.splice(+t.dataset.delFt,1); renderFotos(); salvar(); apagaOrfas(f?[f]:[]); }
   else if(t.id==="bAddEl"){ const ult=cur.elems[cur.elems.length-1]; const n=novoElem(ult&&ult.tipo||tipoMC(cur).f[0]); if(ult) n.fl=[...ult.fl]; cur.elems.push(n); renderEditor(); document.getElementById(`e${cur.elems.length-1}_desc`)?.focus(); salvar(); }
+  else if(t.id==="bAnAdd"||t.id==="bAnExtra"){ cur.aneis.linhas.push(novaLinhaAnel(t.id==="bAnAdd"?"anel":"extra")); const sy=window.scrollY; renderEditor(); window.scrollTo(0,sy); document.getElementById(`an${cur.aneis.linhas.length-1}_desc`)?.focus({preventScroll:true}); salvar(); }
+  else if(t.dataset.delAn!=null){ cur.aneis.linhas.splice(+t.dataset.delAn,1); if(!cur.aneis.linhas.length) cur.aneis.linhas.push(novaLinhaAnel("anel")); geraGrade(cur); const sy=window.scrollY; renderEditor(); window.scrollTo(0,sy); salvar(); }
   else if(t.id==="bAddLo"){ cur.etapa.lotes.push(novoLote()); renderEtapas(); updateOut(); salvar(); }
   else if(t.id==="bXls"){ await baixar([cur], nomeArq(cur)); }
   else if(t.id==="bPdf"){ await baixarPDF([cur], nomeArq(cur).replace(/\.xlsx$/,".pdf")); }
