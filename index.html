@@ -315,7 +315,7 @@ input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:n
 </style>
 
 <header class="top">
-  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 11/11 14:49 (com logos)</span></div>
+  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 11/11 15:11 (com logos)</span></div>
   <div class="sp"></div>
   <span class="status" id="status">Conectando…</span>
   <label class="tema">Tema<select id="selTema"><option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
@@ -669,13 +669,13 @@ function htmlGrade(m){
   const tot=D&&H?PI*D*H:null;
   const inp=(id,attrs,val,ph,cls="num")=>`<input id="${id}" class="${cls}" ${attrs} inputmode="decimal" value="${esc(val)}" placeholder="${ph}">`;
   return `<div class="grade">
-    <div class="gh"><b>Quadro dos anéis</b> <small>Preencha os dados do tanque e, na grade, quantas demãos cada anel recebe em cada item (para limpeza/tratamento use 1). O site monta as linhas da memória sozinho.</small></div>
+    <div class="gh"><b>Quadro dos anéis</b> <small>Preencha os dados do tanque e, na grade, quantas demãos cada anel recebe em cada item (nos itens de limpeza/tratamento não há demão: digite 1 nos anéis que entram na medição e deixe vazio nos que não entram). O site monta as linhas da memória sozinho.</small></div>
     <div class="grid" style="max-width:620px">
       <label class="f">DN do tanque (m)${inp("an_dn",'data-anh="dn"',g.dn,"98,5")}</label>
       <label class="f">Altura total do costado (m)${inp("an_h",'data-anh="h"',g.h,"14,72")}</label>
       <label class="f">Nº de anéis${inp("an_n",'data-anh="n"',g.n,"6")}</label></div>
     <p class="hint" id="o_angr">${tot?`Área total = DN ${fmt(D,2)} × ALT ${fmt(H,2)} × π ${fmt(PI,4)} = <b>${fmt(tot,3)} m²</b>`+(N?` · por anel = ${fmt(tot,3)} ÷ ${fmt(N,0)} = <b>${fmt(tot/N,3)} m²</b> (altura do anel ${fmt(H/N,4)} m)`:""):"Informe DN e altura total para ver a área."}</p>
-    ${its.length?`<div class="tblw" style="margin-top:8px"><table><thead><tr><th>Anéis / área</th><th class="r">Nº de anéis ou área (m²)</th><th class="r">Altura do anel (m)</th>${its.map(([it])=>`<th class="c">${esc(it.item)}<br><small>${usaDemao(it.item)?"demãos":"0 ou 1"}</small></th>`).join("")}<th></th></tr></thead><tbody>
+    ${its.length?`<div class="tblw" style="margin-top:8px"><table><thead><tr><th>Anéis / área</th><th class="r">Nº de anéis ou área (m²)</th><th class="r">Altura do anel (m)</th>${its.map(([it])=>`<th class="c">${esc(it.item)}<br><small>${usaDemao(it.item)?"nº de demãos":"1 = medir"}</small></th>`).join("")}<th></th></tr></thead><tbody>
     ${g.linhas.map((l,r)=>`<tr><td><input id="an${r}_desc" data-an="${r}" data-f="desc" value="${esc(l.desc)}" placeholder="${l.tipo==="anel"?"Ex.: 1º ao 5º anel":"Ex.: ZTAs (levantamento)"}" style="min-width:190px"></td>
       <td>${l.tipo==="anel"?inp(`an${r}_qtd`,`data-an="${r}" data-f="qtd"`,l.qtd,"1"):inp(`an${r}_area`,`data-an="${r}" data-f="area"`,l.area,"m²")}</td>
       <td>${l.tipo==="anel"?inp(`an${r}_alt`,`data-an="${r}" data-f="alt"`,l.alt,H&&N?fmt(H/N,4):"total ÷ nº"):`<span class="hint">área informada</span>`}</td>
