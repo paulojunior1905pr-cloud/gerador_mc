@@ -330,7 +330,7 @@ input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:n
 </style>
 
 <header class="top">
-  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 12/11 14:59 (com logos)</span></div>
+  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 12/11 15:02 (com logos)</span></div>
   <div class="sp"></div>
   <span class="status" id="status">Conectando…</span>
   <label class="tema">Tema<select id="selTema"><option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
@@ -506,8 +506,11 @@ function calcElem(e){
 }
 const NOMES={anel:["DN","ALT"],trecho:["C","ALT"]};
 const rot=k=>{ let s=""; k++; while(k>0){ const r=(k-1)%26; s=String.fromCharCode(65+r)+s; k=Math.floor((k-1)/26); } return s; };
+function erroConta(v){ if(v===""||v==null||numE(v)!=null) return null; const t=String(v); const ab=(t.match(/[(\[{]/g)||[]).length, fe=(t.match(/[)\]}]/g)||[]).length;
+  return ab>fe?`falta fechar ${ab-fe} parêntese${ab-fe>1?"s":""}`:fe>ab?`sobra${fe-ab>1?"m":""} ${fe-ab} parêntese${fe-ab>1?"s":""} fechando`:"há um símbolo que o site não entende"; }
+const CAMPOS_CONTA=[["a","1ª medida"],["b","2ª medida"],["c","3ª medida"],["qtd","Qtd"],["pct","% consid."]];
 function textoElem(e){
-  const k=formaDe(e); if(!k) return ""; const F=FORMAS[k]; const A=numE(e.a), B=numE(e.b), C=numE(e.c), q=numE(e.qtd), p=numE(e.pct);
+  const k=formaDe(e); if(!k) return ""; const er=CAMPOS_CONTA.map(([f,n])=>{ const m=erroConta(e[f]); return m?n+": "+m:null; }).filter(Boolean); if(er.length) return "⚠ Conta com erro ("+er.join("; ")+")"; const F=FORMAS[k]; const A=numE(e.a), B=numE(e.b), C=numE(e.c), q=numE(e.qtd), p=numE(e.pct);
   const a=dimTxt(e.a,A), b=dimTxt(e.b,B), c=dimTxt(e.c,C); let s;
   switch(F[3]){ case "direto": s=a; break; case "ret": s=NOMES[k]?NOMES[k][0]+" "+a+" × "+NOMES[k][1]+" "+b:a+" × "+b; break; case "tri": s=a+" × "+b+" ÷ 2"; break; case "trap": s="("+a+" + "+b+") ÷ 2 × "+c; break;
     case "cil": s=NOMES[k]?NOMES[k][0]+" "+a+" × "+NOMES[k][1]+" "+b+" × π "+fmt(PI,4):"π × "+a+" × "+b; break; case "circ": s="DN "+a+" × DN "+a+" × π "+fmt(PI,4)+" ÷ 4"; break; case "coroa": s="(DN "+a+"² − d "+b+"²) × π "+fmt(PI,4)+" ÷ 4"; break; case "raios": s="π × ("+a+"² − "+b+"²)"; break;
@@ -557,7 +560,8 @@ function calcMC(m){
     if(l.faixa && l.prev>1000 && l.metodo==="conv") alerts.push(["",`Item ${l.item}: área acima de 1.000 m² exige robô (Esclarecimento, resposta 07).`]);
     if(l.mem===0 && !l.isEt) alerts.push(["",`Item ${l.item}: nenhuma linha da memória está marcada para este item.`]);
   });
-  m.elems.forEach((e,k)=>{ const p=num(e.pct); if(e.tipo && p!=null && p!==100 && !e.desc) alerts.push(["",`Cálculo ${rot(k)} da memória usa ${fmt(p,0)}% sem descrição do motivo.`]);
+  m.elems.forEach((e,k)=>{ if(formaDe(e)) CAMPOS_CONTA.forEach(([f,n])=>{ const er=erroConta(e[f]); if(er) alerts.push(["bad",`Cálculo ${rot(k)}, ${n}: na conta, ${er}. Confira o que foi digitado.`]); });
+  const p=num(e.pct); if(e.tipo && p!=null && p!==100 && !e.desc) alerts.push(["",`Cálculo ${rot(k)} da memória usa ${fmt(p,0)}% sem descrição do motivo.`]);
     const ex=etParse(e.et);
     if(e.tipo && ex){ const ii=m.itens.findIndex(it=>it.item===ex.item);
       if(ii<0) alerts.push(["",`Cálculo ${rot(k)} da memória cobra etapa do item ${ex.item}, que não está na MC.`]);
