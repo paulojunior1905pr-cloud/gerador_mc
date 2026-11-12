@@ -330,7 +330,7 @@ input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:n
 </style>
 
 <header class="top">
-  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 12/11 14:38 (com logos)</span></div>
+  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 12/11 14:59 (com logos)</span></div>
   <div class="sp"></div>
   <span class="status" id="status">Conectando…</span>
   <label class="tema">Tema<select id="selTema"><option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
@@ -451,9 +451,10 @@ const baseMed = it => PPU[it] ? (BASE_UN[PPU[it].u]||"Não se aplica") : "";
 function tituloDemao(itens){ const v=itens.filter(it=>PPU[it]); const d=v.filter(usaDemao).length; return !v.length||d===v.length ? "Demãos" : d===0 ? "Base de medição" : "Demãos / base"; }
 const usaCampo = (tp,k) => tp.f.some(f=>FORMAS[f][2].includes(k)) || (k==="bit" && tp.f.some(f=>FORMAS[f][3]==="bit"));
 /* números com conta: "32,44+2*(3,30+0,40)" */
-const ehConta = v => typeof v==="string" && /[+*/×xX÷()π^]|\d\s*-|−/.test(v.trim().replace(/^[-−]/,""));
-function contaJS(v){ let s=String(v).trim().replace(/π|pi/gi,"(3.1416)").replace(/[×xX]/g,"*").replace(/÷/g,"/").replace(/−/g,"-").replace(/\^/g,"**").replace(/\s/g,"");
+const ehConta = v => typeof v==="string" && /[+*/×xX÷()\[\]{}π^²³]|\d\s*-|−/.test(v.trim().replace(/^[-−]/,""));
+function contaJS(v){ let s=String(v).trim().replace(/[\[{]/g,"(").replace(/[\]}]/g,")").replace(/²/g,"^2").replace(/³/g,"^3").replace(/π|pi/gi,"(3.1416)").replace(/[×xX]/g,"*").replace(/÷/g,"/").replace(/−/g,"-").replace(/\^/g,"**").replace(/\s/g,"");
   if(s.includes(",")) s=s.replace(/\.(?=\d{3}(?!\d))/g,"").replace(/,/g,".");
+  s=s.replace(/([\d.)])\(/g,"$1*(").replace(/\)([\d.])/g,")*$1");
   return /^[\d.+\-*/()]+$/.test(s.replace(/\*\*/g,"*")) ? s : null; }
 function numE(v){ if(v===""||v==null) return null; if(!ehConta(v)) return num(v); const s=contaJS(v); if(!s) return null;
   try{ const r=Function('"use strict";return ('+s+")")(); return isFinite(r)?r:null; }catch(e){ return null; } }
