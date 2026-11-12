@@ -302,6 +302,19 @@ input,select,textarea{border-radius:7px}
 input:focus,select:focus,textarea:focus{background:var(--panel);border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent);outline:none}
 input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:none}
 .total .big{font-size:26px}
+/* menu lateral recolhido: abre ao passar o mouse ou tocar */
+@media (min-width:901px){
+  .top{width:64px;padding:16px 10px calc(60px + env(safe-area-inset-bottom,0px));overflow-x:hidden;transition:width .18s ease,box-shadow .18s ease}
+  .top:hover,.top:focus-within{width:260px;padding-left:16px;padding-right:16px;box-shadow:6px 0 24px rgba(0,0,0,.28)}
+  .kpis,.wrap{margin-left:64px}
+  .top::before{content:"☰";color:#fff;font-size:22px;text-align:center;line-height:1;padding:2px 0 6px;order:0}
+  .top:hover::before,.top:focus-within::before{display:none}
+  .top:not(:hover):not(:focus-within) .brand,.top:not(:hover):not(:focus-within) .status,.top:not(:hover):not(:focus-within) .tema,.top:not(:hover):not(:focus-within) .secnav .tt,.top:not(:hover):not(:focus-within) .secnav .vazio,.top:not(:hover):not(:focus-within) .bkbar{display:none}
+  .top:not(:hover):not(:focus-within) #bNova{font-size:0;padding:8px 0}
+  .top:not(:hover):not(:focus-within) #bNova::before{content:"+";font-size:22px;line-height:1}
+  .top:not(:hover):not(:focus-within) .secnav a{font-size:0;justify-content:center;padding:6px 0}
+  .top:not(:hover):not(:focus-within) .secnav a i{font-size:11px}
+}
 @media (max-width:1100px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:900px){
   .top{position:sticky;top:0;bottom:auto;width:auto;flex-direction:row;flex-wrap:wrap;align-items:center;padding:10px 16px;overflow:visible;gap:8px 12px}
@@ -317,7 +330,7 @@ input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:n
 </style>
 
 <header class="top">
-  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 11/11 15:58 (com logos)</span></div>
+  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 12/11 13:54 (com logos)</span></div>
   <div class="sp"></div>
   <span class="status" id="status">Conectando…</span>
   <label class="tema">Tema<select id="selTema"><option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
@@ -711,6 +724,7 @@ function marcaSecao(){ const secs=[...document.querySelectorAll("#ed section.blk
   secs.forEach((s,i)=>{ if(s.getBoundingClientRect().top<=140) on=i; });
   if(window.innerHeight+window.scrollY>=document.documentElement.scrollHeight-4) on=secs.length-1;
   document.querySelectorAll("#secnav a").forEach(a=>a.classList.toggle("on",+a.dataset.sec===on)); }
+document.querySelector("header.top").addEventListener("click",e=>{ const b=e.target.closest("a,button"); if(b) setTimeout(()=>b.blur(),0); });
 document.getElementById("secnav").addEventListener("click",e=>{ const a=e.target.closest("a[data-sec]"); if(!a) return; e.preventDefault();
   const s=document.getElementById("sec"+a.dataset.sec); if(s) s.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"}); });
 window.addEventListener("scroll",()=>requestAnimationFrame(marcaSecao),{passive:true});
