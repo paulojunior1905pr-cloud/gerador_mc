@@ -330,7 +330,7 @@ input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:n
 </style>
 
 <header class="top">
-  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 12/11 13:54 (com logos)</span></div>
+  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 12/11 14:03 (com logos)</span></div>
   <div class="sp"></div>
   <span class="status" id="status">Conectando…</span>
   <label class="tema">Tema<select id="selTema"><option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
@@ -509,13 +509,13 @@ function textoElem(e){
   const k=formaDe(e); if(!k) return ""; const F=FORMAS[k]; const A=numE(e.a), B=numE(e.b), C=numE(e.c), q=numE(e.qtd), p=numE(e.pct);
   const a=dimTxt(e.a,A), b=dimTxt(e.b,B), c=dimTxt(e.c,C); let s;
   switch(F[3]){ case "direto": s=a; break; case "ret": s=NOMES[k]?NOMES[k][0]+" "+a+" × "+NOMES[k][1]+" "+b:a+" × "+b; break; case "tri": s=a+" × "+b+" ÷ 2"; break; case "trap": s="("+a+" + "+b+") ÷ 2 × "+c; break;
-    case "cil": s=NOMES[k]?NOMES[k][0]+" "+a+" × "+NOMES[k][1]+" "+b+" × π "+fmt(PI,4):"π × "+a+" × "+b; break; case "circ": s="π × "+a+"² ÷ 4"; break; case "coroa": s="π × ("+a+"² − "+b+"²) ÷ 4"; break; case "raios": s="π × ("+a+"² − "+b+"²)"; break;
+    case "cil": s=NOMES[k]?NOMES[k][0]+" "+a+" × "+NOMES[k][1]+" "+b+" × π "+fmt(PI,4):"π × "+a+" × "+b; break; case "circ": s="DN "+a+" × DN "+a+" × π "+fmt(PI,4)+" ÷ 4"; break; case "coroa": s="(DN "+a+"² − d "+b+"²) × π "+fmt(PI,4)+" ÷ 4"; break; case "raios": s="π × ("+a+"² − "+b+"²)"; break;
     case "bit": s=a+" m × "+fmt(M2M[e.bit]||0,2)+" m²/m ("+(e.bit||"escolha")+")"; break; case "retoque": s="0,15 m²"; break;
     case "diaria": s=`(${dBR(e.b)} − ${dBR(e.a)} + 1 dia)`; break;
     case "dias": s="1 dia"; break;
     case "horas": s=a+" h ÷ "+(B?b:fdim(JORNADA))+" h"; break; case "vret": s=a+" × "+b+" × "+c; break; case "vcil": s="π × "+a+"² ÷ 4 × "+c; break; case "vfaixa": s="π × "+a+" × "+b+" × "+c; break;
     default: s="1 un"; }
-  const f=F[1]; if(f===0.5) s+=" ÷ 2"; else if(f!==1) s+=" × "+fmt(f,2);
+  const f=F[1]; if(f===0.5) s+=" ÷ 2"; else if(f===1.3) s+=" + 30%"; else if(f===1.1) s+=" + 10%"; else if(f!==1) s+=" × "+fmt(f,2);
   if(q!=null && q!==1) s+=" × "+(ehConta(e.qtd)?contaTxt(e.qtd):fmt(q,q%1?2:0));
   if(p!=null && p!==100) s+=" × "+fmt(p,p%1?1:0)+"%";
   const ex=etParse(e.et); if(ex) s+=" × "+fmt(ex.f*100,0)+"% ("+ex.item+": "+ex.nome+")";
