@@ -330,7 +330,7 @@ input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:n
 </style>
 
 <header class="top">
-  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 12/11 15:20 (com logos)</span></div>
+  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 12/11 15:22 (com logos)</span></div>
   <div class="sp"></div>
   <span class="status" id="status">Conectando…</span>
   <label class="tema">Tema<select id="selTema"><option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
@@ -437,7 +437,7 @@ const TMC = {
   geral:{n:"Geral – todas as formas",d:"Todas as formas de cálculo disponíveis.",f:Object.keys(FORMAS),lab:{a:"Dim. 1 (C / D / B)",b:"Dim. 2 (L / h / d)",c:"Dim. 3 (altura h)",bit:"Bitola / perfil",q:"Qtd"},modelo:[]},
   isolamento:{n:"Isolamento térmico (volume m³)",d:"Itens 1.87, 1.88 e 1.89: teto = π × D² ÷ 4 × espessura; costado = π × DN × altura × espessura; trechos retos = C × L × espessura. Na coluna “Etapa cobrada” escolha 30% · Remoção ou 70% · Instalação.",f:["volCil","volFaixa","volRet","volDir"],lab:{a:"DN do tanque / comprimento (m)",b:"Altura do costado / largura (m)",c:"Espessura (m)",q:"Qtd"},modelo:[["Isolamento do teto (π × D² ÷ 4 × espessura)","volCil"],["Isolamento do costado (π × DN × altura × espessura)","volFaixa"]]},
   civil:{n:"Rota de fuga, minidique, muros e muretas",d:"Faixas no perímetro do tanque (π × D × largura), acessos e paredes. Na largura dá para somar: 0,4+2,15+0,4.",f:["faixa","ret","raios","trap","tri","cil","direto"],lab:{a:"C / D / B (m)",b:"Largura / d / b (m)",c:"Altura h (m)",q:"Qtd"},modelo:[["Rota de fuga no perímetro do tanque","faixa"],["Acesso à rota de fuga","ret"],["Parede interna","faixa"],["Parede externa","faixa"],["Faixa amarela","faixa"]]},
-  teto:{n:"Teto, fundo, lençol e contraventamento",d:"Círculo (π × D² ÷ 4), coroa entre dois diâmetros (flutuador = teto − lençol) e face inferior +30%.",f:["circ","coroa","coroaInf","rim","ret","direto","cil"],lab:{a:"Diâmetro D (m)",b:"Diâmetro interno d / altura (m)",q:"Qtd"},modelo:[["Teto / fundo (círculo)","circ"],["Flutuador (coroa: teto − lençol)","coroa"],["Contraventamento – face inferior","coroaInf"]]},
+  teto:{rev:true,n:"Teto, fundo, lençol e contraventamento",d:"Círculo (π × D² ÷ 4), coroa entre dois diâmetros (flutuador = teto − lençol) e face inferior +30%.",f:["circ","coroa","coroaInf","rim","ret","direto","cil"],lab:{a:"Diâmetro D (m)",b:"Diâmetro interno d / altura (m)",q:"Qtd"},modelo:[["Teto / fundo (círculo)","circ"],["Flutuador (coroa: teto − lençol)","coroa"],["Contraventamento – face inferior","coroaInf"]]},
   tubulacao:{n:"Tubulação e suportes",d:"Linhas pelo comprimento × m²/m do diâmetro e suportes pelo perfil.",f:["tubo","perfil","retoque","direto"],lab:{a:"Comprimento (m)",bit:"Diâmetro / perfil",q:"Qtd de peças"},modelo:[["Linha","tubo"],["Suporte","perfil"]]},
   unidade:{n:"Unidades (BV, PL, TH, drenos, agitadores, peças)",d:"Itens medidos por unidade: abertura de BV/PL, teste hidrostático, drenos flexíveis, agitadores, bocais, TAG.",f:["un"],lab:{q:"Quantidade"},modelo:[["","un"]]},
 };
