@@ -330,7 +330,7 @@ input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:n
 </style>
 
 <header class="top">
-  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 13/11 15:23 (com logos)</span></div>
+  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 13/11 15:36 (com logos)</span></div>
   <div class="sp"></div>
   <span class="status" id="status">Conectando…</span>
   <label class="tema">Tema<select id="selTema"><option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
@@ -1177,8 +1177,16 @@ function folhaPPU(wb){
 async function folhaMC(wb, nome, m){
   const VERT=ORI==="portrait", HF=VERT?1.4:1.15;
   const c=calcMC(m), ws=wb.addWorksheet(nome,{pageSetup:{orientation:VERT?"portrait":"landscape",paperSize:9,fitToPage:true,fitToWidth:1,fitToHeight:0,margins:{left:.3,right:.3,top:.4,bottom:.4,header:.2,footer:.2}},views:[{showGridLines:false}]});
-  const W=VERT?[4,20,20,10,10,11,7,7,7,8,11,8,10,10,8,8,8,22]:[5,32,30,12,12,16,8,8,8,9,13,9,9,9,9,9,9,40]; W.forEach((w,i)=>ws.getColumn(i+1).width=w);
+  const W=VERT?[4,20,20,10,10,11,7,7,9,8,11,8,11,10,8,8,8,19]:[5,32,30,12,12,16,8,8,10,9,13,9,12,9,9,9,9,35]; W.forEach((w,i)=>ws.getColumn(i+1).width=w);
   const C=i=>String.fromCharCode(64+i);
+  /* largura (em unidades do Excel) de uma coluna ou de um trecho mesclado, e nº de linhas que um texto ocupa nela */
+  const larg=(a,b)=>{ const i=a.charCodeAt(0)-65, j=(b||a).charCodeAt(0)-65; let w=0; for(let k=i;k<=j;k++) w+=W[k]; return w; };
+  const nLin=(t,w,sz=8,bold)=>{ const cpl=Math.max(1,Math.floor((w*7-4)/(sz*(bold?0.95:0.7)))); let n=0;
+    String(t??"").split("\n").forEach(p=>{ let lin=1, x=0; p.split(/\s+/).filter(Boolean).forEach(wd=>{ const l=wd.length; if(x&&x+1+l>cpl){ lin++; x=0; } x+=(x?1:0)+l; while(x>cpl){ lin++; x-=cpl; } }); n+=lin; }); return n; };
+  const EMB={I:278,J:556,M:833,W:944,"%":889,"(":333,")":333,".":278,"/":278,":":333,"-":333,"º":365,"Í":278};
+  const emB=x=>[...x].reduce((s,ch)=>s+(EMB[ch]??(/[0-9$]/.test(ch)?556:/[a-zçãéíóú]/.test(ch)?560:/[EFLPSTVXYZÉÊ]/.test(ch)?640:700)),0)/1000;
+  const altL=(n,sz=8)=>Math.max(15,Math.ceil(n*sz*1.32+4));
+  const abXL=t=>String(t).replace(/COMPRIMENTO/g,"COMP.").replace(/LARGURA/g,"LARG.").replace(/ALTURA/g,"ALT.").replace(/DIÂMETRO/g,"DIÂM.").replace(/ESPESSURA/g,"ESP.").replace(/PROFUNDIDADE/g,"PROF.").replace(/QUANTIDADE/g,"QTD").replace(/EQUIPAMENTOS/g,"EQUIP.").replace(/ OU /g," / ");
   const thin={style:"thin",color:{argb:"FF808080"}}, BOX={top:thin,left:thin,bottom:thin,right:thin};
   const AZ={type:"pattern",pattern:"solid",fgColor:{argb:"FF1F4E78"}}, SEC={type:"pattern",pattern:"solid",fgColor:{argb:"FFDDEBF7"}}, INP={type:"pattern",pattern:"solid",fgColor:{argb:"FFFFF2CC"}}, TOT={type:"pattern",pattern:"solid",fgColor:{argb:"FFE2EFDA"}};
   const put=(ref,v,o={})=>{ if(o.m) ws.mergeCells(ref+":"+o.m); const cell=ws.getCell(ref); cell.value=v;
@@ -1188,7 +1196,9 @@ async function folhaMC(wb, nome, m){
     cell.alignment=o.f?{horizontal:o.h||"left",vertical:"middle",shrinkToFit:true}:{horizontal:o.h||"left",vertical:"middle",wrapText:true}; if(o.f) cell.numFmt=o.f; return cell; };
   const F=(f,result)=>({formula:f,result});
   let NS=0; const sec=(r,t)=>{ t=(/^\d\./.test(t)?(++NS)+"."+t.replace(/^\d\./,""):t); put("A"+r,t,{m:"R"+r,fill:SEC,b:1,sz:10}); ws.getRow(r).height=18; };
-  const head=(r,cols)=>{ cols.forEach(([ref,t,mg])=>put(ref+r,t,{m:mg?mg+r:null,fill:AZ,w:1,b:1,sz:8,h:"center"})); ws.getRow(r).height=32; };
+  const head=(r,cols)=>{ let lin=2; cols.forEach(([ref,t,mg])=>{ const w=larg(ref,mg), big=Math.max(...String(t).split(/\s+/).map(x=>x.length));
+      const wd=String(t).split(/\s+/).reduce((mx,x)=>Math.max(mx,emB(x)),0); let sz=8; while(sz>6.5 && wd*sz*1.333>w*6.2-4) sz-=0.5; lin=Math.max(lin,nLin(t,w,sz,1));
+      put(ref+r,t,{m:mg?mg+r:null,fill:AZ,w:1,b:1,sz,h:"center"}); }); ws.getRow(r).height=Math.max(32,altL(lin)); };
   const [ini,fim]=periodo(m.bm);
   put("A1",null,{m:"C2"}); put("D1","MEMÓRIA DE CÁLCULO",{m:"J2",b:1,sz:16,h:"center"}); put("K1",null,{m:"M2"});
   try{ const lg=wb.addImage({base64:LOGO_QWS,extension:"png"}); ws.getRow(1).height=Math.max(ws.getRow(1).height||0,24); ws.getRow(2).height=Math.max(ws.getRow(2).height||0,24);
@@ -1209,7 +1219,7 @@ async function folhaMC(wb, nome, m){
   L.forEach((l,k)=>{ const r=RI+1+k; row1[l.i]=r; const met=METODOS.find(x=>x[0]===l.metodo)||METODOS[0];
     put("A"+r,k+1,{h:"center",b:1}); put("B"+r,l.item,{h:"center",b:1,sz:10,fill:INP}); put("C"+r,F(ppuRef("B","$B"+r),l.P.d.trim()),{m:"H"+r}); put("I"+r,F(ppuRef("C","$B"+r),l.P.u),{h:"center"});
     put("J"+r,F(ppuRef("D","$B"+r),l.P.p),{h:"right",f:"#,##0.00"}); put("K"+r,l.fat,{m:"M"+r,h:"center",f:"0.00",b:1});
-    put("N"+r,F(`ROUND(J${r}*K${r},2)`,l.precoAp),{m:"O"+r,h:"right",f:"#,##0.00",b:1}); put("P"+r,l.usaD?l.dem:l.base,l.usaD?{m:"R"+r,h:"center",fill:INP}:{m:"R"+r,h:"center",sz:8,i:1}); ws.getRow(r).height=26; });
+    put("N"+r,F(`ROUND(J${r}*K${r},2)`,l.precoAp),{m:"O"+r,h:"right",f:"#,##0.00",b:1}); put("P"+r,l.usaD?l.dem:l.base,l.usaD?{m:"R"+r,h:"center",fill:INP}:{m:"R"+r,h:"center",sz:8,i:1}); ws.getRow(r).height=Math.max(26,altL(nLin(l.P.d.trim(),larg("C","H"),10),10)); });
   let r=RI+1+Math.max(L.length,1)+1;
   // critério
   sec(r,"CRITÉRIO DE MEDIÇÃO"); r++;
@@ -1220,8 +1230,8 @@ async function folhaMC(wb, nome, m){
   // 2 memória
   const tp=tipoMC(m);
   sec(r,"2. MEMÓRIA DE CÁLCULO – "+tp.n.toUpperCase()); r++;
-  const hl=k=>(usaCampo(tp,k)?(tp.lab[k]||{a:"DIM. 1",b:"DIM. 2",c:"DIM. 3",bit:"BITOLA / PERFIL"}[k]):"—").toUpperCase();
-  head(r,[["A","Nº"],["B","DESCRIÇÃO DO ELEMENTO / ORIGEM"],["C","FORMA DE CÁLCULO (Anexo 1, f)"],["D",hl("a")],["E",hl("b")],["F",usaCampo(tp,"bit")?hl("bit"):hl("c")],["G","m²/m"],["H",(tp.lab.q||"QTD").toUpperCase()],["I","FATOR"],["J","% CONSID."],["K","RESULTADO"]]);
+  const hl=k=>abXL((usaCampo(tp,k)?(tp.lab[k]||{a:"DIM. 1",b:"DIM. 2",c:"DIM. 3",bit:"BITOLA / PERFIL"}[k]):"—").toUpperCase()).replace("(M)","(m)");
+  head(r,[["A","Nº"],["B","DESCRIÇÃO DO ELEMENTO / ORIGEM"],["C","FORMA DE CÁLCULO (Anexo 1, f)"],["D",hl("a")],["E",hl("b")],["F",usaCampo(tp,"bit")?hl("bit"):hl("c")],["G","m²/m"],["H",abXL((tp.lab.q||"QTD").toUpperCase())],["I","FATOR"],["J","% CONSID."],["K","RESULTADO"]]);
   L.forEach((l,k)=>put(C(12+k)+r,l.item,{fill:AZ,w:1,b:1,sz:8,h:"center"})); for(let k=L.length;k<6;k++) put(C(12+k)+r,"",{fill:AZ}); put("R"+r,"CÁLCULO DEMONSTRADO",{fill:AZ,w:1,b:1,sz:8,h:"center"});
   const M0=r+1; const els=m.elems.map((e,k)=>({e,k,v:c.el[k]})).filter(x=>formaDe(x.e));
   const dimXL=(raw,usa)=>{ if(!usa) return null; if(ehConta(raw)){ const f=contaXL(raw); return f?F(f,numE(raw)):numE(raw); } return numE(raw)??0; };
@@ -1235,7 +1245,7 @@ async function folhaMC(wb, nome, m){
     const base={direto:`D${rr}`,ret:`D${rr}*E${rr}`,tri:`D${rr}*E${rr}/2`,trap:`(D${rr}+E${rr})/2*F${rr}`,cil:`D${rr}*E${rr}`,circ:`${PI}*D${rr}^2/4`,coroa:`${PI}*(D${rr}^2-E${rr}^2)/4`,raios:`${PI}*(D${rr}^2-E${rr}^2)`,bit:`D${rr}*G${rr}`,retoque:"0.15",diaria:`(E${rr}-D${rr}+1)`,dias:"1",un:"1",horas:`D${rr}/E${rr}`,vret:`D${rr}*E${rr}*F${rr}`,vcil:`${PI}*D${rr}^2/4*F${rr}`,vfaixa:`${PI}*D${rr}*E${rr}*F${rr}`}[kind];
     put("K"+rr,F(`ROUND(${base}*I${rr}*H${rr}*J${rr}${etParse(e.et)?"*"+etFator(e):""},3)`,x.v),{h:"right",f:"#,##0.000",b:1});
     L.forEach((l,k)=>put(C(12+k)+rr,e.fl[l.i]?"x":null,{fill:INP,h:"center",b:1})); for(let k=L.length;k<6;k++) put(C(12+k)+rr,null,{});
-    put("R"+rr,textoElem(e),{sz:8}); });
+    const tx=textoElem(e); put("R"+rr,tx,{sz:8}); ws.getRow(rr).height=altL(Math.max(nLin(e.desc,W[1]),nLin(Fm[0],W[2]),nLin(tx,W[17]))); });
   const ME=M0+Math.max(els.length,1)-1; r=ME+1;
   put("A"+r,"QUANTIDADE DA MEMÓRIA POR ITEM →",{m:"K"+r,fill:TOT,b:1,h:"right"});
   const memCell={}; L.forEach((l,k)=>{ const col=C(12+k); memCell[l.i]=col+r; put(col+r,F(`SUMIF(${col}${M0}:${col}${ME},"x",$K$${M0}:$K$${ME})`,l.mem),{fill:TOT,b:1,sz:8,h:"center",f:"#,##0.000"}); });
@@ -1247,7 +1257,7 @@ async function folhaMC(wb, nome, m){
   const et=etapasDe(m.etapa.item); const lotes=et?m.etapa.lotes.filter(l=>num(l.area)!=null):[];
   // 3 quadro
   sec(r,"3. MEDIÇÃO E AVANÇO POR ITEM"); r++;
-  head(r,[["A","Nº"],["B","ITEM"],["C","DESCRIÇÃO"],["D","UNID."],["E","QTD MEMÓRIA"],["F",tituloDemao(L.map(l=>l.item)).toUpperCase()],["G","PREVISTO","H"],["I","ACUM. ATÉ BM ANTERIOR"],["J",m.modoAv==="acum"?"% AVANÇO TOTAL":"% NO BM"],["K","MEDIDO NO BM","L"],["M","ACUMULADO"],["N","SALDO"],["O","% ACUM."],["P","PREÇO APLICADO"],["Q","VALOR NO BM (R$)","R"]]);
+  head(r,[["A","Nº"],["B","ITEM"],["C","DESCRIÇÃO"],["D","UNID."],["E","QTD MEMÓRIA"],["F",tituloDemao(L.map(l=>l.item)).toUpperCase()],["G","PREVISTO","H"],["I","ACUM. ANTERIOR"],["J",m.modoAv==="acum"?"% AVANÇO TOTAL":"% NO BM"],["K","MEDIDO NO BM","L"],["M","ACUMULADO"],["N","SALDO"],["O","% ACUM."],["P","PREÇO APLIC."],["Q","VALOR NO BM (R$)","R"]]);
   const Q0=r+1; const QE=Q0+Math.max(L.length,1)-1;
   const ETR0 = QE+6; // linha do 1º lote (seção, item, cabeçalho)
   const ETT = ETR0+Math.max(lotes.length,1); // linha do total de etapas
@@ -1259,7 +1269,7 @@ async function folhaMC(wb, nome, m){
     else if(numE(q.man)!=null){ put("I"+rr,l.ant,{fill:INP,h:"right",f:"#,##0.000"}); put("J"+rr,F(`IF(G${rr}=0,0,K${rr}/G${rr})`,l.prev?l.bm/l.prev:0),{h:"center",f:"0.0%"}); put("K"+rr,l.bm,{m:"L"+rr,h:"right",f:"#,##0.000",b:1,fill:INP}); }
     else { put("I"+rr,l.ant,{fill:INP,h:"right",f:"#,##0.000"}); put("J"+rr,(num(q.pct)||0)/100,{fill:INP,h:"center",f:"0.0%"}); put("K"+rr,F(m.modoAv==="acum"?`ROUND(G${rr}*J${rr},3)-I${rr}`:`ROUND(G${rr}*J${rr},3)`,l.bm),{m:"L"+rr,h:"right",f:"#,##0.000",b:1}); }
     put("M"+rr,F(`I${rr}+K${rr}`,l.acum),{h:"right",f:"#,##0.000"}); put("N"+rr,F(`G${rr}-M${rr}`,l.saldo),{h:"right",f:"#,##0.000"}); put("O"+rr,F(`IF(G${rr}=0,"",M${rr}/G${rr})`,l.pa??""),{h:"center",f:"0.0%",b:1});
-    put("P"+rr,F(`N${ri}`,l.precoAp),{h:"right",f:"#,##0.00"}); put("Q"+rr,F(`ROUND(K${rr}*P${rr},2)`,l.valor),{m:"R"+rr,h:"right",f:"#,##0.00",b:1}); ws.getRow(rr).height=26; });
+    put("P"+rr,F(`N${ri}`,l.precoAp),{h:"right",f:"#,##0.00"}); put("Q"+rr,F(`ROUND(K${rr}*P${rr},2)`,l.valor),{m:"R"+rr,h:"right",f:"#,##0.00",b:1}); ws.getRow(rr).height=Math.max(26,altL(nLin(l.P.d,W[2],7),7)); });
   r=QE+1; put("A"+r,"TOTAL DA MC NO BM (R$)",{m:"P"+r,fill:TOT,b:1,sz:10,h:"right"}); put("Q"+r,F(`SUM(Q${Q0}:Q${QE})`,c.total),{m:"R"+r,fill:TOT,b:1,sz:11,h:"right",f:"#,##0.00"});
   put("O5",F(`Q${r}`,c.total),{m:"R5",fill:TOT,b:1,sz:12,h:"center",f:"#,##0.00"});
   r+=2;
