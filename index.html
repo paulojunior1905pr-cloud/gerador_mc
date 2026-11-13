@@ -330,7 +330,7 @@ input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:n
 </style>
 
 <header class="top">
-  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 13/11 15:48 (com logos)</span></div>
+  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 13/11 15:52 (com logos)</span></div>
   <div class="sp"></div>
   <span class="status" id="status">Conectando…</span>
   <label class="tema">Tema<select id="selTema"><option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
@@ -1100,7 +1100,7 @@ async function pdfMC(doc, m, VERT){
   sec("MEMÓRIA DE CÁLCULO – "+tipoMC(m).n.toUpperCase());
   const els=m.elems.map((e,k)=>({e,v:c.el[k]})).filter(x=>formaDe(x.e));
   T({head:[["Nº","DESCRIÇÃO DO ELEMENTO / ORIGEM","FORMA DE CÁLCULO","CÁLCULO DEMONSTRADO","RESULTADO",...L.map(l=>l.item)]],
-    body:els.map((x,j)=>[rot(j),pdfTxt(x.e.desc),pdfTxt(FORMAS[formaDe(x.e)][0]),pdfTxt(textoElem(x.e)),{content:fmt(x.v,3),styles:{fontStyle:"bold",halign:"right"}},...L.map(l=>({content:x.e.fl[l.i]?"x":"",styles:{halign:"center",fontStyle:"bold"}}))]),
+    body:els.map((x,j)=>[rot(j),pdfTxt(x.e.desc),pdfTxt(FORMAS[formaDe(x.e)][0].replace(/\s*\([^()]*\)\s*$/,"")),pdfTxt(textoElem(x.e).replace(/π (?=\d)/g,"")),{content:fmt(x.v,3),styles:{fontStyle:"bold",halign:"right"}},...L.map(l=>({content:x.e.fl[l.i]?"x":"",styles:{halign:"center",fontStyle:"bold"}}))]),
     foot:[[{content:"QUANTIDADE DA MEMÓRIA POR ITEM",colSpan:5,styles:{halign:"right"}},...L.map(l=>{ const t=fmt(l.mem,3), w=(VERT?13:16)-2.2; doc.setFont("helvetica","bold"); const fz=Math.min(FS, w*72/25.4/(doc.getStringUnitWidth(t)||1)); return {content:t,styles:{halign:"center",fontSize:Math.max(5,Math.floor(fz*10)/10),cellPadding:{top:1.5,bottom:1.5,left:0.8,right:0.8}}}; })]],
     columnStyles:Object.assign({0:{cellWidth:7,halign:"center"},2:{cellWidth:VERT?28:40},4:{cellWidth:20}},Object.fromEntries(L.map((_,k)=>[5+k,{cellWidth:VERT?13:16}])))});
   const dem=somaItens(m,c); if(dem){ y-=2; T({body:[[pdfTxt(dem)]],styles:{fontSize:FS-0.5,fontStyle:"italic",fillColor:[248,248,248]}}); }
