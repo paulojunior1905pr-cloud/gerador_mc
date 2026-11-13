@@ -235,6 +235,7 @@ tfoot td{font-weight:700;background:var(--chip)}
 tr.gen input,tr.gen select{background:var(--panel)!important;border-style:dashed!important;opacity:.85}
 option.rev{color:#0b6b2f;background:#e3f5e8;font-weight:600}
 select.tprev{border-color:#2e9e57!important;background:#e3f5e8!important;color:#0b6b2f!important;font-weight:600}
+select.tprev option:not(.rev){color:var(--ink);background:var(--panel);font-weight:400}
 .grade .gh{margin-bottom:8px}.grade .gh small{color:var(--muted);font-weight:400}
 .alerts{display:flex;flex-direction:column;gap:6px}
 .alert{border-left:3px solid var(--warn);background:color-mix(in srgb,var(--warn) 10%,transparent);padding:6px 10px;border-radius:4px;font-size:13px}
@@ -330,7 +331,7 @@ input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:n
 </style>
 
 <header class="top">
-  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 13/11 15:52 (com logos)</span></div>
+  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 13/11 16:11 (com logos)</span></div>
   <div class="sp"></div>
   <span class="status" id="status">Conectando…</span>
   <label class="tema">Tema<select id="selTema"><option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
@@ -1069,7 +1070,7 @@ async function pdfMC(doc, m, VERT){
   const c=calcMC(m), W=doc.internal.pageSize.getWidth(), H=doc.internal.pageSize.getHeight(), ML=10, CW=W-2*ML;
   const AZ=[31,78,120], SEC=[221,235,247], INP=[255,242,204], TOT=[226,239,218];
   const FS=VERT?8:9, HS=VERT?7.5:8.5;
-  const base={theme:"grid",showFoot:"lastPage",showHead:"everyPage",margin:{left:ML,right:ML,bottom:12},styles:{font:"helvetica",fontSize:FS,cellPadding:1.4,lineColor:[128,128,128],lineWidth:0.15,textColor:20,valign:"middle",overflow:"linebreak"},
+  const base={theme:"grid",showFoot:"lastPage",showHead:"everyPage",rowPageBreak:"avoid",margin:{left:ML,right:ML,bottom:12},styles:{font:"helvetica",fontSize:FS,cellPadding:1.4,lineColor:[128,128,128],lineWidth:0.15,textColor:20,valign:"middle",overflow:"linebreak"},
     headStyles:{fillColor:AZ,textColor:255,fontStyle:"bold",fontSize:HS,halign:"center",valign:"middle"},footStyles:{fillColor:TOT,textColor:20,fontStyle:"bold",fontSize:FS}};
   let y=10; let NS=0;
   const T=(o)=>{ doc.autoTable(Object.assign({},base,o,{startY:y,styles:Object.assign({},base.styles,o.styles||{})})); y=doc.lastAutoTable.finalY+4; };
@@ -1110,7 +1111,7 @@ async function pdfMC(doc, m, VERT){
   T({head:[["ITEM","DESCRIÇÃO","UNID.","QTD MEMÓRIA",tituloDemao(L.map(l=>l.item)).toUpperCase(),"PREVISTO","ACUM. ANTERIOR","MEDIDO NO BM","ACUMULADO","% ACUM.","SALDO","PREÇO APLIC.","VALOR NO BM (R$)"]],
     body:L.map(l=>[{content:l.item,styles:{fontStyle:"bold",halign:"center"}},{content:pdfTxt(l.P.d),styles:{fontSize:FS-1}},l.P.u,fmt(l.mem,3),l.usaD?l.dem:{content:l.base,styles:{fontSize:FS-1,textColor:90}},fmt(l.prev,3),fmt(l.ant,3),{content:fmt(l.bm,3),styles:{fontStyle:"bold"}},fmt(l.acum,3),l.pa==null?"":fmt(l.pa*100,1)+"%",fmt(l.saldo,3),fmt(l.precoAp),{content:fmt(l.valor),styles:{fontStyle:"bold"}}]),
     foot:[[{content:"TOTAL DA MC NO BM (R$)",colSpan:12,styles:{halign:"right"}},{content:fmt(c.total),styles:{halign:"right",fontSize:FS+1}}]],
-    styles:{fontSize:FS-1.5,cellPadding:1},headStyles:Object.assign({},base.headStyles,{fontSize:HS-1}),columnStyles:{0:{cellWidth:10},1:{cellWidth:VERT?26:55},2:{cellWidth:9,halign:"center"},3:{halign:"right"},4:{cellWidth:15,halign:"center"},5:{halign:"right"},6:{halign:"right"},7:{halign:"right"},8:{halign:"right"},9:{halign:"center"},10:{halign:"right"},11:{halign:"right"},12:{cellWidth:VERT?19:24,halign:"right"}}});
+    styles:{fontSize:FS-1.5,cellPadding:1},headStyles:Object.assign({},base.headStyles,{fontSize:HS-1}),columnStyles:{0:{cellWidth:10},1:{cellWidth:VERT?32:70},2:{cellWidth:9,halign:"center"},3:{halign:"right"},4:{cellWidth:15,halign:"center"},5:{halign:"right"},6:{halign:"right"},7:{halign:"right"},8:{halign:"right"},9:{halign:"center"},10:{halign:"right"},11:{halign:"right"},12:{cellWidth:VERT?19:24,halign:"right"}}});
   // 4 etapas
   const et=etapasDe(m.etapa.item);
   if(et){ const lotes=m.etapa.lotes.filter(l=>num(l.area)!=null), cres=calcEtapas(m);
