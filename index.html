@@ -330,7 +330,7 @@ input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:n
 </style>
 
 <header class="top">
-  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 12/11 15:22 (com logos)</span></div>
+  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 13/11 10:57 (com logos)</span></div>
   <div class="sp"></div>
   <span class="status" id="status">Conectando…</span>
   <label class="tema">Tema<select id="selTema"><option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
@@ -432,7 +432,7 @@ const TMC = {
   chapas:{n:"Chapas – substituição e sobreposição (m²)",d:"Chapas de teto, lençol, flutuador e costado contadas pela quantidade (C × L × nº de chapas). Use o Saldo do quadro para acompanhar o orçado.",f:["chapa","ret","direto"],lab:{a:"Comprimento (m)",b:"Largura (m)",q:"Nº de chapas"},modelo:[["Chapas","chapa"]]},
   costado:{rev:true,n:"Costado – anéis do tanque (pintura m²)",d:"Pintura e tratamento dos anéis do costado. Anel inteiro: DN × altura do anel × π. Só uma parte do anel (remendos, pontos): Trecho do anel = comprimento × altura.",f:["anel","trecho","direto"],lab:{a:"DN ou comprimento (m)",b:"Altura do anel (m)",q:"Nº de anéis"},modelo:[["Anel do costado","anel"]]},
   diaria:{n:"Diárias de equipamentos e serviços",d:"PTA, gerador, bomba, guindaste (por período), topografia e caminhão vácuo (por horas ÷ jornada de 8,8 h).",f:["diaria","diasQ","horas"],lab:{a:"Início / horas",b:"Fim / jornada (h)",q:"Qtd de equipamentos"},modelo:[["","diaria"]]},
-  estrutura:{n:"Escadas, plataformas e guarda-corpos (pintura m²)",d:"Escada +10% (face superior) e +30% (face inferior), guarda-corpo C × h ÷ 2, grelha × 3.",f:["escSup","escInf","gcReto","gcCirc","grelha","platInf","piso","ret","cil","perfil","retoque"],lab:{a:"Comprimento ou DN (m)",b:"Largura ou altura (m)",bit:"Perfil",q:"Qtd"},modelo:[["Escada – face superior","escSup"],["Escada – face inferior","escInf"],["Corrimão / guarda-corpo","gcReto"],["Plataforma (grelha)","grelha"]]},
+  estrutura:{n:"Escadas, plataformas e guarda-corpos (pintura m²)",d:"Escada +10% (face superior) e +30% (face inferior), guarda-corpo C × h ÷ 2, grelha × 3.",f:["escSup","escInf","gcReto","gcCirc","grelha","platInf","piso","ret","perfil","direto"],lab:{a:"Comprimento ou DN (m)",b:"Largura ou altura (m)",bit:"Perfil",q:"Qtd"},modelo:[["Escada – face superior","escSup"],["Escada – face inferior","escInf"],["Corrimão / guarda-corpo","gcReto"],["Plataforma (grelha)","grelha"]]},
   peso:{n:"Estruturas por peso (kg)",d:"Item 1.76: escadas, plataformas, guarda-corpos, serpentina e ancoragem medidos em kg. Na coluna “Etapa cobrada” escolha a etapa (ex.: 60% · Remoção + Preparação e fabricação).",f:["pesoDir","pesoPerfil"],lab:{a:"Peso (kg) ou comprimento (m)",b:"kg/m do perfil",q:"Qtd de peças"},modelo:[["Peso conforme desenho / lista de material","pesoDir"]]},
   geral:{n:"Geral – todas as formas",d:"Todas as formas de cálculo disponíveis.",f:Object.keys(FORMAS),lab:{a:"Dim. 1 (C / D / B)",b:"Dim. 2 (L / h / d)",c:"Dim. 3 (altura h)",bit:"Bitola / perfil",q:"Qtd"},modelo:[]},
   isolamento:{n:"Isolamento térmico (volume m³)",d:"Itens 1.87, 1.88 e 1.89: teto = π × D² ÷ 4 × espessura; costado = π × DN × altura × espessura; trechos retos = C × L × espessura. Na coluna “Etapa cobrada” escolha 30% · Remoção ou 70% · Instalação.",f:["volCil","volFaixa","volRet","volDir"],lab:{a:"DN do tanque / comprimento (m)",b:"Altura do costado / largura (m)",c:"Espessura (m)",q:"Qtd"},modelo:[["Isolamento do teto (π × D² ÷ 4 × espessura)","volCil"],["Isolamento do costado (π × DN × altura × espessura)","volFaixa"]]},
@@ -477,7 +477,7 @@ function baseElem(e){
 /* ---------- modelo ---------- */
 function novaMC(bm){ return {bm, mc:"", tanque:"", ro:"", servico:"", tipoMC:"geral", itens:Array.from({length:NI},()=>({item:"",metodo:"",demaos:""})),
   elems:Array.from({length:4},()=>novoElem()), quadro:Array.from({length:NI},()=>({ant:"",pct:"",man:""})),
-  etapa:{item:"",lotes:[novoLote(),novoLote()]}, modoAv:"acum", aneis:novaGrade(), tetoQ:novoTeto("completo"), obsMem:"", obs:"", fotos:[], updatedAt:Date.now()}; }
+  etapa:{item:"",lotes:[novoLote(),novoLote()]}, modoAv:"acum", aneis:novaGrade(), tetoQ:novoTeto("completo"), escQ:{linhas:[novaLinhaTeto("escada")]}, obsMem:"", obs:"", fotos:[], updatedAt:Date.now()}; }
 const TETO_TIPOS={
   lencol:{f:"circ",n:"Lençol",la:"DN do lençol",da:g=>g.dnL},
   rim:{f:"rim",n:"Chapas do RIM do lençol",la:"DN",lb:"Altura",da:g=>g.dnL,db:g=>g.hR},
@@ -486,6 +486,14 @@ const TETO_TIPOS={
   rimExt:{f:"rim",n:"RIM externo",la:"DN",lb:"Altura",da:g=>g.dnRE,db:g=>g.hR},
   contrav:{f:"coroaInf",n:"Contraventamento – face inferior",la:"DN externo",lb:"d interno"},
   extra:{f:"direto",n:"Área extra",la:"Área (m²)"}};
+const ESC_TIPOS={
+  escada:{fs:[["escSup"," – face superior (+10%)"],["escInf"," – face inferior (+30%)"]],n:"Escada inclinada",la:"C (m)",lb:"L (m)"},
+  grelha:{fs:[["grelha",""]],n:"Plataforma de grelha (× 3)",la:"C (m)",lb:"L (m)"},
+  platInf:{fs:[["platInf",""]],n:"Plataforma – face inferior (+30%)",la:"C (m)",lb:"L (m)"},
+  piso:{fs:[["piso",""]],n:"Piso fechado (por face)",la:"C (m)",lb:"L (m)"},
+  gcReto:{fs:[["gcReto",""]],n:"Corrimão / guarda-corpo reto (÷ 2)",la:"C (m)",lb:"ALT (m)"},
+  gcCirc:{fs:[["gcCirc",""]],n:"Guarda-corpo circular (÷ 2)",la:"DN (m)",lb:"ALT (m)"},
+  extra:{fs:[["direto",""]],n:"Área extra",la:"Área (m²)"}};
 const TETO_MODELOS={completo:["lencol","rim","camisa","flut","rimExt","contrav"],lencol:["lencol","rim","camisa"]};
 function novaLinhaTeto(tipo){ return {tipo,desc:"",a:"",b:"",qtd:"",d:["","","","","",""]}; }
 function novoTeto(mod){ return {dnT:"",dnL:"",hR:"",dnRE:"",linhas:TETO_MODELOS[mod].map(novaLinhaTeto)}; }
@@ -502,6 +510,7 @@ function normaliza(m){ const n=novaMC(m.bm||23); const o=Object.assign(n,m);
   if(!TMC[o.tipoMC]) o.tipoMC="geral";
   if(!m.modoAv) o.modoAv="bm";
   o.tetoQ=Object.assign(novoTeto("completo"),m.tetoQ||{}); o.tetoQ.linhas=(o.tetoQ.linhas||[]).filter(l=>TETO_TIPOS[l.tipo]).map(l=>Object.assign(novaLinhaTeto(l.tipo),l,{d:Array.from({length:NI},(_,i)=>(l.d||[])[i]??"")}));
+  o.escQ={linhas:((m.escQ&&m.escQ.linhas)||[novaLinhaTeto("escada")]).filter(l=>ESC_TIPOS[l.tipo]).map(l=>Object.assign(novaLinhaTeto(l.tipo),l,{d:Array.from({length:NI},(_,i)=>(l.d||[])[i]??"")}))}; if(!o.escQ.linhas.length) o.escQ.linhas.push(novaLinhaTeto("escada"));
   o.aneis=Object.assign(novaGrade(),m.aneis||{}); o.aneis.linhas=(o.aneis.linhas&&o.aneis.linhas.length?o.aneis.linhas:[novaLinhaAnel("anel")]).map(l=>Object.assign(novaLinhaAnel(l.tipo||"anel"),l,{d:Array.from({length:NI},(_,i)=>(l.d||[])[i]??"")}));
   o.fotos=m.fotos||[]; return o; }
 
@@ -517,7 +526,7 @@ function calcElem(e){
   const k=formaDe(e); if(!k) return null; const base=baseElem(e); const q=numE(e.qtd)??1, p=(numE(e.pct)??100)/100;
   return r3(base*FORMAS[k][1]*q*p*etFator(e));
 }
-const NOMES={anel:["DN","ALT"],trecho:["C","ALT"],rim:["DN","ALT"]};
+const NOMES={anel:["DN","ALT"],trecho:["C","ALT"],rim:["DN","ALT"],escSup:["C","L"],escInf:["C","L"],grelha:["C","L"],platInf:["C","L"],piso:["C","L"],gcReto:["C","ALT"],gcCirc:["DN","ALT"]};
 const rot=k=>{ let s=""; k++; while(k>0){ const r=(k-1)%26; s=String.fromCharCode(65+r)+s; k=Math.floor((k-1)/26); } return s; };
 function erroConta(v){ if(v===""||v==null||numE(v)!=null) return null; const t=String(v); const ab=(t.match(/[(\[{]/g)||[]).length, fe=(t.match(/[)\]}]/g)||[]).length;
   return ab>fe?`falta fechar ${ab-fe} parêntese${ab-fe>1?"s":""}`:fe>ab?`sobra${fe-ab>1?"m":""} ${fe-ab} parêntese${fe-ab>1?"s":""} fechando`:"há um símbolo que o site não entende"; }
@@ -532,7 +541,7 @@ function textoElem(e){
     case "dias": s="1 dia"; break;
     case "horas": s=a+" h ÷ "+(B?b:fdim(JORNADA))+" h"; break; case "vret": s=a+" × "+b+" × "+c; break; case "vcil": s="π × "+a+"² ÷ 4 × "+c; break; case "vfaixa": s="π × "+a+" × "+b+" × "+c; break;
     default: s="1 un"; }
-  const f=F[1]; if(f===0.5) s+=" ÷ 2"; else if(f===1.3) s+=" + 30%"; else if(f===1.1) s+=" + 10%"; else if(f!==1) s+=" × "+fmt(f,2);
+  const f=F[1]; if(f===0.5) s+=" ÷ 2"; else if(f===1.3) s+=" + 30%"; else if(f===1.1) s+=" + 10%"; else if(f!==1) s+=" × "+fmt(f,f%1?2:0);
   if(q!=null && q!==1) s+=" × "+(ehConta(e.qtd)?contaTxt(e.qtd):fmt(q,q%1?2:0));
   if(p!=null && p!==100) s+=" × "+fmt(p,p%1?1:0)+"%";
   const ex=etParse(e.et); if(ex) s+=" × "+fmt(ex.f*100,0)+"% ("+ex.item+": "+ex.nome+")";
@@ -681,14 +690,16 @@ function somaItens(m,c){
 }
 function critTxt(l){ const et=etapasDe(l.item); return l.P.c+(et?"\nEtapas: "+et.map(([n,p])=>Math.round(p*100)+"% "+n).join("; ")+".":""); }
 /* ---------- Quadro dos anéis (tipo Costado) ---------- */
-const gradeOn = m => m.tipoMC==="costado"||m.tipoMC==="teto";
-const quadroDe = m => m.tipoMC==="teto"?m.tetoQ:m.aneis;
+const gradeOn = m => m.tipoMC==="costado"||m.tipoMC==="teto"||m.tipoMC==="estrutura";
+const quadroDe = m => m.tipoMC==="teto"?m.tetoQ:m.tipoMC==="estrutura"?m.escQ:m.aneis;
 const demGrade = (m,l,i) => { const it=m.itens[i].item; if(!PPU[it]) return 0; let v=parseInt(l.d[i])||0; if(v<0) v=0; if(!usaDemao(it)) v=Math.min(v,1); return v; };
 const gradeUsada = m => gradeOn(m) && quadroDe(m).linhas.some(l=>m.itens.some((_,i)=>demGrade(m,l,i)>0));
 const itemNaGrade = (m,i) => gradeUsada(m) && quadroDe(m).linhas.some(l=>demGrade(m,l,i)>0);
 function geraGrade(m){
   if(!gradeOn(m)){ m.elems.forEach(e=>{ delete e.gen; }); return; } const g=quadroDe(m), teto=m.tipoMC==="teto"; const ger=[];
-  if(gradeUsada(m)) g.linhas.forEach(l=>{ const vs=m.itens.map((_,i)=>demGrade(m,l,i)); const mx=Math.max(0,...vs); const T=teto?TETO_TIPOS[l.tipo]:null;
+  if(m.tipoMC==="estrutura"){ if(gradeUsada(m)) g.linhas.forEach(l=>{ const vs=m.itens.map((_,i)=>demGrade(m,l,i)); const mx=Math.max(0,...vs); const T=ESC_TIPOS[l.tipo];
+      for(let k=1;k<=mx;k++) T.fs.forEach(([f,suf])=>{ const e=Object.assign(novoElem(f),{desc:(l.desc||T.n)+suf+(k>1?` – ${k}ª demão`:""),a:l.a,b:f==="direto"?"":l.b,qtd:l.qtd||"1"}); e.fl=vs.map(v=>v>=k); e.gen=true; ger.push(e); }); }); }
+  else if(gradeUsada(m)) g.linhas.forEach(l=>{ const vs=m.itens.map((_,i)=>demGrade(m,l,i)); const mx=Math.max(0,...vs); const T=teto?TETO_TIPOS[l.tipo]:null;
     for(let k=1;k<=mx;k++){ const nome=(l.desc||(teto?T.n:l.tipo==="anel"?"Anel":"Área extra"))+(k>1?` – ${k}ª demão`:"");
       const e=teto ? Object.assign(novoElem(T.f),{desc:nome,a:l.a||(T.da?T.da(g):""),b:T.f==="circ"||T.f==="direto"?"":(l.b||(T.db?T.db(g):"")),qtd:l.qtd||"1"})
         : l.tipo==="anel" ? Object.assign(novoElem("anel"),{desc:nome,a:g.dn,b:l.alt||(g.h&&g.n?g.h+"/"+g.n:""),qtd:l.qtd||"1"})
@@ -728,8 +739,28 @@ function htmlTeto(m){
     :`<p class="hint">Escolha os itens da PPU na seção 1 para montar a grade.</p>`}
   </div>`;
 }
+function htmlEsc(m){
+  const g=m.escQ, its=m.itens.map((it,i)=>[it,i]).filter(([it])=>PPU[it.item]);
+  const inp=(id,attrs,val,ph,cls="num")=>`<input id="${id}" class="${cls}" ${attrs} inputmode="decimal" value="${esc(val)}" placeholder="${esc(ph)}">`;
+  return `<div class="grade">
+    <div class="gh"><b>Quadro de escadas e plataformas</b> <small>Contrato, Anexo 1, f.4. Uma linha por peça: a escada gera sozinha a face superior (+10%) e a inferior (+30%); grelha × 3; guarda-corpo ÷ 2. Na grade, o nº de demãos (pintura) ou a caixinha (limpeza/tratamento).</small></div>
+    ${its.length?`<div class="tblw" style="margin-top:8px"><table><thead><tr><th>Peça</th><th>Tipo</th><th class="r">Medida 1</th><th class="r">Medida 2</th><th class="r">Qtd</th>${its.map(([it])=>`<th class="c">${esc(it.item)}<br><small>${usaDemao(it.item)?"nº de demãos":"marque"}</small></th>`).join("")}<th></th></tr></thead><tbody>
+    ${g.linhas.map((l,r)=>{ const TT=ESC_TIPOS[l.tipo];
+      return `<tr><td><input id="es${r}_desc" data-an="${r}" data-f="desc" value="${esc(l.desc)}" placeholder="${esc(TT.n)}" style="min-width:200px"></td>
+      <td><small>${esc(TT.n)}</small></td>
+      <td>${inp(`es${r}_a`,`data-an="${r}" data-f="a" title="${esc(TT.la)}"`,l.a,TT.la)}</td>
+      <td>${TT.lb?inp(`es${r}_b`,`data-an="${r}" data-f="b" title="${esc(TT.lb)}"`,l.b,TT.lb):'<span class="hint">—</span>'}</td>
+      <td>${inp(`es${r}_qtd`,`data-an="${r}" data-f="qtd"`,l.qtd,"1","sm num")}</td>
+      ${its.map(([it,i])=>`<td class="c">${usaDemao(it.item)?inp(`es${r}_d${i}`,`data-an="${r}" data-ad="${i}"`,l.d[i],"–","sm num"):`<input type="checkbox" id="es${r}_d${i}" data-an="${r}" data-ad="${i}" ${parseInt(l.d[i])>0?"checked":""} aria-label="Esta peça entra no item ${esc(it.item)}">`}</td>`).join("")}
+      <td><button class="ghost" data-del-an="${r}" aria-label="Remover peça">✕</button></td></tr>`; }).join("")}
+    </tbody></table></div>
+    <div class="row" style="margin-top:8px"><span class="hint" style="margin:0">Incluir:</span>${Object.keys(ESC_TIPOS).map(k=>`<button data-esadd="${k}">+ ${esc(ESC_TIPOS[k].n)}</button>`).join("")}</div>
+    <p class="hint">Escada: C = comprimento inclinado, L = largura. Guarda-corpo circular: DN × π × altura ÷ 2. Quando uma peça tem 2 demãos num item, a 2ª demão vira linha própria na memória.</p>`
+    :`<p class="hint">Escolha os itens da PPU na seção 1 para montar a grade.</p>`}
+  </div>`;
+}
 function htmlGrade(m){
-  if(!gradeOn(m)) return ""; if(m.tipoMC==="teto") return htmlTeto(m); const g=m.aneis, D=numE(g.dn), H=numE(g.h), N=numE(g.n);
+  if(!gradeOn(m)) return ""; if(m.tipoMC==="teto") return htmlTeto(m); if(m.tipoMC==="estrutura") return htmlEsc(m); const g=m.aneis, D=numE(g.dn), H=numE(g.h), N=numE(g.n);
   const its=m.itens.map((it,i)=>[it,i]).filter(([it])=>PPU[it.item]);
   const tot=D&&H?PI*D*H:null;
   const inp=(id,attrs,val,ph,cls="num")=>`<input id="${id}" class="${cls}" ${attrs} inputmode="decimal" value="${esc(val)}" placeholder="${ph}">`;
@@ -931,7 +962,7 @@ ED.addEventListener("input",e=>{
 });
 ED.addEventListener("change",e=>{ if(e.target.id==="h_bm"){ renderEditor(); } });
 ED.addEventListener("click",async e=>{
-  const t=e.target.closest("button,[data-del-el],[data-del-lo],[data-del-ft],[data-del-an],[data-tqadd],[data-tqmod]"); if(!t||!cur) return;
+  const t=e.target.closest("button,[data-del-el],[data-del-lo],[data-del-ft],[data-del-an],[data-tqadd],[data-tqmod],[data-esadd]"); if(!t||!cur) return;
   if(t.dataset.delEl!=null){ cur.elems.splice(+t.dataset.delEl,1); if(!cur.elems.length) cur.elems.push(novoElem()); renderEditor(); salvar(); }
   else if(t.dataset.delLo!=null){ cur.etapa.lotes.splice(+t.dataset.delLo,1); if(!cur.etapa.lotes.length) cur.etapa.lotes.push(novoLote()); renderEtapas(); updateOut(); salvar(); }
   else if(t.dataset.limpaIt!=null){ const i=+t.dataset.limpaIt, cod=cur.itens[i].item;
@@ -940,9 +971,10 @@ ED.addEventListener("click",async e=>{
   else if(t.dataset.delFt!=null){ const [f]=cur.fotos.splice(+t.dataset.delFt,1); renderFotos(); salvar(); apagaOrfas(f?[f]:[]); }
   else if(t.id==="bAddEl"){ const ult=cur.elems[cur.elems.length-1]; const n=novoElem(ult&&ult.tipo||tipoMC(cur).f[0]); if(ult) n.fl=[...ult.fl]; cur.elems.push(n); renderEditor(); document.getElementById(`e${cur.elems.length-1}_desc`)?.focus(); salvar(); }
   else if(t.id==="bAnAdd"||t.id==="bAnExtra"){ cur.aneis.linhas.push(novaLinhaAnel(t.id==="bAnAdd"?"anel":"extra")); const sy=window.scrollY; renderEditor(); window.scrollTo(0,sy); document.getElementById(`an${cur.aneis.linhas.length-1}_desc`)?.focus({preventScroll:true}); salvar(); }
+  else if(t.dataset.esadd){ cur.escQ.linhas.push(novaLinhaTeto(t.dataset.esadd)); const sy=window.scrollY; renderEditor(); window.scrollTo(0,sy); document.getElementById(`es${cur.escQ.linhas.length-1}_desc`)?.focus({preventScroll:true}); salvar(); }
   else if(t.dataset.tqadd){ cur.tetoQ.linhas.push(novaLinhaTeto(t.dataset.tqadd)); const sy=window.scrollY; renderEditor(); window.scrollTo(0,sy); salvar(); }
   else if(t.dataset.tqmod){ const usado=cur.tetoQ.linhas.some(l=>l.d.some(Boolean)||l.a||l.b); if(usado && !confirm("Trocar o modelo apaga as partes que você já preencheu na grade. Continuar?")) return; cur.tetoQ.linhas=TETO_MODELOS[t.dataset.tqmod].map(novaLinhaTeto); geraGrade(cur); const sy=window.scrollY; renderEditor(); window.scrollTo(0,sy); salvar(); }
-  else if(t.dataset.delAn!=null){ const Q=quadroDe(cur); Q.linhas.splice(+t.dataset.delAn,1); if(!Q.linhas.length) Q.linhas.push(cur.tipoMC==="teto"?novaLinhaTeto("lencol"):novaLinhaAnel("anel")); geraGrade(cur); const sy=window.scrollY; renderEditor(); window.scrollTo(0,sy); salvar(); }
+  else if(t.dataset.delAn!=null){ const Q=quadroDe(cur); Q.linhas.splice(+t.dataset.delAn,1); if(!Q.linhas.length) Q.linhas.push(cur.tipoMC==="teto"?novaLinhaTeto("lencol"):cur.tipoMC==="estrutura"?novaLinhaTeto("escada"):novaLinhaAnel("anel")); geraGrade(cur); const sy=window.scrollY; renderEditor(); window.scrollTo(0,sy); salvar(); }
   else if(t.id==="bAddLo"){ cur.etapa.lotes.push(novoLote()); renderEtapas(); updateOut(); salvar(); }
   else if(t.id==="bXls"){ await baixar([cur], nomeArq(cur)); }
   else if(t.id==="bPdf"){ await baixarPDF([cur], nomeArq(cur).replace(/\.xlsx$/,".pdf")); }
