@@ -331,7 +331,7 @@ input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:n
 </style>
 
 <header class="top">
-  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 13/11 16:11 (com logos)</span></div>
+  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 13/11 16:23 (com logos)</span></div>
   <div class="sp"></div>
   <span class="status" id="status">Conectando…</span>
   <label class="tema">Tema<select id="selTema"><option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
@@ -1081,10 +1081,10 @@ async function pdfMC(doc, m, VERT){
   try{ doc.addImage(LOGO_QWS,"PNG",ML,y-3,23.3,13); }catch(e){}
   try{ doc.addImage(LOGO_PB,"PNG",W-ML-33.8,y+0.5,33.8,9); }catch(e){}
   doc.setFont("helvetica","bold"); doc.setFontSize(16); doc.setTextColor(20); doc.text("MEMÓRIA DE CÁLCULO",W/2,y+4,{align:"center"});
-  doc.setFontSize(10); doc.text("CONTRATO Nº "+CONTRATO+"   |   "+pdfTxt(m.mc||"MC"),W/2,y+9.5,{align:"center"}); y+=14;
+  doc.setFontSize(10); doc.text("CONTRATO Nº "+CONTRATO+((m.mc||"").trim()?"   |   "+pdfTxt(m.mc.trim()):""),W/2,y+9.5,{align:"center"}); y+=14;
   const lb={fontStyle:"bold",fillColor:[242,242,242]}, inp={fillColor:INP,fontStyle:"bold"};
   T({body:[
-    [{content:"OBJETO:",styles:lb},{content:OBJETO,colSpan:5}],
+    [{content:"OBJETO:",styles:lb},{content:OBJETO,colSpan:5,styles:{fontSize:FS-0.7}}],
     [{content:"TANQUE / EQUIP.:",styles:lb},{content:pdfTxt(m.tanque),styles:inp},{content:"RO:",styles:lb},{content:pdfTxt(m.ro),styles:inp},{content:"Nº DA MC:",styles:lb},{content:pdfTxt(m.mc),styles:inp}],
     [{content:"BM / PERÍODO:",styles:lb},{content:"BM-"+String(m.bm).padStart(3,"0")+"   "+d(ini)+" a "+d(fim),colSpan:3,styles:{fontStyle:"bold"}},{content:"VALOR NO BM:",styles:lb},{content:brl(c.total),styles:{fillColor:TOT,fontStyle:"bold",fontSize:FS+2,halign:"center"}}],
     [{content:"SERVIÇO:",styles:lb},{content:pdfTxt(m.servico),colSpan:5,styles:inp}],
@@ -1098,7 +1098,7 @@ async function pdfMC(doc, m, VERT){
   // critério
   if(L.length){ sub("Critério de medição"); T({body:L.map(l=>[{content:l.item,styles:{fontStyle:"bold",halign:"center"}},pdfTxt(critTxt(l))]),styles:{fontSize:FS,cellPadding:2},columnStyles:{0:{cellWidth:16}}}); }
   // 2 memória
-  sec("MEMÓRIA DE CÁLCULO – "+tipoMC(m).n.toUpperCase());
+  sec("MEMÓRIA DE CÁLCULO – "+tipoMC(m).n.toUpperCase().replace(/M²/g,"m²").replace(/M³/g,"m³"));
   const els=m.elems.map((e,k)=>({e,v:c.el[k]})).filter(x=>formaDe(x.e));
   T({head:[["Nº","DESCRIÇÃO DO ELEMENTO / ORIGEM","FORMA DE CÁLCULO","CÁLCULO DEMONSTRADO","RESULTADO",...L.map(l=>l.item)]],
     body:els.map((x,j)=>[rot(j),pdfTxt(x.e.desc),pdfTxt(FORMAS[formaDe(x.e)][0].replace(/\s*\([^()]*\)\s*$/,"")),pdfTxt(textoElem(x.e).replace(/π (?=\d)/g,"")),{content:fmt(x.v,3),styles:{fontStyle:"bold",halign:"right"}},...L.map(l=>({content:x.e.fl[l.i]?"x":"",styles:{halign:"center",fontStyle:"bold"}}))]),
@@ -1230,7 +1230,7 @@ async function folhaMC(wb, nome, m){
   r++;
   // 2 memória
   const tp=tipoMC(m);
-  sec(r,"2. MEMÓRIA DE CÁLCULO – "+tp.n.toUpperCase()); r++;
+  sec(r,"2. MEMÓRIA DE CÁLCULO – "+tp.n.toUpperCase().replace(/M²/g,"m²").replace(/M³/g,"m³")); r++;
   const hl=k=>abXL((usaCampo(tp,k)?(tp.lab[k]||{a:"DIM. 1",b:"DIM. 2",c:"DIM. 3",bit:"BITOLA / PERFIL"}[k]):"—").toUpperCase()).replace("(M)","(m)");
   const els0=m.elems.filter(e=>formaDe(e)), semFG=!els0.some(e=>{ const Fm=FORMAS[formaDe(e)]; return Fm[3]==="bit"||Fm[2].includes("c"); });
   const CD=L.length<6?C(12+L.length):"R", CDm=CD==="R"?null:"R", CINZA={type:"pattern",pattern:"solid",fgColor:{argb:"FFEDEDED"}};
