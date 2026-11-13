@@ -330,7 +330,7 @@ input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:n
 </style>
 
 <header class="top">
-  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 13/11 15:36 (com logos)</span></div>
+  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 13/11 15:48 (com logos)</span></div>
   <div class="sp"></div>
   <span class="status" id="status">Conectando…</span>
   <label class="tema">Tema<select id="selTema"><option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
@@ -1231,25 +1231,28 @@ async function folhaMC(wb, nome, m){
   const tp=tipoMC(m);
   sec(r,"2. MEMÓRIA DE CÁLCULO – "+tp.n.toUpperCase()); r++;
   const hl=k=>abXL((usaCampo(tp,k)?(tp.lab[k]||{a:"DIM. 1",b:"DIM. 2",c:"DIM. 3",bit:"BITOLA / PERFIL"}[k]):"—").toUpperCase()).replace("(M)","(m)");
-  head(r,[["A","Nº"],["B","DESCRIÇÃO DO ELEMENTO / ORIGEM"],["C","FORMA DE CÁLCULO (Anexo 1, f)"],["D",hl("a")],["E",hl("b")],["F",usaCampo(tp,"bit")?hl("bit"):hl("c")],["G","m²/m"],["H",abXL((tp.lab.q||"QTD").toUpperCase())],["I","FATOR"],["J","% CONSID."],["K","RESULTADO"]]);
-  L.forEach((l,k)=>put(C(12+k)+r,l.item,{fill:AZ,w:1,b:1,sz:8,h:"center"})); for(let k=L.length;k<6;k++) put(C(12+k)+r,"",{fill:AZ}); put("R"+r,"CÁLCULO DEMONSTRADO",{fill:AZ,w:1,b:1,sz:8,h:"center"});
+  const els0=m.elems.filter(e=>formaDe(e)), semFG=!els0.some(e=>{ const Fm=FORMAS[formaDe(e)]; return Fm[3]==="bit"||Fm[2].includes("c"); });
+  const CD=L.length<6?C(12+L.length):"R", CDm=CD==="R"?null:"R", CINZA={type:"pattern",pattern:"solid",fgColor:{argb:"FFEDEDED"}};
+  head(r,[["A","Nº"],["B","DESCRIÇÃO DO ELEMENTO / ORIGEM"],["C","FORMA DE CÁLCULO (Anexo 1, f)"],["D",hl("a")],["E",hl("b")],...(semFG?[["F","—","G"]]:[["F",usaCampo(tp,"bit")?hl("bit"):hl("c")],["G","m²/m"]]),["H",abXL((tp.lab.q||"QTD").toUpperCase())],["I","FATOR"],["J","% CONSID."],["K","RESULTADO"]]);
+  L.forEach((l,k)=>put(C(12+k)+r,l.item,{fill:AZ,w:1,b:1,sz:8,h:"center"})); put(CD+r,"CÁLCULO DEMONSTRADO",{m:CDm&&CDm+r,fill:AZ,w:1,b:1,sz:8,h:"center"});
   const M0=r+1; const els=m.elems.map((e,k)=>({e,k,v:c.el[k]})).filter(x=>formaDe(x.e));
   const dimXL=(raw,usa)=>{ if(!usa) return null; if(ehConta(raw)){ const f=contaXL(raw); return f?F(f,numE(raw)):numE(raw); } return numE(raw)??0; };
   els.forEach((x,j)=>{ const e=x.e, rr=M0+j, k0=formaDe(e), Fm=FORMAS[k0], kind=Fm[3], u=cc=>Fm[2].includes(cc);
     put("A"+rr,rot(j),{h:"center",b:1}); put("B"+rr,e.desc,{fill:INP,sz:8}); put("C"+rr,Fm[0],{sz:8});
     if(kind==="diaria"){ put("D"+rr,dataISO(e.a),{fill:INP,h:"center",f:"dd/mm/yyyy"}); put("E"+rr,dataISO(e.b),{fill:INP,h:"center",f:"dd/mm/yyyy"}); }
     else { put("D"+rr,dimXL(e.a,u("a")),{fill:u("a")?INP:null,h:"right",f:"#,##0.00##"}); put("E"+rr,kind==="horas"&&numE(e.b)==null?JORNADA:dimXL(e.b,u("b")),{fill:u("b")?INP:null,h:"right",f:"#,##0.00##"}); }
-    if(kind==="bit") put("F"+rr,e.bit||null,{fill:INP,sz:8,h:"center"}); else put("F"+rr,dimXL(e.c,u("c")),{fill:u("c")?INP:null,h:"right",f:"#,##0.00##"});
-    put("G"+rr,kind==="bit"?(M2M[e.bit]||0):null,{h:"center",f:"0.00"});
+    if(semFG) put("F"+rr,null,{m:"G"+rr,fill:CINZA});
+    else { if(kind==="bit") put("F"+rr,e.bit||null,{fill:INP,sz:8,h:"center"}); else put("F"+rr,dimXL(e.c,u("c")),{fill:u("c")?INP:null,h:"right",f:"#,##0.00##"});
+    put("G"+rr,kind==="bit"?(M2M[e.bit]||0):null,{h:"center",f:"0.00"}); }
     put("H"+rr,ehConta(e.qtd)&&contaXL(e.qtd)?F(contaXL(e.qtd),numE(e.qtd)):(numE(e.qtd)??1),{fill:INP,h:"center",f:"#,##0.##"}); put("I"+rr,kind==="cil"?PI*Fm[1]:Fm[1],{h:"center",f:kind==="cil"?"0.0000":"0.00"}); put("J"+rr,(numE(e.pct)??100)/100,{fill:INP,h:"center",f:"0%"});
     const base={direto:`D${rr}`,ret:`D${rr}*E${rr}`,tri:`D${rr}*E${rr}/2`,trap:`(D${rr}+E${rr})/2*F${rr}`,cil:`D${rr}*E${rr}`,circ:`${PI}*D${rr}^2/4`,coroa:`${PI}*(D${rr}^2-E${rr}^2)/4`,raios:`${PI}*(D${rr}^2-E${rr}^2)`,bit:`D${rr}*G${rr}`,retoque:"0.15",diaria:`(E${rr}-D${rr}+1)`,dias:"1",un:"1",horas:`D${rr}/E${rr}`,vret:`D${rr}*E${rr}*F${rr}`,vcil:`${PI}*D${rr}^2/4*F${rr}`,vfaixa:`${PI}*D${rr}*E${rr}*F${rr}`}[kind];
     put("K"+rr,F(`ROUND(${base}*I${rr}*H${rr}*J${rr}${etParse(e.et)?"*"+etFator(e):""},3)`,x.v),{h:"right",f:"#,##0.000",b:1});
-    L.forEach((l,k)=>put(C(12+k)+rr,e.fl[l.i]?"x":null,{fill:INP,h:"center",b:1})); for(let k=L.length;k<6;k++) put(C(12+k)+rr,null,{});
-    const tx=textoElem(e); put("R"+rr,tx,{sz:8}); ws.getRow(rr).height=altL(Math.max(nLin(e.desc,W[1]),nLin(Fm[0],W[2]),nLin(tx,W[17]))); });
+    L.forEach((l,k)=>put(C(12+k)+rr,e.fl[l.i]?"x":null,{fill:INP,h:"center",b:1}));
+    const tx=textoElem(e); put(CD+rr,tx,{m:CDm&&CDm+rr,sz:8}); ws.getRow(rr).height=altL(Math.max(nLin(e.desc,W[1]),nLin(Fm[0],W[2]),nLin(tx,larg(CD,"R")))); });
   const ME=M0+Math.max(els.length,1)-1; r=ME+1;
   put("A"+r,"QUANTIDADE DA MEMÓRIA POR ITEM →",{m:"K"+r,fill:TOT,b:1,h:"right"});
   const memCell={}; L.forEach((l,k)=>{ const col=C(12+k); memCell[l.i]=col+r; put(col+r,F(`SUMIF(${col}${M0}:${col}${ME},"x",$K$${M0}:$K$${ME})`,l.mem),{fill:TOT,b:1,sz:8,h:"center",f:"#,##0.000"}); });
-  for(let k=L.length;k<6;k++) put(C(12+k)+r,null,{fill:TOT}); put("R"+r,null,{fill:TOT}); r++;
+  put(CD+r,null,{m:CDm&&CDm+r,fill:TOT}); r++;
   const dem=somaItens(m,c); if(dem){ put("A"+r,dem,{m:"R"+r,sz:8,i:1}); ws.getRow(r).height=Math.max(15,13*dem.split("\n").length); r++; }
   if((m.obsMem||"").trim()){ const ob=m.obsMem.trim(); put("A"+r,"OBS.:",{m:"B"+r,b:1,h:"center"}); put("C"+r,ob,{m:"R"+r,sz:8,fill:INP}); ws.getRow(r).height=Math.max(18,13*(ob.split("\n").length+Math.floor(ob.length/160))); r++; }
   r++;
