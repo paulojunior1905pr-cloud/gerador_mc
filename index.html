@@ -353,7 +353,7 @@ input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:n
 </style>
 
 <header class="top">
-  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 17/11 16:57 (com logos)</span></div>
+  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 17/11 17:06 (com logos)</span></div>
   <div class="sp"></div>
   <span class="status" id="status">Conectando…</span>
   <label class="tema">Tema<select id="selTema"><option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
@@ -888,7 +888,7 @@ function renderEditor(){
       <td><input id="q${i}_pct" class="sm num" data-q="${i}" data-f="pct" inputmode="decimal" value="${esc(q.pct)}" placeholder="%"></td>
       <td><input id="q${i}_man" class="num" data-q="${i}" data-f="man" inputmode="decimal" value="${esc(q.man)}"></td>
       <td class="r"><span class="out" id="o_qb${i}"></span></td><td class="r"><span class="out" id="o_qa${i}"></span></td><td class="r"><span class="out" id="o_qpa${i}"></span></td><td class="r"><span class="out" id="o_qs${i}"></span></td><td class="r"><b class="out" id="o_qv${i}"></b></td></tr>`).join("")}
-    </tbody><tfoot><tr><td colspan="11" class="r">Total da MC no BM</td><td class="r"><span class="out" id="o_qt"></span></td></tr></tfoot></table></div>
+    </tbody><tfoot><tr><td colspan="11"><b>TOTAL</b></td><td class="r"><span class="out" id="o_qt"></span></td></tr></tfoot></table></div>
   </section>
 
   <section class="blk"><h2><span class="num">4</span> Acompanhamento por etapas e BMs (opcional) <small>Alternativa à coluna "Etapa cobrada": registra, por lote, o BM em que cada etapa foi concluída (ou N/A).</small></h2>
@@ -1138,7 +1138,7 @@ async function pdfMC(doc, m, VERT){
   const els=m.elems.map((e,k)=>({e,v:c.el[k]})).filter(x=>formaDe(x.e));
   T({head:[["Nº","DESCRIÇÃO DO ELEMENTO / ORIGEM","FORMA DE CÁLCULO","CÁLCULO DEMONSTRADO","RESULTADO",...L.map(l=>l.item)]],
     body:els.map((x,j)=>[rot(j),pdfTxt(x.e.desc),pdfTxt(FORMAS[formaDe(x.e)][0].replace(/\s*\([^()]*\)\s*$/,"")),pdfTxt(textoElem(x.e).replace(/π (?=\d)/g,"")),{content:fmt(x.v,3),styles:{fontStyle:"bold",halign:"right"}},...L.map(l=>({content:x.e.fl[l.i]?"x":"",styles:{halign:"center",fontStyle:"bold"}}))]),
-    foot:[[{content:"QUANTIDADE DA MEMÓRIA POR ITEM",colSpan:5,styles:{halign:"right"}},...L.map(l=>{ const t=fmt(l.mem,3), w=(VERT?13:16)-2.2; doc.setFont("helvetica","bold"); const fz=Math.min(FS, w*72/25.4/(doc.getStringUnitWidth(t)||1)); return {content:t,styles:{halign:"center",fontSize:Math.max(5,Math.floor(fz*10)/10),cellPadding:{top:1.5,bottom:1.5,left:0.8,right:0.8}}}; })]],
+    foot:[[{content:"QUANTIDADE DA MEMÓRIA POR ITEM",colSpan:5,styles:{halign:"left"}},...L.map(l=>{ const t=fmt(l.mem,3), w=(VERT?13:16)-2.2; doc.setFont("helvetica","bold"); const fz=Math.min(FS, w*72/25.4/(doc.getStringUnitWidth(t)||1)); return {content:t,styles:{halign:"center",fontSize:Math.max(5,Math.floor(fz*10)/10),cellPadding:{top:1.5,bottom:1.5,left:0.8,right:0.8}}}; })]],
     columnStyles:Object.assign({0:{cellWidth:7,halign:"center"},2:{cellWidth:VERT?28:40},4:{cellWidth:20}},Object.fromEntries(L.map((_,k)=>[5+k,{cellWidth:VERT?13:16}])))});
   const dem=somaItens(m,c); if(dem){ y-=2; T({body:[[pdfTxt(dem)]],styles:{fontSize:FS-0.5,fontStyle:"italic",fillColor:[248,248,248]}}); }
   if((m.obsMem||"").trim()){ y-=2; T({body:[[{content:"OBS.:",styles:{fontStyle:"bold",cellWidth:16}},pdfTxt(m.obsMem.trim())]],styles:{fontSize:FS-0.5}}); }
@@ -1146,7 +1146,7 @@ async function pdfMC(doc, m, VERT){
   sec("MEDIÇÃO E AVANÇO POR ITEM");
   T({head:[["ITEM","DESCRIÇÃO","UNID.","QTD MEMÓRIA",tituloDemao(L.map(l=>l.item)).toUpperCase(),"PREVISTO","ACUM. ANTERIOR","MEDIDO NO BM","ACUMULADO","% ACUM.","SALDO","PREÇO APLIC.","VALOR NO BM (R$)"]],
     body:L.map(l=>[{content:l.item,styles:{fontStyle:"bold",halign:"center"}},{content:pdfTxt(l.P.d),styles:{fontSize:FS-1}},l.P.u,fmt(l.mem,3),l.usaD?l.dem:{content:l.base,styles:{fontSize:FS-1,textColor:90}},fmt(l.prev,3),fmt(l.ant,3),{content:fmt(l.bm,3),styles:{fontStyle:"bold"}},fmt(l.acum,3),l.pa==null?"":fmt(l.pa*100,1)+"%",fmt(l.saldo,3),fmt(l.precoAp),{content:fmt(l.valor),styles:{fontStyle:"bold"}}]),
-    foot:[[{content:"TOTAL DA MC NO BM (R$)",colSpan:12,styles:{halign:"right"}},{content:fmt(c.total),styles:{halign:"right",fontSize:FS+1}}]],
+    foot:[[{content:"TOTAL",colSpan:12,styles:{halign:"left"}},{content:fmt(c.total),styles:{halign:"right",fontSize:FS+1}}]],
     styles:{fontSize:FS-1.5,cellPadding:1},headStyles:Object.assign({},base.headStyles,{fontSize:HS-1}),columnStyles:{0:{cellWidth:10},1:{cellWidth:VERT?32:70},2:{cellWidth:9,halign:"center"},3:{halign:"right"},4:{cellWidth:15,halign:"center"},5:{halign:"right"},6:{halign:"right"},7:{halign:"right"},8:{halign:"right"},9:{halign:"center"},10:{halign:"right"},11:{halign:"right"},12:{cellWidth:VERT?19:24,halign:"right"}}});
   // 4 etapas
   const et=etapasDe(m.etapa.item);
@@ -1287,7 +1287,7 @@ async function folhaMC(wb, nome, m){
     L.forEach((l,k)=>put(C(12+k)+rr,e.fl[l.i]?"x":null,{fill:INP,h:"center",b:1}));
     const tx=textoElem(e); put(CD+rr,tx,{m:CDm&&CDm+rr,sz:8}); ws.getRow(rr).height=altL(Math.max(nLin(e.desc,W[1]),nLin(Fm[0],W[2]),nLin(tx,larg(CD,"R")))); });
   const ME=M0+Math.max(els.length,1)-1; r=ME+1;
-  put("A"+r,"QUANTIDADE DA MEMÓRIA POR ITEM →",{m:"K"+r,fill:TOT,b:1,h:"right"});
+  put("A"+r,"QUANTIDADE DA MEMÓRIA POR ITEM",{m:"K"+r,fill:TOT,b:1,h:"left"});
   const memCell={}; L.forEach((l,k)=>{ const col=C(12+k); memCell[l.i]=col+r; put(col+r,F(`SUMIF(${col}${M0}:${col}${ME},"x",$K$${M0}:$K$${ME})`,l.mem),{fill:TOT,b:1,sz:8,h:"center",f:"#,##0.000"}); });
   put(CD+r,null,{m:CDm&&CDm+r,fill:TOT}); r++;
   const dem=somaItens(m,c); if(dem){ put("A"+r,dem,{m:"R"+r,sz:8,i:1}); ws.getRow(r).height=Math.max(15,13*dem.split("\n").length); r++; }
@@ -1310,7 +1310,7 @@ async function folhaMC(wb, nome, m){
     else { put("I"+rr,l.ant,{fill:INP,h:"right",f:"#,##0.000"}); put("J"+rr,(num(q.pct)||0)/100,{fill:INP,h:"center",f:"0.0%"}); put("K"+rr,F(m.modoAv==="acum"?`ROUND(G${rr}*J${rr},3)-I${rr}`:`ROUND(G${rr}*J${rr},3)`,l.bm),{m:"L"+rr,h:"right",f:"#,##0.000",b:1}); }
     put("M"+rr,F(`I${rr}+K${rr}`,l.acum),{h:"right",f:"#,##0.000"}); put("N"+rr,F(`G${rr}-M${rr}`,l.saldo),{h:"right",f:"#,##0.000"}); put("O"+rr,F(`IF(G${rr}=0,"",M${rr}/G${rr})`,l.pa??""),{h:"center",f:"0.0%",b:1});
     put("P"+rr,F(`N${ri}`,l.precoAp),{h:"right",f:"#,##0.00"}); put("Q"+rr,F(`ROUND(K${rr}*P${rr},2)`,l.valor),{m:"R"+rr,h:"right",f:"#,##0.00",b:1}); ws.getRow(rr).height=Math.max(26,altL(nLin(l.P.d,W[2],7),7)); });
-  r=QE+1; put("A"+r,"TOTAL DA MC NO BM (R$)",{m:"P"+r,fill:TOT,b:1,sz:10,h:"right"}); put("Q"+r,F(`SUM(Q${Q0}:Q${QE})`,c.total),{m:"R"+r,fill:TOT,b:1,sz:11,h:"right",f:"#,##0.00"});
+  r=QE+1; put("A"+r,"TOTAL",{m:"P"+r,fill:TOT,b:1,sz:10,h:"left"}); put("Q"+r,F(`SUM(Q${Q0}:Q${QE})`,c.total),{m:"R"+r,fill:TOT,b:1,sz:11,h:"right",f:"#,##0.00"});
   put("O5",F(`Q${r}`,c.total),{m:"R5",fill:TOT,b:1,sz:12,h:"center",f:"#,##0.00"});
   r+=2;
   if(et){
