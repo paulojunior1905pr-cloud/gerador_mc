@@ -310,6 +310,9 @@ button.pendbt:hover{border-color:#a31515;background:#b71c1c}
 .pendbox textarea{width:100%;min-height:64px;resize:vertical;font:inherit;padding:8px;border-radius:6px;border:1px solid #e57373;background:#fff;color:#2b0d0d}
 :root[data-theme="dark"] .pendbox{background:#3a1717;color:#ffb4ab}:root[data-theme="dark"] .pendbox textarea{background:#24100f;color:#ffdad5;border-color:#8e2b2b}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .pendbox{background:#3a1717;color:#ffb4ab}:root:not([data-theme="light"]) .pendbox textarea{background:#24100f;color:#ffdad5;border-color:#8e2b2b}}
+#ed.travada input:disabled,#ed.travada select:disabled,#ed.travada textarea:disabled{opacity:.7;cursor:not-allowed;background:var(--chip)!important;border-color:var(--line)!important;color:var(--muted)}
+#ed.travada .drop{opacity:.5;pointer-events:none}
+.trava{font-size:13px;opacity:.9}
 .mcrow.pend{box-shadow:inset 3px 0 0 #d32f2f}
 .mcrow.pend .n{color:#c62828}
 .tag.pend{background:#d32f2f;color:#fff}
@@ -350,7 +353,7 @@ input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:n
 </style>
 
 <header class="top">
-  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 17/11 16:50 (com logos)</span></div>
+  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 17/11 16:57 (com logos)</span></div>
   <div class="sp"></div>
   <span class="status" id="status">Conectando…</span>
   <label class="tema">Tema<select id="selTema"><option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
@@ -675,7 +678,7 @@ function renderList(){ kpis(); if(window.mcEspaco) try{ window.mcEspaco(espacoUs
   const ids=idsFiltrados();
   if(!ids.length){ $("#list").innerHTML=`<div class="empty">${Object.keys(MCS).length?"Nenhuma MC neste BM.":"Nenhuma MC salva ainda. Toque em <b>+ Nova MC</b> para montar a primeira."}</div>`; return; }
   $("#list").innerHTML=ids.map(id=>{ const m=MCS[id]; const c=calcMC(m);
-    return `<button class="mcrow ${id===curId?"on":""} ${m.fin?"fin":(m.pend?"pend":"")}" data-id="${id}"${!m.fin&&m.pend?` title="Pendência: ${esc(m.pend)}"`:""}><span class="n">${esc(m.mc||"MC sem nº")}</span><span class="t">${esc(m.tanque)} · BM-${String(m.bm).padStart(3,"0")}${m.exemplo?' <span class="tag">exemplo</span>':""}</span><span class="v">${m.fin?'<span class="tag fin">✓ finalizada</span> ':(m.pend?'<span class="tag pend">⚠ pendência</span> ':"")}${brl(c.total)} · ${esc(m.servico||"sem serviço")}</span></button>`; }).join("");
+    return `<button class="mcrow ${id===curId?"on":""} ${m.fin?"fin":(m.pend||m.pendOn?"pend":"")}" data-id="${id}"${!m.fin&&m.pend?` title="Pendência: ${esc(m.pend)}"`:""}><span class="n">${esc(m.mc||"MC sem nº")}</span><span class="t">${esc(m.tanque)} · BM-${String(m.bm).padStart(3,"0")}${m.exemplo?' <span class="tag">exemplo</span>':""}</span><span class="v">${m.fin?'<span class="tag fin">✓ finalizada</span> ':(m.pend||m.pendOn?'<span class="tag pend">⚠ pendência</span> ':"")}${brl(c.total)} · ${esc(m.servico||"sem serviço")}</span></button>`; }).join("");
 }
 $("#list").addEventListener("click",e=>{ const b=e.target.closest(".mcrow"); if(b) abrir(b.dataset.id); });
 $("#fBM").addEventListener("change",e=>{ filtroBM=e.target.value?+e.target.value:null; renderList(); });
@@ -837,9 +840,9 @@ function renderEditor(){
   const m=cur, [ini,fim]=periodo(m.bm), tp=tipoMC(m);
   ed.innerHTML=`
   <section class="blk"><h2><span class="num">MC</span> Cabeçalho <small>${esc(OBJETO)}</small></h2>
-    ${m.fin?`<div class="finbar ok"><b>✓ MC finalizada${m.finEm?" em "+esc(m.finEm):""}</b><span>Você ainda pode editar normalmente.</span><button id="bFin">Desmarcar finalizada</button></div>`
+    ${m.fin?`<div class="finbar ok"><b>✓ MC finalizada${m.finEm?" em "+esc(m.finEm):""}</b><span class="trava">🔒 Dados bloqueados. Para editar, desmarque a MC como finalizada.</span><button id="bFin">Desmarcar finalizada</button></div>`
       :`<div class="finbar"><span>Quando terminar de conferir esta MC, marque como finalizada. Ela fica verde na lista de MCs.</span><div class="acts"><button id="bPend" class="pendbt">${m.pendOn||m.pend?"✕ Remover pendência":"⚠ Pendência"}</button><button id="bFin" class="finok">✓ Marcar MC como finalizada</button></div>
-        ${m.pendOn||m.pend?`<div class="pendbox"><b>⚠ O que falta nesta MC</b><textarea id="h_pend" data-k="pend" placeholder="Ex.: falta foto do anel 3, conferir área do teto com a fiscalização…">${esc(m.pend||"")}</textarea></div>`:""}</div>`}
+        ${m.pendOn||m.pend?`<div class="pendbox"><b>⚠ O que falta nesta MC</b><textarea id="h_pend" data-k="pend" placeholder="Ex.: falta foto do anel 3, conferir área do teto com a fiscalização…">${esc(m.pend||"")}</textarea><span class="trava">🔒 Os dados da MC ficam bloqueados enquanto houver pendência. Para editar, clique em Remover pendência.</span></div>`:""}</div>`}
     <div class="grid">
       <label class="f">Nº da MC<input id="h_mc" data-k="mc" value="${esc(m.mc)}" placeholder="MC-001"></label>
       <label class="f">BM<input id="h_bm" data-k="bm" inputmode="numeric" value="${m.bm}"></label>
@@ -906,8 +909,12 @@ function renderEditor(){
     <div class="row"><label class="f oriw">Página do Excel<select class="selOri"><option value="portrait">Vertical (em pé)</option><option value="landscape">Horizontal (deitada)</option></select></label><button class="pri" id="bXls">Baixar a MC (.xlsx)</button><button class="pri" id="bPdf">Baixar a MC (PDF)</button><button id="bProx">Copiar para o próximo BM</button><button id="bDup">Duplicar</button></div>
     <div class="confirm" id="delBox"><button id="bDel">Excluir MC</button></div></div>
   </section>`;
-  renderEtapas(); renderFotos(); updateOut(); syncOri(); navSecoes();
+  renderEtapas(); renderFotos(); updateOut(); syncOri(); navSecoes(); aplicaTrava();
 }
+const travada=m=>!!(m&&(m.fin||m.pendOn||m.pend));
+const LIVRES=new Set(["bFin","bPend","h_pend","bXls","bPdf","bDup","bProx"]);
+function aplicaTrava(){ const ed=$("#ed"); if(!ed) return; const tv=travada(cur); ed.classList.toggle("travada",tv); if(!tv) return;
+  ed.querySelectorAll("input,select,textarea,button").forEach(n=>{ if(LIVRES.has(n.id)||n.classList.contains("selOri")) return; n.disabled=true; }); }
 function renderEtapas(){
   const m=cur, et=etapasDe(m.etapa.item), box=$("#et_box");
   if(!et){ box.innerHTML=`<p class="hint">${m.etapa.item?"Este item não tem etapas no Anexo 1.":"Nenhum item com etapas nesta MC."}</p>`; return; }
@@ -920,12 +927,14 @@ function renderEtapas(){
     <td><button class="ghost" data-del-lo="${k}" aria-label="Remover lote">✕</button></td></tr>`).join("")}
   </tbody><tfoot><tr><td colspan="${3+et.length+1}" class="r">Total (vai para o quadro de medição)</td><td class="r"><span class="out" id="o_ltb"></span></td><td></td><td class="r"><span class="out" id="o_lta"></span></td><td></td></tr></tfoot></table></div>
   <div class="row" style="margin-top:8px"><button id="bAddLo">+ Lote</button><span class="hint">Sobreposição sem remoção: digite N/A na etapa de remoção e descarte.</span></div>`;
+  aplicaTrava();
 }
 function renderFotos(){ kpis();
   const box=$("#photos"); if(!box) return;
   box.innerHTML=cur.fotos.map((f,k)=>`<div class="ph"><img src="${esc(fotoSrc(f)||"")}" data-fsrc="${k}" alt="${esc(f.legenda||"Foto "+(k+1))}" loading="lazy"><input id="ft${k}" data-ft="${k}" value="${esc(f.legenda)}" placeholder="Legenda da foto ${k+1}"><button class="ghost rm" data-del-ft="${k}">Remover</button></div>`).join("");
   cur.fotos.forEach((f,k)=>{ if(f.db && !FOTOS[f.id]) carregaFotoDb(f.id).then(u=>{ const im=box.querySelector(`img[data-fsrc="${k}"]`); if(u&&im) im.src=u; }); });
   const msg=$("#fotoMsg"); if(!db && !assets && !msg.classList.contains("err")) msg.textContent="Sem conexão: as fotos não ficarão salvas agora.";
+  aplicaTrava();
 }
 function fotoSrc(f){ return f.db ? FOTOS[f.id] : f.url; }
 async function carregaFotoDb(id){
@@ -967,7 +976,7 @@ function updateOut(){ kpis(); tqInfo();
 }
 const ED=$("#ed");
 ED.addEventListener("input",e=>{
-  const t=e.target, d=t.dataset; if(!cur) return; let estrutura=false;
+  const t=e.target, d=t.dataset; if(!cur) return; if(travada(cur) && t.id!=="h_pend") return; let estrutura=false;
   if(d.k){ cur[d.k]= d.k==="bm" ? (parseInt(t.value)||cur.bm) : t.value; if(d.k==="bm") estrutura=true; if(d.k==="tipoMC"){ aplicaModelo(cur); geraGrade(cur); estrutura=true; } if(d.k==="modoAv") estrutura=true; }
   else if(d.it!=null){ cur.itens[+d.it][d.f]=t.value; if(d.f==="item"){ estrutura=true; geraGrade(cur); } }
   else if(d.el!=null&&d.fl!=null){ cur.elems[+d.el].fl[+d.fl]=t.checked; }
@@ -988,6 +997,7 @@ ED.addEventListener("input",e=>{
 ED.addEventListener("change",e=>{ if(e.target.id==="h_bm"){ renderEditor(); } });
 ED.addEventListener("click",async e=>{
   const t=e.target.closest("button,[data-del-el],[data-del-lo],[data-del-ft],[data-del-an],[data-tqadd],[data-tqmod],[data-esadd]"); if(!t||!cur) return;
+  if(travada(cur) && !LIVRES.has(t.id)){ toast(cur.fin?"MC finalizada: desmarque para editar":"MC com pendência: remova a pendência para editar"); return; }
   if(t.dataset.delEl!=null){ cur.elems.splice(+t.dataset.delEl,1); if(!cur.elems.length) cur.elems.push(novoElem()); renderEditor(); salvar(); }
   else if(t.dataset.delLo!=null){ cur.etapa.lotes.splice(+t.dataset.delLo,1); if(!cur.etapa.lotes.length) cur.etapa.lotes.push(novoLote()); renderEtapas(); updateOut(); salvar(); }
   else if(t.dataset.limpaIt!=null){ const i=+t.dataset.limpaIt, cod=cur.itens[i].item;
@@ -1003,7 +1013,7 @@ ED.addEventListener("click",async e=>{
   else if(t.id==="bAddLo"){ cur.etapa.lotes.push(novoLote()); renderEtapas(); updateOut(); salvar(); }
   else if(t.id==="bXls"){ await baixar([cur], nomeArq(cur)); }
   else if(t.id==="bPdf"){ await baixarPDF([cur], nomeArq(cur).replace(/\.xlsx$/,".pdf")); }
-  else if(t.id==="bPend"){ if(cur.pendOn||cur.pend){ if(cur.pend&&!confirm("Apagar a pendência anotada nesta MC?")) return; delete cur.pendOn; delete cur.pend; salvar(); renderEditor(); renderList(); toast("Pendência removida"); } else { cur.pendOn=true; renderEditor(); const n=document.getElementById("h_pend"); if(n) n.focus(); } }
+  else if(t.id==="bPend"){ if(cur.pendOn||cur.pend){ if(cur.pend&&!confirm("Apagar a pendência anotada nesta MC?")) return; delete cur.pendOn; delete cur.pend; salvar(); renderEditor(); renderList(); toast("Pendência removida"); } else { cur.pendOn=true; salvar(); renderEditor(); renderList(); const n=document.getElementById("h_pend"); if(n) n.focus(); } }
   else if(t.id==="bFin"){ if(cur.fin){ delete cur.fin; delete cur.finEm; } else { cur.fin=true; cur.finEm=new Date().toLocaleDateString("pt-BR"); } salvar(); renderEditor(); renderList(); toast(cur.fin?"MC marcada como finalizada":"MC voltou para em andamento"); }
   else if(t.id==="bDup"){ const c=normaliza(JSON.parse(JSON.stringify(cur))); c.mc=(cur.mc||"MC")+" (cópia)"; delete c.exemplo; delete c.fin; delete c.finEm; delete c.pend; delete c.pendOn; curId=null; cur=c; renderEditor(); salvar(); toast("Cópia criada"); }
   else if(t.id==="bProx"){ const calc=calcMC(cur); const c=normaliza(JSON.parse(JSON.stringify(cur))); c.bm=cur.bm+1; delete c.exemplo; delete c.fin; delete c.finEm; delete c.pend; delete c.pendOn;
@@ -1062,7 +1072,7 @@ async function enviarFotos(files){
 ED.addEventListener("change",e=>{ if(e.target.id==="fFoto"){ enviarFotos([...e.target.files]); e.target.value=""; } });
 ED.addEventListener("dragover",e=>{ const d=e.target.closest("#drop"); if(d){ e.preventDefault(); d.classList.add("hot"); } });
 ED.addEventListener("dragleave",e=>{ const d=e.target.closest("#drop"); if(d) d.classList.remove("hot"); });
-ED.addEventListener("drop",e=>{ const d=e.target.closest("#drop"); if(d){ e.preventDefault(); d.classList.remove("hot"); enviarFotos([...e.dataTransfer.files]); } });
+ED.addEventListener("drop",e=>{ const d=e.target.closest("#drop"); if(d&&travada(cur)){ e.preventDefault(); return; } if(d){ e.preventDefault(); d.classList.remove("hot"); enviarFotos([...e.dataTransfer.files]); } });
 
 /* ---------- Excel ---------- */
 const limpaNome = t => String(t||"").replace(/[\\/:*?"<>|\n\r\t]+/g," ").replace(/\s+/g," ").trim();
