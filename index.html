@@ -297,6 +297,7 @@ aside .mclist{background:var(--panel);border:1px solid var(--line);border-radius
 .mcrow.fin{background:#e3f5e8;box-shadow:inset 3px 0 0 #2e9e57}
 .mcrow.fin.on{background:#cdeed7;box-shadow:inset 3px 0 0 #2e9e57,0 0 0 2px #2e9e57}
 .mcrow.fin .n{color:#0b6b2f}
+.dmx{color:var(--accent);font-family:var(--f-mono)}
 .tag.fin{background:#2e9e57;color:#fff}
 .finbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 12px;padding:10px 12px;border-radius:9px;background:var(--chip)}
 .finbar.ok{background:#e3f5e8;border:1px solid #2e9e57;color:#0b6b2f}
@@ -353,7 +354,7 @@ input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:n
 </style>
 
 <header class="top">
-  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 18/11 15:34 (com logos)</span></div>
+  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 18/11 15:50 (com logos)</span></div>
   <div class="sp"></div>
   <span class="status" id="status">Conectando…</span>
   <label class="tema">Tema<select id="selTema"><option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
@@ -545,7 +546,7 @@ function normaliza(m){ const n=novaMC(m.bm||23); const o=Object.assign(n,m);
   o.escQ={linhas:((m.escQ&&m.escQ.linhas)||[novaLinhaTeto("escada")]).filter(l=>ESC_TIPOS[l.tipo]).map(l=>Object.assign(novaLinhaTeto(l.tipo),l,{d:Array.from({length:NI},(_,i)=>(l.d||[])[i]??"")}))}; if(!o.escQ.linhas.length) o.escQ.linhas.push(novaLinhaTeto("escada"));
   o.tubQ={linhas:((m.tubQ&&m.tubQ.linhas)||[novaLinhaTeto("linha")]).filter(l=>TUB_TIPOS[l.tipo]).map(l=>Object.assign(novaLinhaTeto(l.tipo),l,{d:Array.from({length:NI},(_,i)=>(l.d||[])[i]??"")}))}; if(!o.tubQ.linhas.length) o.tubQ.linhas.push(novaLinhaTeto("linha"));
   o.aneis=Object.assign(novaGrade(),m.aneis||{}); o.aneis.linhas=(o.aneis.linhas&&o.aneis.linhas.length?o.aneis.linhas:[novaLinhaAnel("anel")]).map(l=>Object.assign(novaLinhaAnel(l.tipo||"anel"),l,{d:Array.from({length:NI},(_,i)=>(l.d||[])[i]??"")}));
-  o.fotos=m.fotos||[]; return o; }
+  o.fotos=m.fotos||[]; if(o.elems.some(e=>e.gen&&/ – \dª demão$/.test(e.desc||""))) geraGrade(o); return o; }
 
 /* etapa do critério cobrada na linha da memória: "item|a-b" (faixa de etapas) */
 function etParse(v){ const m=/^([\d.]+)\|(\d+)-(\d+)$/.exec(v||""); if(!m) return null; const et=DATA.etapas[m[1]]; if(!et) return null;
@@ -595,8 +596,8 @@ function calcMC(m){
     if(!it.item||!PPU[it.item]) return null; const P=PPU[it.item];
     const n=itNum(it.item), faixa=n>=96&&n<=124;
     const met=METODOS.find(x=>x[0]===it.metodo)||METODOS[0]; const fat=faixa?met[1]:1;
-    const precoAp=r2(P.p*fat), usaD=usaDemao(it.item), dem=usaD?(num(it.demaos)||1):1;
-    const mem=r3(m.elems.reduce((s,e,k)=>s+(e.fl[i]&&el[k]!=null?el[k]:0),0));
+    const precoAp=r2(P.p*fat), usaD=usaDemao(it.item), dem=usaD?(m.elems.some(e=>e.fl[i]&&e.dm&&parseInt(e.dm[i])>1)?1:(num(it.demaos)||1)):1;
+    const mem=r3(m.elems.reduce((s,e,k)=>s+(e.fl[i]&&el[k]!=null?el[k]*fm(e,i):0),0));
     const prev=r3(mem*dem); const q=m.quadro[i]; const isEt=m.etapa.item===it.item&&!!etapasDe(it.item);
     let ant=num(q.ant)||0, bm;
     if(isEt){ bm=et.bm; ant=r3(et.acum-et.bm); }
@@ -712,14 +713,21 @@ function linhaMem0(e,k,tp){
       <td><input id="e${k}_q" class="sm num" data-el="${k}" data-f="qtd" inputmode="decimal" value="${esc(e.qtd)}" placeholder="1"></td>
       <td><input id="e${k}_p" class="sm num" data-el="${k}" data-f="pct" inputmode="decimal" value="${esc(e.pct)}" placeholder="100"></td>
       ${(()=>{ const g=etOpcoes(cur); if(!g.length) return ""; return `<td><select id="e${k}_et" data-el="${k}" data-f="et" style="min-width:230px"><option value="">— escolha —</option><option value="100" ${e.et==="100"?"selected":""}>100% · serviço completo (todas as etapas)</option>${g.map(x=>`<optgroup label="Item ${esc(x.item)}">${x.op.map(([v,l])=>opt(v,l,e.et)).join("")}</optgroup>`).join("")}${e.et&&e.et!=="100"&&!etParse(e.et)?opt(e.et,"(etapa inválida)",e.et):""}</select></td>`; })()}
-      ${e.fl.map((f,i)=>`<td class="c"><input type="checkbox" id="e${k}_f${i}" data-el="${k}" data-fl="${i}" ${f?"checked":""} aria-label="Aplica ao item ${i+1}"></td>`).join("")}
+      ${e.fl.map((f,i)=>`<td class="c">${e.gen?(f&&fm(e,i)>1?`<b class="dmx" title="${fm(e,i)} demãos neste item">${fm(e,i)}×</b>`:`<input type="checkbox" id="e${k}_f${i}" data-el="${k}" data-fl="${i}" ${f?"checked":""} aria-label="Aplica ao item ${i+1}">`)
+        :cur.itens[i]&&cur.itens[i].item&&usaDemao(cur.itens[i].item)?`<input id="e${k}_m${i}" class="sm num dmin" data-el="${k}" data-dm="${i}" inputmode="numeric" value="${f?fm(e,i):""}" placeholder="–" title="Nº de demãos desta linha no item ${esc(cur.itens[i].item)} (vazio = não entra)" aria-label="Demãos no item ${i+1}">`
+        :`<input type="checkbox" id="e${k}_f${i}" data-el="${k}" data-fl="${i}" ${f?"checked":""} aria-label="Aplica ao item ${i+1}">`}</td>`).join("")}
       <td class="r"><span class="out" id="o_e${k}"></span></td><td><span class="txt" id="o_t${k}"></span></td>
       <td><button class="ghost" data-del-el="${k}" aria-label="Remover linha">✕</button></td></tr>`;
 }
+/* demãos por linha: quantas vezes a linha entra no item (1 = "x") */
+const fm=(e,i)=>e.fl[i]?Math.max(1,parseInt(e.dm&&e.dm[i])||1):0;
 function somaItens(m,c){
   const els=m.elems.map((e,k)=>({e,v:c.el[k]})).filter(x=>formaDe(x.e));
-  return c.linhas.filter(Boolean).map(l=>{ const idx=[], vs=[]; els.forEach((x,j)=>{ if(x.e.fl[l.i]&&x.v!=null){ idx.push(rot(j)); vs.push(fmt(x.v,3)); } });
+  return c.linhas.filter(Boolean).map(l=>{ const idx=[], vs=[], ns=[]; els.forEach((x,j)=>{ if(x.e.fl[l.i]&&x.v!=null){ idx.push(rot(j)); vs.push(fmt(x.v,3)); ns.push(fm(x.e,l.i)); } });
     if(!vs.length) return null;
+    const igual=ns.every(n=>n===ns[0]), N=ns[0];
+    if(ns.some(n=>n>1)){ if(igual){ const ii=idx.length>1?"("+idx.join(" + ")+")":idx[0], vv=vs.length>1?"("+vs.join(" + ")+")":vs[0]; idx.length=0; vs.length=0; idx.push(ii+" × "+N+" demãos"); vs.push(vv+" × "+N); }
+      else { ns.forEach((n,q)=>{ if(n>1){ idx[q]+=" × "+n; vs[q]+=" × "+n; } }); } }
     const forms=els.map((x,j)=>x.e.fl[l.i]&&x.v!=null?`   ${rot(j)}${x.e.desc?" – "+x.e.desc:""}: ${textoElem(x.e).replace(/π (?=\d)/g,"")}`:null).filter(Boolean);
     return `Item ${l.item}:\n`+forms.join("\n")+`\n   Total: `+(vs.length>1?`${idx.join(" + ")} = ${vs.join(" + ")} = `:`${idx[0]} = `)+`${fmt(l.mem,3)} ${l.P.u}`+(l.dem>1?` × ${l.dem} demãos = ${fmt(l.prev,3)} ${l.P.u}`:""); }).filter(Boolean).join("\n");
 }
@@ -736,13 +744,13 @@ const itemNaGrade = (m,i) => gradeUsada(m) && quadroDe(m).linhas.some(l=>demGrad
 function geraGrade(m){
   if(!gradeOn(m)){ m.elems.forEach(e=>{ delete e.gen; }); return; } const g=quadroDe(m), teto=m.tipoMC==="teto"; const ger=[];
   if(m.tipoMC==="estrutura"||m.tipoMC==="tubulacao"){ const TT=m.tipoMC==="tubulacao"?TUB_TIPOS:ESC_TIPOS; if(gradeUsada(m)) g.linhas.forEach(l=>{ const vs=m.itens.map((_,i)=>demGrade(m,l,i)); const mx=Math.max(0,...vs); const T=TT[l.tipo];
-      for(let k=1;k<=mx;k++) T.fs.forEach(([f,suf])=>{ const e=Object.assign(novoElem(f),{desc:(l.desc||(T.nm&&T.nm(l))||T.n)+suf+(k>1?` – ${k}ª demão`:""),a:l.a,b:f==="direto"||T.bits?"":l.b,bit:T.bits?l.bit||"":"",qtd:l.qtd||"1"}); e.fl=vs.map(v=>v>=k); e.gen=true; ger.push(e); }); }); }
+      if(mx>0) T.fs.forEach(([f,suf])=>{ const e=Object.assign(novoElem(f),{desc:(l.desc||(T.nm&&T.nm(l))||T.n)+suf,a:l.a,b:f==="direto"||T.bits?"":l.b,bit:T.bits?l.bit||"":"",qtd:l.qtd||"1"}); e.fl=vs.map(v=>v>=1); if(mx>1) e.dm=vs.slice(); e.gen=true; ger.push(e); }); }); }
   else if(gradeUsada(m)) g.linhas.forEach(l=>{ const vs=m.itens.map((_,i)=>demGrade(m,l,i)); const mx=Math.max(0,...vs); const T=teto?TETO_TIPOS[l.tipo]:null;
-    for(let k=1;k<=mx;k++){ const nome=(l.desc||(teto?T.n:l.tipo==="anel"?"Anel":"Área extra"))+(k>1?` – ${k}ª demão`:"");
+    if(mx>0){ const nome=(l.desc||(teto?T.n:l.tipo==="anel"?"Anel":"Área extra"));
       const e=teto ? Object.assign(novoElem(T.f),{desc:nome,a:l.a||(T.da?T.da(g):""),b:T.f==="circ"||T.f==="direto"?"":(l.b||(T.db?T.db(g):"")),qtd:l.qtd||"1"})
         : l.tipo==="anel" ? Object.assign(novoElem("anel"),{desc:nome,a:g.dn,b:l.alt||(g.h&&g.n?g.h+"/"+g.n:""),qtd:l.qtd||"1"})
                               : Object.assign(novoElem("direto"),{desc:nome,a:l.area});
-      e.fl=vs.map(v=>v>=k); e.gen=true; ger.push(e); } });
+      e.fl=vs.map(v=>v>=1); if(mx>1) e.dm=vs.slice(); e.gen=true; ger.push(e); } });
   if(!ger.length && !m.elems.some(e=>e.gen)) return;
   m.itens.forEach((it,i)=>{ if(itemNaGrade(m,i) && usaDemao(it.item)) it.demaos="1"; });
   const manuais=m.elems.filter(e=>!e.gen && (e.a||e.b||e.c||e.qtd));
@@ -880,7 +888,7 @@ function renderEditor(){
       <td id="o_u${i}"></td><td class="r"><span class="out" id="o_p${i}"></span></td>
       <td><select id="mt_${i}" data-it="${i}" data-f="metodo">${METODOS.map(x=>opt(x[0],x[2],it.metodo)).join("")}</select></td>
       <td class="r"><span class="out" id="o_pa${i}"></span></td>
-      <td class="c">${itemNaGrade(m,i)?`<span class="base" title="As demãos deste item estão no quadro (anéis/teto)">na grade</span>`:!it.item||usaDemao(it.item)?`<input id="dm_${i}" class="sm num" data-it="${i}" data-f="demaos" inputmode="numeric" value="${esc(it.demaos)}" placeholder="1">`:`<span class="base">${esc(baseMed(it.item))}</span>`}</td>
+      <td class="c">${itemNaGrade(m,i)?`<span class="base" title="As demãos deste item estão no quadro (anéis/teto)">na grade</span>`:m.elems.some(e=>e.fl[i]&&e.dm&&parseInt(e.dm[i])>1)?`<span class="base" title="As demãos deste item estão em cada linha da memória">por linha</span>`:!it.item||usaDemao(it.item)?`<input id="dm_${i}" class="sm num" data-it="${i}" data-f="demaos" inputmode="numeric" value="${esc(it.demaos)}" placeholder="1">`:`<span class="base">${esc(baseMed(it.item))}</span>`}</td>
       <td class="c">${it.item?`<button class="ghost" data-limpa-it="${i}" title="Tira o item desta linha e desmarca as caixinhas dele na memória">Limpar</button>`:""}</td></tr>`).join("")}
     </tbody></table></div>
     <div class="crit" id="o_crit" style="margin-top:10px"></div>
@@ -996,6 +1004,7 @@ ED.addEventListener("input",e=>{
   if(d.k){ cur[d.k]= d.k==="bm" ? (parseInt(t.value)||cur.bm) : t.value; if(d.k==="bm") estrutura=true; if(d.k==="tipoMC"){ aplicaModelo(cur); geraGrade(cur); estrutura=true; } if(d.k==="modoAv") estrutura=true; }
   else if(d.it!=null){ cur.itens[+d.it][d.f]=t.value; if(d.f==="item"){ estrutura=true; geraGrade(cur); } }
   else if(d.el!=null&&d.fl!=null){ cur.elems[+d.el].fl[+d.fl]=t.checked; }
+  else if(d.el!=null&&d.dm!=null){ const e=cur.elems[+d.el], i=+d.dm, v=Math.max(0,parseInt(t.value)||0); e.fl[i]=v>0; if(!e.dm) e.dm=e.fl.map(()=>""); e.dm[i]=v>1?String(v):""; if(!e.dm.some(Boolean)) delete e.dm; estrutura=true; }
   else if(d.el!=null){ cur.elems[+d.el][d.f]=t.value; if(d.f==="tipo") estrutura=true; }
   else if(d.q!=null){ cur.quadro[+d.q][d.f]=t.value; }
   else if(d.k2){ cur.etapa.item=t.value; renderEtapas(); }
@@ -1154,7 +1163,7 @@ async function pdfMC(doc, m, VERT){
   sec("MEMÓRIA DE CÁLCULO – "+tipoMC(m).n.toUpperCase().replace(/M²/g,"m²").replace(/M³/g,"m³"));
   const els=m.elems.map((e,k)=>({e,v:c.el[k]})).filter(x=>formaDe(x.e));
   T({head:[["Nº","DESCRIÇÃO DO ELEMENTO / ORIGEM","FORMA DE CÁLCULO","CÁLCULO DEMONSTRADO","RESULTADO",...L.map(l=>l.item)]],
-    body:els.map((x,j)=>[rot(j),pdfTxt(x.e.desc),pdfTxt(FORMAS[formaDe(x.e)][0].replace(/\s*\([^()]*\)\s*$/,"")),pdfTxt(textoElem(x.e).replace(/π (?=\d)/g,"")),{content:fmt(x.v,3),styles:{fontStyle:"bold",halign:"right"}},...L.map(l=>({content:x.e.fl[l.i]?"x":"",styles:{halign:"center",fontStyle:"bold"}}))]),
+    body:els.map((x,j)=>[rot(j),pdfTxt(x.e.desc),pdfTxt(FORMAS[formaDe(x.e)][0].replace(/\s*\([^()]*\)\s*$/,"")),pdfTxt(textoElem(x.e).replace(/π (?=\d)/g,"")),{content:fmt(x.v,3),styles:{fontStyle:"bold",halign:"right"}},...L.map(l=>({content:x.e.fl[l.i]?(fm(x.e,l.i)>1?fm(x.e,l.i)+"×":"x"):"",styles:{halign:"center",fontStyle:"bold"}}))]),
     foot:[[{content:"QUANTIDADE DA MEMÓRIA POR ITEM",colSpan:5,styles:{halign:"left"}},...L.map(l=>{ const t=fmt(l.mem,3), w=(VERT?13:16)-2.2; doc.setFont("helvetica","bold"); const fz=Math.min(FS, w*72/25.4/(doc.getStringUnitWidth(t)||1)); return {content:t,styles:{halign:"center",fontSize:Math.max(5,Math.floor(fz*10)/10),cellPadding:{top:1.5,bottom:1.5,left:0.8,right:0.8}}}; })]],
     columnStyles:Object.assign({0:{cellWidth:7,halign:"center"},2:{cellWidth:VERT?28:40},4:{cellWidth:20}},Object.fromEntries(L.map((_,k)=>[5+k,{cellWidth:VERT?13:16}])))});
   const dem=somaItens(m,c); if(dem){ y-=2; T({body:[[pdfTxt(dem)]],styles:{fontSize:FS-0.5,fontStyle:"italic",fillColor:[248,248,248]}}); }
@@ -1301,11 +1310,11 @@ async function folhaMC(wb, nome, m){
     put("H"+rr,ehConta(e.qtd)&&contaXL(e.qtd)?F(contaXL(e.qtd),numE(e.qtd)):(numE(e.qtd)??1),{fill:INP,h:"center",f:"#,##0.##"}); put("I"+rr,kind==="cil"?PI*Fm[1]:Fm[1],{h:"center",f:kind==="cil"?"0.0000":"0.00"}); put("J"+rr,(numE(e.pct)??100)/100,{fill:INP,h:"center",f:"0%"});
     const base={direto:`D${rr}`,ret:`D${rr}*E${rr}`,tri:`D${rr}*E${rr}/2`,trap:`(D${rr}+E${rr})/2*F${rr}`,cil:`D${rr}*E${rr}`,circ:`${PI}*D${rr}^2/4`,coroa:`${PI}*(D${rr}^2-E${rr}^2)/4`,raios:`${PI}*(D${rr}^2-E${rr}^2)`,bit:`D${rr}*G${rr}`,retoque:"0.15",diaria:`(E${rr}-D${rr}+1)`,dias:"1",un:"1",horas:`D${rr}/E${rr}`,vret:`D${rr}*E${rr}*F${rr}`,vcil:`${PI}*D${rr}^2/4*F${rr}`,vfaixa:`${PI}*D${rr}*E${rr}*F${rr}`}[kind];
     put("K"+rr,F(`ROUND(${base}*I${rr}*H${rr}*J${rr}${etParse(e.et)?"*"+etFator(e):""},3)`,x.v),{h:"right",f:"#,##0.000",b:1});
-    L.forEach((l,k)=>put(C(12+k)+rr,e.fl[l.i]?"x":null,{fill:INP,h:"center",b:1}));
+    L.forEach((l,k)=>put(C(12+k)+rr,e.fl[l.i]?fm(e,l.i):null,{fill:INP,h:"center",b:1,f:'[=1]"x";0"×"'}));
     const tx=textoElem(e); put(CD+rr,tx,{m:CDm&&CDm+rr,sz:8}); ws.getRow(rr).height=altL(Math.max(nLin(e.desc,W[1]),nLin(Fm[0],W[2]),nLin(tx,larg(CD,"R")))); });
   const ME=M0+Math.max(els.length,1)-1; r=ME+1;
   put("A"+r,"QUANTIDADE DA MEMÓRIA POR ITEM",{m:"K"+r,fill:TOT,b:1,h:"left"});
-  const memCell={}; L.forEach((l,k)=>{ const col=C(12+k); memCell[l.i]=col+r; put(col+r,F(`SUMIF(${col}${M0}:${col}${ME},"x",$K$${M0}:$K$${ME})`,l.mem),{fill:TOT,b:1,sz:8,h:"center",f:"#,##0.000"}); });
+  const memCell={}; L.forEach((l,k)=>{ const col=C(12+k); memCell[l.i]=col+r; put(col+r,F(`SUMPRODUCT(${col}${M0}:${col}${ME},$K$${M0}:$K$${ME})`,l.mem),{fill:TOT,b:1,sz:8,h:"center",f:"#,##0.000"}); });
   put(CD+r,null,{m:CDm&&CDm+r,fill:TOT}); r++;
   const dem=somaItens(m,c); if(dem){ put("A"+r,dem,{m:"R"+r,sz:8,i:1}); ws.getRow(r).height=Math.max(15,13*dem.split("\n").length); r++; }
   if((m.obsMem||"").trim()){ const ob=m.obsMem.trim(); put("A"+r,"OBS.:",{m:"B"+r,b:1,h:"center"}); put("C"+r,ob,{m:"R"+r,sz:8,fill:INP}); ws.getRow(r).height=Math.max(18,13*(ob.split("\n").length+Math.floor(ob.length/160))); r++; }
