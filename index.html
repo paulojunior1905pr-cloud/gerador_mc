@@ -353,7 +353,7 @@ input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:n
 </style>
 
 <header class="top">
-  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 18/11 13:27 (com logos)</span></div>
+  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 18/11 14:54 (com logos)</span></div>
   <div class="sp"></div>
   <span class="status" id="status">Conectando…</span>
   <label class="tema">Tema<select id="selTema"><option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
@@ -436,6 +436,7 @@ const FORMAS = {
   platInf:["Plataforma – face inferior com vigamento (+30%)",1.3,"ab","ret"],
   piso:["Piso fechado liso ou xadrez (C × L, por face)",1,"ab","ret"],
   tubo:["Tubulação (comprimento × m²/m do diâmetro)",1,"a","bit"],
+  tuboG:["Tubulação acima de 26\" (DN × π × comprimento)",1,"ab","cil"],
   perfil:["Perfil / viga / cantoneira (comprimento × m²/m)",1,"a","bit"],
   retoque:["Retoque de pintura (0,15 m² cada)",1,"","retoque"],
   chapa:["Chapa (C × L × nº de chapas)",1,"ab","ret"],
@@ -462,7 +463,7 @@ const TMC = {
   isolamento:{n:"Isolamento térmico (volume m³)",d:"Itens 1.87, 1.88 e 1.89: teto = π × D² ÷ 4 × espessura; costado = π × DN × altura × espessura; trechos retos = C × L × espessura. Na coluna “Etapa cobrada” escolha 30% · Remoção ou 70% · Instalação.",f:["volCil","volFaixa","volRet","volDir"],lab:{a:"DN do tanque / comprimento (m)",b:"Altura do costado / largura (m)",c:"Espessura (m)",q:"Qtd"},modelo:[["Isolamento do teto (π × D² ÷ 4 × espessura)","volCil"],["Isolamento do costado (π × DN × altura × espessura)","volFaixa"]]},
   civil:{n:"Rota de fuga, minidique, muros e muretas",d:"Faixas no perímetro do tanque (π × D × largura), acessos e paredes. Na largura dá para somar: 0,4+2,15+0,4.",f:["faixa","ret","raios","trap","tri","cil","direto"],lab:{a:"C / D / B (m)",b:"Largura / d / b (m)",c:"Altura h (m)",q:"Qtd"},modelo:[["Rota de fuga no perímetro do tanque","faixa"],["Acesso à rota de fuga","ret"],["Parede interna","faixa"],["Parede externa","faixa"],["Faixa amarela","faixa"]]},
   teto:{rev:true,n:"Teto, fundo, lençol e contraventamento",d:"Círculo (π × D² ÷ 4), coroa entre dois diâmetros (flutuador = teto − lençol) e face inferior +30%.",f:["circ","coroa","coroaInf","coroaSup","rim","ret","direto","cil"],lab:{a:"Diâmetro D (m)",b:"Diâmetro interno d / altura (m)",q:"Qtd"},modelo:[["Teto / fundo (círculo)","circ"],["Flutuador (coroa: teto − lençol)","coroa"],["Contraventamento – face inferior","coroaInf"]]},
-  tubulacao:{n:"Tubulação e suportes",d:"Linhas pelo comprimento × m²/m do diâmetro e suportes pelo perfil.",f:["tubo","perfil","retoque","direto"],lab:{a:"Comprimento (m)",bit:"Diâmetro / perfil",q:"Qtd de peças"},modelo:[["Linha","tubo"],["Suporte","perfil"]]},
+  tubulacao:{n:"Tubulação e suportes",d:"Linhas pelo comprimento × m²/m do diâmetro e suportes pelo perfil.",f:["tubo","tuboG","perfil","retoque","direto"],lab:{a:"Comprimento (m)",bit:"Diâmetro / perfil",q:"Qtd de peças"},modelo:[["Linha","tubo"],["Suporte","perfil"]]},
   unidade:{n:"Unidades (BV, PL, TH, drenos, agitadores, peças)",d:"Itens medidos por unidade: abertura de BV/PL, teste hidrostático, drenos flexíveis, agitadores, bocais, TAG.",f:["un"],lab:{q:"Quantidade"},modelo:[["","un"]]},
 };
 const FORMA_ANTIGA = {"Valor direto (área/qtd já calculada)":"direto","Retângulo (A × B)":"ret","Cilindro / perímetro (π × D × h)":"cil","Círculo – fundo/teto (π × D² ÷ 4)":"circ",
@@ -501,7 +502,7 @@ function baseElem(e){
 /* ---------- modelo ---------- */
 function novaMC(bm){ return {bm, mc:"", tanque:"", ro:"", servico:"", tipoMC:"geral", itens:Array.from({length:NI},()=>({item:"",metodo:"",demaos:""})),
   elems:Array.from({length:4},()=>novoElem()), quadro:Array.from({length:NI},()=>({ant:"",pct:"",man:""})),
-  etapa:{item:"",lotes:[novoLote(),novoLote()]}, modoAv:"acum", aneis:novaGrade(), tetoQ:novoTeto("completo"), escQ:{linhas:[novaLinhaTeto("escada")]}, obsMem:"", obs:"", fotos:[], updatedAt:Date.now()}; }
+  etapa:{item:"",lotes:[novoLote(),novoLote()]}, modoAv:"acum", aneis:novaGrade(), tetoQ:novoTeto("completo"), escQ:{linhas:[novaLinhaTeto("escada")]}, tubQ:{linhas:[novaLinhaTeto("linha")]}, obsMem:"", obs:"", fotos:[], updatedAt:Date.now()}; }
 const TETO_TIPOS={
   lencol:{f:"circ",n:"Lençol",la:"DN do lençol",da:g=>g.dnL},
   rim:{f:"rim",n:"Chapas do RIM do lençol",la:"DN",lb:"Altura",da:g=>g.dnL,db:g=>g.hR},
@@ -511,6 +512,12 @@ const TETO_TIPOS={
   contrav:{f:"coroaInf",n:"Contraventamento – face inferior",la:"DN externo",lb:"d interno"},
   contravSup:{f:"coroaSup",n:"Contraventamento – face superior",la:"DN externo",lb:"d interno"},
   extra:{f:"direto",n:"Área extra",la:"Área (m²)"}};
+const TUB_TIPOS={
+  linha:{fs:[["tubo",""]],n:"Linha (até 26\")",nm:l=>l.bit?"Linha Ø "+l.bit:"",la:"Comprimento (m)",bits:"tubo"},
+  grande:{fs:[["tuboG",""]],n:"Linha acima de 26\"",la:"DN (m)",lb:"Comprimento (m)"},
+  suporte:{fs:[["perfil",""]],n:"Suporte (perfil)",nm:l=>l.bit?"Suporte "+l.bit:"",la:"Altura / comprimento (m)",bits:"perfil"},
+  extra:{fs:[["direto",""]],n:"Área extra",la:"Área (m²)"}};
+const BIT_TUBO=BITOLAS.slice(0,18).map(b=>b[0]), BIT_PERFIL=BITOLAS.slice(18).map(b=>b[0]);
 const ESC_TIPOS={
   escada:{fs:[["escSup"," – face superior (+10%)"],["escInf"," – face inferior (+30%)"]],n:"Escada inclinada",la:"C (m)",lb:"L (m)"},
   grelha:{fs:[["grelha",""]],n:"Plataforma de grelha (× 3)",la:"C (m)",lb:"L (m)"},
@@ -520,7 +527,7 @@ const ESC_TIPOS={
   gcCirc:{fs:[["gcCirc",""]],n:"Guarda-corpo circular (÷ 2)",la:"DN (m)",lb:"ALT (m)"},
   extra:{fs:[["direto",""]],n:"Área extra",la:"Área (m²)"}};
 const TETO_MODELOS={completo:["lencol","rim","camisa","flut","rimExt","contrav"],lencol:["lencol","rim","camisa"]};
-function novaLinhaTeto(tipo){ return {tipo,desc:"",a:"",b:"",qtd:"",d:["","","","","",""]}; }
+function novaLinhaTeto(tipo){ return {tipo,desc:"",a:"",b:"",bit:"",qtd:"",d:["","","","","",""]}; }
 function novoTeto(mod){ return {dnT:"",dnL:"",hR:"",dnRE:"",linhas:TETO_MODELOS[mod].map(novaLinhaTeto)}; }
 function novaGrade(){ return {dn:"",h:"",n:"",linhas:[novaLinhaAnel("anel")]}; }
 function novaLinhaAnel(tipo){ return {tipo,desc:"",qtd:"",alt:"",area:"",d:["","","","","",""]}; }
@@ -536,6 +543,7 @@ function normaliza(m){ const n=novaMC(m.bm||23); const o=Object.assign(n,m);
   if(!m.modoAv) o.modoAv="bm";
   o.tetoQ=Object.assign(novoTeto("completo"),m.tetoQ||{}); o.tetoQ.linhas=(o.tetoQ.linhas||[]).filter(l=>TETO_TIPOS[l.tipo]).map(l=>Object.assign(novaLinhaTeto(l.tipo),l,{d:Array.from({length:NI},(_,i)=>(l.d||[])[i]??"")}));
   o.escQ={linhas:((m.escQ&&m.escQ.linhas)||[novaLinhaTeto("escada")]).filter(l=>ESC_TIPOS[l.tipo]).map(l=>Object.assign(novaLinhaTeto(l.tipo),l,{d:Array.from({length:NI},(_,i)=>(l.d||[])[i]??"")}))}; if(!o.escQ.linhas.length) o.escQ.linhas.push(novaLinhaTeto("escada"));
+  o.tubQ={linhas:((m.tubQ&&m.tubQ.linhas)||[novaLinhaTeto("linha")]).filter(l=>TUB_TIPOS[l.tipo]).map(l=>Object.assign(novaLinhaTeto(l.tipo),l,{d:Array.from({length:NI},(_,i)=>(l.d||[])[i]??"")}))}; if(!o.tubQ.linhas.length) o.tubQ.linhas.push(novaLinhaTeto("linha"));
   o.aneis=Object.assign(novaGrade(),m.aneis||{}); o.aneis.linhas=(o.aneis.linhas&&o.aneis.linhas.length?o.aneis.linhas:[novaLinhaAnel("anel")]).map(l=>Object.assign(novaLinhaAnel(l.tipo||"anel"),l,{d:Array.from({length:NI},(_,i)=>(l.d||[])[i]??"")}));
   o.fotos=m.fotos||[]; return o; }
 
@@ -551,7 +559,7 @@ function calcElem(e){
   const k=formaDe(e); if(!k) return null; const base=baseElem(e); const q=numE(e.qtd)??1, p=(numE(e.pct)??100)/100;
   return r3(base*FORMAS[k][1]*q*p*etFator(e));
 }
-const NOMES={anel:["DN","ALT"],trecho:["C","ALT"],rim:["DN","ALT"],escSup:["C","L"],escInf:["C","L"],grelha:["C","L"],platInf:["C","L"],piso:["C","L"],gcReto:["C","ALT"],gcCirc:["DN","ALT"]};
+const NOMES={anel:["DN","ALT"],trecho:["C","ALT"],rim:["DN","ALT"],escSup:["C","L"],escInf:["C","L"],grelha:["C","L"],platInf:["C","L"],piso:["C","L"],gcReto:["C","ALT"],gcCirc:["DN","ALT"],tuboG:["DN","C"]};
 const rot=k=>{ let s=""; k++; while(k>0){ const r=(k-1)%26; s=String.fromCharCode(65+r)+s; k=Math.floor((k-1)/26); } return s; };
 function erroConta(v){ if(v===""||v==null||numE(v)!=null) return null; const t=String(v); const ab=(t.match(/[(\[{]/g)||[]).length, fe=(t.match(/[)\]}]/g)||[]).length;
   return ab>fe?`falta fechar ${ab-fe} parêntese${ab-fe>1?"s":""}`:fe>ab?`sobra${fe-ab>1?"m":""} ${fe-ab} parêntese${fe-ab>1?"s":""} fechando`:"há um símbolo que o site não entende"; }
@@ -561,7 +569,7 @@ function textoElem(e){
   const a=dimTxt(e.a,A), b=dimTxt(e.b,B), c=dimTxt(e.c,C); let s;
   switch(F[3]){ case "direto": s=a; break; case "ret": s=NOMES[k]?NOMES[k][0]+" "+a+" × "+NOMES[k][1]+" "+b:a+" × "+b; break; case "tri": s=a+" × "+b+" ÷ 2"; break; case "trap": s="("+a+" + "+b+") ÷ 2 × "+c; break;
     case "cil": s=NOMES[k]?NOMES[k][0]+" "+a+" × "+NOMES[k][1]+" "+b+" × π "+fmt(PI,4):"π × "+a+" × "+b; break; case "circ": s="DN "+a+" × DN "+a+" × π "+fmt(PI,4)+" ÷ 4"; break; case "coroa": s="(DN "+a+"² − d "+b+"²) × π "+fmt(PI,4)+" ÷ 4"; break; case "raios": s="π × ("+a+"² − "+b+"²)"; break;
-    case "bit": s=a+" m × "+fmt(M2M[e.bit]||0,2)+" m²/m ("+(e.bit||"escolha")+")"; break; case "retoque": s="0,15 m²"; break;
+    case "bit": s=(k==="tubo"?"Ø "+(e.bit||"escolha o diâmetro")+" – C "+a+" m":(e.bit||"escolha o perfil")+" – "+a+" m")+" × "+fmt(M2M[e.bit]||0,2)+" m²/m"; break; case "retoque": s="0,15 m²"; break;
     case "diaria": s=`(${dBR(e.b)} − ${dBR(e.a)} + 1 dia)`; break;
     case "dias": s="1 dia"; break;
     case "horas": s=a+" h ÷ "+(B?b:fdim(JORNADA))+" h"; break; case "vret": s=a+" × "+b+" × "+c; break; case "vcil": s="π × "+a+"² ÷ 4 × "+c; break; case "vfaixa": s="π × "+a+" × "+b+" × "+c; break;
@@ -720,15 +728,15 @@ function descCurta(d){ let t=String(d||"").trim().replace(/^[–-]\s*/,"").repla
 
 function critTxt(l){ const et=etapasDe(l.item); return l.P.c+(et?"\nEtapas: "+et.map(([n,p])=>Math.round(p*100)+"% "+n).join("; ")+".":""); }
 /* ---------- Quadro dos anéis (tipo Costado) ---------- */
-const gradeOn = m => m.tipoMC==="costado"||m.tipoMC==="teto"||m.tipoMC==="estrutura";
-const quadroDe = m => m.tipoMC==="teto"?m.tetoQ:m.tipoMC==="estrutura"?m.escQ:m.aneis;
+const gradeOn = m => m.tipoMC==="costado"||m.tipoMC==="teto"||m.tipoMC==="estrutura"||m.tipoMC==="tubulacao";
+const quadroDe = m => m.tipoMC==="teto"?m.tetoQ:m.tipoMC==="estrutura"?m.escQ:m.tipoMC==="tubulacao"?m.tubQ:m.aneis;
 const demGrade = (m,l,i) => { const it=m.itens[i].item; if(!PPU[it]) return 0; let v=parseInt(l.d[i])||0; if(v<0) v=0; if(!usaDemao(it)) v=Math.min(v,1); return v; };
 const gradeUsada = m => gradeOn(m) && quadroDe(m).linhas.some(l=>m.itens.some((_,i)=>demGrade(m,l,i)>0));
 const itemNaGrade = (m,i) => gradeUsada(m) && quadroDe(m).linhas.some(l=>demGrade(m,l,i)>0);
 function geraGrade(m){
   if(!gradeOn(m)){ m.elems.forEach(e=>{ delete e.gen; }); return; } const g=quadroDe(m), teto=m.tipoMC==="teto"; const ger=[];
-  if(m.tipoMC==="estrutura"){ if(gradeUsada(m)) g.linhas.forEach(l=>{ const vs=m.itens.map((_,i)=>demGrade(m,l,i)); const mx=Math.max(0,...vs); const T=ESC_TIPOS[l.tipo];
-      for(let k=1;k<=mx;k++) T.fs.forEach(([f,suf])=>{ const e=Object.assign(novoElem(f),{desc:(l.desc||T.n)+suf+(k>1?` – ${k}ª demão`:""),a:l.a,b:f==="direto"?"":l.b,qtd:l.qtd||"1"}); e.fl=vs.map(v=>v>=k); e.gen=true; ger.push(e); }); }); }
+  if(m.tipoMC==="estrutura"||m.tipoMC==="tubulacao"){ const TT=m.tipoMC==="tubulacao"?TUB_TIPOS:ESC_TIPOS; if(gradeUsada(m)) g.linhas.forEach(l=>{ const vs=m.itens.map((_,i)=>demGrade(m,l,i)); const mx=Math.max(0,...vs); const T=TT[l.tipo];
+      for(let k=1;k<=mx;k++) T.fs.forEach(([f,suf])=>{ const e=Object.assign(novoElem(f),{desc:(l.desc||(T.nm&&T.nm(l))||T.n)+suf+(k>1?` – ${k}ª demão`:""),a:l.a,b:f==="direto"||T.bits?"":l.b,bit:T.bits?l.bit||"":"",qtd:l.qtd||"1"}); e.fl=vs.map(v=>v>=k); e.gen=true; ger.push(e); }); }); }
   else if(gradeUsada(m)) g.linhas.forEach(l=>{ const vs=m.itens.map((_,i)=>demGrade(m,l,i)); const mx=Math.max(0,...vs); const T=teto?TETO_TIPOS[l.tipo]:null;
     for(let k=1;k<=mx;k++){ const nome=(l.desc||(teto?T.n:l.tipo==="anel"?"Anel":"Área extra"))+(k>1?` – ${k}ª demão`:"");
       const e=teto ? Object.assign(novoElem(T.f),{desc:nome,a:l.a||(T.da?T.da(g):""),b:T.f==="circ"||T.f==="direto"?"":(l.b||(T.db?T.db(g):"")),qtd:l.qtd||"1"})
@@ -769,28 +777,31 @@ function htmlTeto(m){
     :`<p class="hint">Escolha os itens da PPU na seção 1 para montar a grade.</p>`}
   </div>`;
 }
-function htmlEsc(m){
-  const g=m.escQ, its=m.itens.map((it,i)=>[it,i]).filter(([it])=>PPU[it.item]);
+function htmlQ(m,C){
+  const g=C.Q, its=m.itens.map((it,i)=>[it,i]).filter(([it])=>PPU[it.item]);
   const inp=(id,attrs,val,ph,cls="num")=>`<input id="${id}" class="${cls}" ${attrs} inputmode="decimal" value="${esc(val)}" placeholder="${esc(ph)}">`;
   return `<div class="grade">
-    <div class="gh"><b>Quadro de escadas e plataformas</b> <small>Contrato, Anexo 1, f.4. Uma linha por peça: a escada gera sozinha a face superior (+10%) e a inferior (+30%); grelha × 3; guarda-corpo ÷ 2. Na grade, o nº de demãos (pintura) ou a caixinha (limpeza/tratamento).</small></div>
-    ${its.length?`<div class="tblw" style="margin-top:8px"><table><thead><tr><th>Peça</th><th>Tipo</th><th class="r">Medida 1</th><th class="r">Medida 2</th><th class="r">Qtd</th>${its.map(([it])=>`<th class="c">${esc(it.item)}<br><small>${usaDemao(it.item)?"nº de demãos":"marque"}</small></th>`).join("")}<th></th></tr></thead><tbody>
-    ${g.linhas.map((l,r)=>{ const TT=ESC_TIPOS[l.tipo];
-      return `<tr><td><input id="es${r}_desc" data-an="${r}" data-f="desc" value="${esc(l.desc)}" placeholder="${esc(TT.n)}" style="min-width:200px"></td>
-      <td><small>${esc(TT.n)}</small></td>
-      <td>${inp(`es${r}_a`,`data-an="${r}" data-f="a" title="${esc(TT.la)}"`,l.a,TT.la)}</td>
-      <td>${TT.lb?inp(`es${r}_b`,`data-an="${r}" data-f="b" title="${esc(TT.lb)}"`,l.b,TT.lb):'<span class="hint">—</span>'}</td>
-      <td>${inp(`es${r}_qtd`,`data-an="${r}" data-f="qtd"`,l.qtd,"1","sm num")}</td>
-      ${its.map(([it,i])=>`<td class="c">${usaDemao(it.item)?inp(`es${r}_d${i}`,`data-an="${r}" data-ad="${i}"`,l.d[i],"–","sm num"):`<input type="checkbox" id="es${r}_d${i}" data-an="${r}" data-ad="${i}" ${parseInt(l.d[i])>0?"checked":""} aria-label="Esta peça entra no item ${esc(it.item)}">`}</td>`).join("")}
+    <div class="gh"><b>${C.titulo}</b> <small>${C.sub}</small></div>
+    ${its.length?`<div class="tblw" style="margin-top:8px"><table><thead><tr><th>${C.peca}</th><th>Tipo</th>${C.bits?"<th>Diâmetro / perfil</th>":""}<th class="r">Medida 1</th><th class="r">Medida 2</th><th class="r">Qtd</th>${its.map(([it])=>`<th class="c">${esc(it.item)}<br><small>${usaDemao(it.item)?"nº de demãos":"marque"}</small></th>`).join("")}<th></th></tr></thead><tbody>
+    ${g.linhas.map((l,r)=>{ const TT=C.T[l.tipo]; const P=C.p;
+      return `<tr><td><input id="${P}${r}_desc" data-an="${r}" data-f="desc" value="${esc(l.desc)}" placeholder="${esc(TT.n)}" style="min-width:200px"></td>
+      <td><small>${esc(TT.n)}</small></td>${C.bits?`<td>${TT.bits?`<select id="${P}${r}_bit" data-an="${r}" data-f="bit"><option value="">escolha…</option>${(TT.bits==="tubo"?BIT_TUBO:BIT_PERFIL).map(b=>`<option ${b===l.bit?"selected":""}>${esc(b)}</option>`).join("")}</select>${l.bit?` <small class="hint">${fmt(M2M[l.bit]||0,2)} m²/m</small>`:""}`:'<span class="hint">—</span>'}</td>`:""}
+      <td>${inp(`${P}${r}_a`,`data-an="${r}" data-f="a" title="${esc(TT.la)}"`,l.a,TT.la)}</td>
+      <td>${TT.lb?inp(`${P}${r}_b`,`data-an="${r}" data-f="b" title="${esc(TT.lb)}"`,l.b,TT.lb):'<span class="hint">—</span>'}</td>
+      <td>${inp(`${P}${r}_qtd`,`data-an="${r}" data-f="qtd"`,l.qtd,"1","sm num")}</td>
+      ${its.map(([it,i])=>`<td class="c">${usaDemao(it.item)?inp(`${P}${r}_d${i}`,`data-an="${r}" data-ad="${i}"`,l.d[i],"–","sm num"):`<input type="checkbox" id="${P}${r}_d${i}" data-an="${r}" data-ad="${i}" ${parseInt(l.d[i])>0?"checked":""} aria-label="Esta peça entra no item ${esc(it.item)}">`}</td>`).join("")}
       <td><button class="ghost" data-del-an="${r}" aria-label="Remover peça">✕</button></td></tr>`; }).join("")}
     </tbody></table></div>
-    <div class="row" style="margin-top:8px"><span class="hint" style="margin:0">Incluir:</span>${Object.keys(ESC_TIPOS).map(k=>`<button data-esadd="${k}">+ ${esc(ESC_TIPOS[k].n)}</button>`).join("")}</div>
-    <p class="hint">Escada: C = comprimento inclinado, L = largura. Guarda-corpo circular: DN × π × altura ÷ 2. Quando uma peça tem 2 demãos num item, a 2ª demão vira linha própria na memória.</p>`
+    <div class="row" style="margin-top:8px"><span class="hint" style="margin:0">Incluir:</span>${Object.keys(C.T).map(k=>`<button data-${C.add}="${k}">+ ${esc(C.T[k].n)}</button>`).join("")}</div>
+    ${C.aviso?C.aviso(g):""}<p class="hint">${C.hint} Quando uma peça tem 2 demãos num item, a 2ª demão vira linha própria na memória.</p>`
     :`<p class="hint">Escolha os itens da PPU na seção 1 para montar a grade.</p>`}
   </div>`;
 }
+function htmlEsc(m){ return htmlQ(m,{Q:m.escQ,T:ESC_TIPOS,p:"es",add:"esadd",peca:"Peça",titulo:"Quadro de escadas e plataformas",sub:"Contrato, Anexo 1, f.4. Uma linha por peça: a escada gera sozinha a face superior (+10%) e a inferior (+30%); grelha × 3; guarda-corpo ÷ 2. Na grade, o nº de demãos (pintura) ou a caixinha (limpeza/tratamento).",hint:"Escada: C = comprimento inclinado, L = largura. Guarda-corpo circular: DN × π × altura ÷ 2."}); }
+function htmlTub(m){ return htmlQ(m,{Q:m.tubQ,T:TUB_TIPOS,p:"tb",add:"tbadd",bits:true,peca:"Linha / trecho",titulo:"Quadro de tubulação",sub:"Contrato, Anexo 1, f.2. Uma linha por diâmetro: escolha o diâmetro e digite o comprimento (pode ser a conta); o m²/m da tabela do contrato entra sozinho. Na grade, o nº de demãos (pintura) ou a caixinha (limpeza/tratamento).",hint:"Linha acima de 26\": DN (m) × π × comprimento (Anexo 1, f.1). Suporte: altura × m²/m do perfil × quantidade.",
+  aviso:g=>g.linhas.some(l=>l.tipo==="suporte")?'<div class="alert" style="margin-top:8px">⚠ Contrato, Anexo 1, f.2: o m²/m da tubulação já inclui "flanges, válvulas e demais acessórios usuais em tubulações, <b>inclusive suportes das linhas</b>". Suporte medido à parte pode ser glosado.</div>':""}); }
 function htmlGrade(m){
-  if(!gradeOn(m)) return ""; if(m.tipoMC==="teto") return htmlTeto(m); if(m.tipoMC==="estrutura") return htmlEsc(m); const g=m.aneis, D=numE(g.dn), H=numE(g.h), N=numE(g.n);
+  if(!gradeOn(m)) return ""; if(m.tipoMC==="teto") return htmlTeto(m); if(m.tipoMC==="estrutura") return htmlEsc(m); if(m.tipoMC==="tubulacao") return htmlTub(m); const g=m.aneis, D=numE(g.dn), H=numE(g.h), N=numE(g.n);
   const its=m.itens.map((it,i)=>[it,i]).filter(([it])=>PPU[it.item]);
   const tot=D&&H?PI*D*H:null;
   const inp=(id,attrs,val,ph,cls="num")=>`<input id="${id}" class="${cls}" ${attrs} inputmode="decimal" value="${esc(val)}" placeholder="${ph}">`;
@@ -1001,7 +1012,7 @@ ED.addEventListener("input",e=>{
 });
 ED.addEventListener("change",e=>{ if(e.target.id==="h_bm"){ renderEditor(); } });
 ED.addEventListener("click",async e=>{
-  const t=e.target.closest("button,[data-del-el],[data-del-lo],[data-del-ft],[data-del-an],[data-tqadd],[data-tqmod],[data-esadd]"); if(!t||!cur) return;
+  const t=e.target.closest("button,[data-del-el],[data-del-lo],[data-del-ft],[data-del-an],[data-tqadd],[data-tqmod],[data-esadd],[data-tbadd]"); if(!t||!cur) return;
   if(travada(cur) && !LIVRES.has(t.id)){ toast(cur.fin?"MC finalizada: desmarque para editar":"MC com pendência: remova a pendência para editar"); return; }
   if(t.dataset.delEl!=null){ cur.elems.splice(+t.dataset.delEl,1); if(!cur.elems.length) cur.elems.push(novoElem()); renderEditor(); salvar(); }
   else if(t.dataset.delLo!=null){ cur.etapa.lotes.splice(+t.dataset.delLo,1); if(!cur.etapa.lotes.length) cur.etapa.lotes.push(novoLote()); renderEtapas(); updateOut(); salvar(); }
@@ -1012,9 +1023,10 @@ ED.addEventListener("click",async e=>{
   else if(t.id==="bAddEl"){ const ult=cur.elems[cur.elems.length-1]; const n=novoElem(ult&&ult.tipo||tipoMC(cur).f[0]); if(ult) n.fl=[...ult.fl]; cur.elems.push(n); renderEditor(); document.getElementById(`e${cur.elems.length-1}_desc`)?.focus(); salvar(); }
   else if(t.id==="bAnAdd"||t.id==="bAnExtra"){ cur.aneis.linhas.push(novaLinhaAnel(t.id==="bAnAdd"?"anel":"extra")); const sy=window.scrollY; renderEditor(); window.scrollTo(0,sy); document.getElementById(`an${cur.aneis.linhas.length-1}_desc`)?.focus({preventScroll:true}); salvar(); }
   else if(t.dataset.esadd){ cur.escQ.linhas.push(novaLinhaTeto(t.dataset.esadd)); const sy=window.scrollY; renderEditor(); window.scrollTo(0,sy); document.getElementById(`es${cur.escQ.linhas.length-1}_desc`)?.focus({preventScroll:true}); salvar(); }
+  else if(t.dataset.tbadd){ cur.tubQ.linhas.push(novaLinhaTeto(t.dataset.tbadd)); const sy=window.scrollY; renderEditor(); window.scrollTo(0,sy); document.getElementById(`tb${cur.tubQ.linhas.length-1}_desc`)?.focus({preventScroll:true}); salvar(); }
   else if(t.dataset.tqadd){ cur.tetoQ.linhas.push(novaLinhaTeto(t.dataset.tqadd)); const sy=window.scrollY; renderEditor(); window.scrollTo(0,sy); salvar(); }
   else if(t.dataset.tqmod){ const usado=cur.tetoQ.linhas.some(l=>l.d.some(Boolean)||l.a||l.b); if(usado && !confirm("Trocar o modelo apaga as partes que você já preencheu na grade. Continuar?")) return; cur.tetoQ.linhas=TETO_MODELOS[t.dataset.tqmod].map(novaLinhaTeto); geraGrade(cur); const sy=window.scrollY; renderEditor(); window.scrollTo(0,sy); salvar(); }
-  else if(t.dataset.delAn!=null){ const Q=quadroDe(cur); Q.linhas.splice(+t.dataset.delAn,1); if(!Q.linhas.length) Q.linhas.push(cur.tipoMC==="teto"?novaLinhaTeto("lencol"):cur.tipoMC==="estrutura"?novaLinhaTeto("escada"):novaLinhaAnel("anel")); geraGrade(cur); const sy=window.scrollY; renderEditor(); window.scrollTo(0,sy); salvar(); }
+  else if(t.dataset.delAn!=null){ const Q=quadroDe(cur); Q.linhas.splice(+t.dataset.delAn,1); if(!Q.linhas.length) Q.linhas.push(cur.tipoMC==="teto"?novaLinhaTeto("lencol"):cur.tipoMC==="estrutura"?novaLinhaTeto("escada"):cur.tipoMC==="tubulacao"?novaLinhaTeto("linha"):novaLinhaAnel("anel")); geraGrade(cur); const sy=window.scrollY; renderEditor(); window.scrollTo(0,sy); salvar(); }
   else if(t.id==="bAddLo"){ cur.etapa.lotes.push(novoLote()); renderEtapas(); updateOut(); salvar(); }
   else if(t.id==="bXls"){ await baixar([cur], nomeArq(cur)); }
   else if(t.id==="bPdf"){ await baixarPDF([cur], nomeArq(cur).replace(/\.xlsx$/,".pdf")); }
