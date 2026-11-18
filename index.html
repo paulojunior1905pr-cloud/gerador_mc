@@ -353,7 +353,7 @@ input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:n
 </style>
 
 <header class="top">
-  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 17/11 17:16 (com logos)</span></div>
+  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 18/11 13:27 (com logos)</span></div>
   <div class="sp"></div>
   <span class="status" id="status">Conectando…</span>
   <label class="tema">Tema<select id="selTema"><option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
@@ -711,8 +711,13 @@ function linhaMem0(e,k,tp){
 function somaItens(m,c){
   const els=m.elems.map((e,k)=>({e,v:c.el[k]})).filter(x=>formaDe(x.e));
   return c.linhas.filter(Boolean).map(l=>{ const idx=[], vs=[]; els.forEach((x,j)=>{ if(x.e.fl[l.i]&&x.v!=null){ idx.push(rot(j)); vs.push(fmt(x.v,3)); } });
-    if(!vs.length) return null; return `Item ${l.item}: `+(vs.length>1?`cálculos ${idx.join(" + ")} = ${vs.join(" + ")} = `:`cálculo ${idx[0]} = `)+`${fmt(l.mem,3)} ${l.P.u}`+(l.dem>1?` × ${l.dem} demãos = ${fmt(l.prev,3)} ${l.P.u}`:""); }).filter(Boolean).join("\n");
+    if(!vs.length) return null;
+    const forms=els.map((x,j)=>x.e.fl[l.i]&&x.v!=null?`   ${rot(j)}${x.e.desc?" – "+x.e.desc:""}: ${textoElem(x.e).replace(/π (?=\d)/g,"")}`:null).filter(Boolean);
+    return `Item ${l.item}:\n`+forms.join("\n")+`\n   Total: `+(vs.length>1?`${idx.join(" + ")} = ${vs.join(" + ")} = `:`${idx[0]} = `)+`${fmt(l.mem,3)} ${l.P.u}`+(l.dem>1?` × ${l.dem} demãos = ${fmt(l.prev,3)} ${l.P.u}`:""); }).filter(Boolean).join("\n");
 }
+const ABREV=[[/\s*conforme norma PETROBRAS\s*/gi," "],[/com espessura de filme seco de/gi,"EFS"],[/\binclusive\b/gi,"incl."],[/\bSubstituição\b/g,"Subst."],[/\bsubstituição\b/g,"subst."],[/\bInstalação\b/g,"Inst."],[/\binstalação\b/g,"inst."],[/\bFabricação\b/g,"Fabr."],[/\bManutenção\b/g,"Manut."],[/\bsuperfície\b/g,"sup."],[/\bespessura\b/g,"esp."],[/\btanques\b/g,"tq."],[/\bRaqueteamento ou desraqueteamento\b/g,"(Des)raqueteamento"],[/\bacima que\b/g,"acima de"],[/\s+/g," "]];
+function descCurta(d){ let t=String(d||"").trim().replace(/^[–-]\s*/,"").replace(/[;,.]+$/,""); ABREV.forEach(([r,x])=>t=t.replace(r,x)); return t.trim(); }
+
 function critTxt(l){ const et=etapasDe(l.item); return l.P.c+(et?"\nEtapas: "+et.map(([n,p])=>Math.round(p*100)+"% "+n).join("; ")+".":""); }
 /* ---------- Quadro dos anéis (tipo Costado) ---------- */
 const gradeOn = m => m.tipoMC==="costado"||m.tipoMC==="teto"||m.tipoMC==="estrutura";
@@ -1145,7 +1150,7 @@ async function pdfMC(doc, m, VERT){
   // 3 quadro
   sec("MEDIÇÃO E AVANÇO POR ITEM");
   T({head:[["ITEM","DESCRIÇÃO","UNID.","QTD MEMÓRIA",tituloDemao(L.map(l=>l.item)).toUpperCase(),"PREVISTO","ACUM. ANTERIOR","MEDIDO NO BM","ACUMULADO","% ACUM.","SALDO","PREÇO APLIC.","VALOR NO BM (R$)"]],
-    body:L.map(l=>[{content:l.item,styles:{fontStyle:"bold",halign:"center"}},{content:pdfTxt(l.P.d),styles:{fontSize:FS-1}},l.P.u,fmt(l.mem,3),l.usaD?l.dem:{content:l.base,styles:{fontSize:FS-1,textColor:90}},fmt(l.prev,3),fmt(l.ant,3),{content:fmt(l.bm,3),styles:{fontStyle:"bold"}},fmt(l.acum,3),l.pa==null?"":fmt(l.pa*100,1)+"%",fmt(l.saldo,3),fmt(l.precoAp),{content:fmt(l.valor),styles:{fontStyle:"bold"}}]),
+    body:L.map(l=>[{content:l.item,styles:{fontStyle:"bold",halign:"center"}},{content:pdfTxt(descCurta(l.P.d)),styles:{fontSize:FS-1}},l.P.u,fmt(l.mem,3),l.usaD?l.dem:{content:l.base,styles:{fontSize:FS-1,textColor:90}},fmt(l.prev,3),fmt(l.ant,3),{content:fmt(l.bm,3),styles:{fontStyle:"bold"}},fmt(l.acum,3),l.pa==null?"":fmt(l.pa*100,1)+"%",fmt(l.saldo,3),fmt(l.precoAp),{content:fmt(l.valor),styles:{fontStyle:"bold"}}]),
     foot:[[{content:"TOTAL",colSpan:12,styles:{halign:"left"}},{content:fmt(c.total),styles:{halign:"right",fontSize:FS+1}}]],
     styles:{fontSize:FS-1.5,cellPadding:1},headStyles:Object.assign({},base.headStyles,{fontSize:HS-1}),columnStyles:{0:{cellWidth:10},1:{cellWidth:VERT?32:70},2:{cellWidth:9,halign:"center"},3:{halign:"right"},4:{cellWidth:15,halign:"center"},5:{halign:"right"},6:{halign:"right"},7:{halign:"right"},8:{halign:"right"},9:{halign:"center"},10:{halign:"right"},11:{halign:"right"},12:{cellWidth:VERT?19:24,halign:"right"}}});
   // 4 etapas
@@ -1302,7 +1307,7 @@ async function folhaMC(wb, nome, m){
   const ETR0 = QE+6; // linha do 1º lote (seção, item, cabeçalho)
   const ETT = ETR0+Math.max(lotes.length,1); // linha do total de etapas
   L.forEach((l,k)=>{ const rr=Q0+k, ri=row1[l.i], q=m.quadro[l.i];
-    put("A"+rr,k+1,{h:"center",b:1}); put("B"+rr,F(`B${ri}`,l.item),{h:"center",b:1}); put("C"+rr,l.P.d,{sz:7}); put("D"+rr,l.P.u,{h:"center"});
+    put("A"+rr,k+1,{h:"center",b:1}); put("B"+rr,F(`B${ri}`,l.item),{h:"center",b:1}); put("C"+rr,descCurta(l.P.d),{sz:8}); put("D"+rr,l.P.u,{h:"center"});
     put("E"+rr,F(memCell[l.i],l.mem),{h:"right",f:"#,##0.000"}); if(l.usaD) put("F"+rr,F(`P${ri}`,l.dem),{h:"center"}); else put("F"+rr,l.base,{h:"center",sz:8,i:1});
     put("G"+rr,F(l.usaD?`ROUND(E${rr}*F${rr},3)`:`ROUND(E${rr},3)`,l.prev),{m:"H"+rr,h:"right",f:"#,##0.000",b:1});
     if(l.isEt){ put("I"+rr,F(`M${ETT}-K${ETT}`,l.ant),{h:"right",f:"#,##0.000"}); put("J"+rr,F(`IF(G${rr}=0,0,K${rr}/G${rr})`,l.prev?l.bm/l.prev:0),{h:"center",f:"0.0%"}); put("K"+rr,F(`K${ETT}`,l.bm),{m:"L"+rr,h:"right",f:"#,##0.000",b:1}); }
