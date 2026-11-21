@@ -354,7 +354,7 @@ input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:n
 </style>
 
 <header class="top">
-  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 21/11 15:35 (com logos)</span></div>
+  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 21/11 15:49 (com logos)</span></div>
   <div class="sp"></div>
   <span class="status" id="status">Conectando…</span>
   <label class="tema">Tema<select id="selTema"><option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
@@ -455,7 +455,7 @@ const FORMAS = {
 const JORNADA=8.8;
 const TMC = {
   volume:{n:"Canaletas, diques e limpeza de tanque (volume m³)",d:"Limpeza de produto 1.2 / 1.3 (área do fundo × altura do produto) e limpeza de canaleta, dique e minidique 1.137.",f:["volCil","volRet","volFaixa","volDir"],lab:{a:"D / comprimento C (m)",b:"Largura L (m)",c:"Altura / profundidade h (m)",q:"Qtd"},modelo:[["Produto removido (área do fundo × altura)","volCil"],["Canaleta do dique","volRet"],["Canaleta do minidique (perímetro)","volFaixa"]]},
-  chapas:{n:"Chapas – substituição e sobreposição (m²)",d:"Chapas de teto, lençol, flutuador e costado contadas pela quantidade (C × L × nº de chapas). Use o Saldo do quadro para acompanhar o orçado.",f:["chapa","ret","direto"],lab:{a:"Comprimento (m)",b:"Largura (m)",q:"Nº de chapas"},modelo:[["Chapas","chapa"]]},
+  chapas:{rev:true,n:"Chapas – substituição e sobreposição (m²)",d:"Chapas de teto, lençol, flutuador e costado contadas pela quantidade (C × L × nº de chapas). Use o Saldo do quadro para acompanhar o orçado.",f:["chapa","ret","direto"],lab:{a:"Comprimento (m)",b:"Largura (m)",q:"Nº de chapas"},modelo:[["Chapa padrão 3/16\" (6,00 × 1,80 m)","chapa",{a:"6,00",b:"1,80"}]]},
   costado:{rev:true,n:"Costado – anéis do tanque (pintura m²)",d:"Pintura e tratamento dos anéis do costado. Anel inteiro: DN × altura do anel × π. Só uma parte do anel (remendos, pontos): Trecho do anel = comprimento × altura.",f:["anel","trecho","direto"],lab:{a:"DN ou comprimento (m)",b:"Altura do anel (m)",q:"Nº de anéis"},modelo:[["Anel do costado","anel"]]},
   diaria:{n:"Diárias de equipamentos e serviços",d:"PTA, gerador, bomba, guindaste (por período), topografia e caminhão vácuo (por horas ÷ jornada de 8,8 h).",f:["diaria","diasQ","horas"],lab:{a:"Início / horas",b:"Fim / jornada (h)",q:"Qtd de equipamentos"},modelo:[["","diaria"]]},
   estrutura:{rev:true,n:"Escadas, plataformas e guarda-corpos (pintura m²)",d:"Escada +10% (face superior) e +30% (face inferior), guarda-corpo C × h ÷ 2, grelha × 3.",f:["escSup","escInf","gcReto","gcCirc","grelha","platInf","piso","ret","perfil","direto"],lab:{a:"Comprimento ou DN (m)",b:"Largura ou altura (m)",bit:"Perfil",q:"Qtd"},modelo:[["Escada – face superior","escSup"],["Escada – face inferior","escInf"],["Corrimão / guarda-corpo","gcReto"],["Plataforma (grelha)","grelha"]]},
@@ -837,7 +837,7 @@ function htmlGrade(m){
 function memVazia(m){ return m.elems.every(e=>!e.desc && !e.a && !e.b && !e.c && !e.qtd); }
 function aplicaModelo(m){ const tp=tipoMC(m); if(!memVazia(m)) return;
   const comp=(f,it)=>{ const P=PPU[it]; if(!P) return false; const k=FORMAS[f][3], g=FORMAS[f][4]; if(g) return g==="m3"?P.u==="m³":g==="kg"?/^kg$/i.test(P.u):g==="dia"?P.u==="Diária":false; return k==="diaria"||k==="dias" ? P.u==="Diária" : k==="un" ? !["m²","m","Diária"].includes(P.u) : ["m²","m"].includes(P.u); };
-  m.elems=(tp.modelo.length?tp.modelo:[["",tp.f[0]]]).map(([d,f])=>Object.assign(novoElem(f),{desc:d,fl:m.itens.map(it=>comp(f,it.item))})); }
+  m.elems=(tp.modelo.length?tp.modelo:[["",tp.f[0]]]).map(([d,f,o])=>Object.assign(novoElem(f),o||{},{desc:d,fl:m.itens.map(it=>comp(f,it.item))})); }
 
 /* ---------- indicadores do topo e índice das seções ---------- */
 function kpis(){ const el=document.getElementById("kpis"); if(!el) return;
