@@ -357,7 +357,7 @@ input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:n
 </style>
 
 <header class="top">
-  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 21/11 17:23 (com logos)</span></div>
+  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 21/11 17:35 (com logos)</span></div>
   <div class="sp"></div>
   <span class="status" id="status">Conectando…</span>
   <label class="tema">Tema<select id="selTema"><option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
@@ -465,7 +465,7 @@ const TMC = {
   diaria:{rev:true,n:"Diárias de equipamentos e serviços",d:"PTA, gerador, bomba, guindaste (por período), topografia e caminhão vácuo (por horas ÷ jornada de 8,8 h).",f:["diaria","diasQ","horas"],lab:{a:"Início / horas / nº de dias",b:"Fim / jornada (h)",q:"Qtd de equipamentos"},modelo:[["","diaria"]]},
   estrutura:{rev:true,n:"Escadas, plataformas e guarda-corpos (pintura m²)",d:"Escada +10% (face superior) e +30% (face inferior), guarda-corpo C × h ÷ 2, grelha × 3.",f:["escSup","escInf","gcReto","gcCirc","grelha","platInf","piso","ret","perfil","direto"],lab:{a:"Comprimento ou DN (m)",b:"Largura ou altura (m)",bit:"Perfil",q:"Qtd"},modelo:[["Escada – face superior","escSup"],["Escada – face inferior","escInf"],["Corrimão / guarda-corpo","gcReto"],["Plataforma (grelha)","grelha"]]},
   peso:{n:"Estruturas por peso (kg)",d:"Item 1.76: escadas, plataformas, guarda-corpos, serpentina e ancoragem medidos em kg. Na coluna “Etapa cobrada” escolha a etapa (ex.: 60% · Remoção + Preparação e fabricação).",f:["pesoDir","pesoPerfil"],lab:{a:"Peso (kg) ou comprimento (m)",b:"kg/m do perfil",q:"Qtd de peças"},modelo:[["Peso conforme desenho / lista de material","pesoDir"]]},
-  geral:{n:"Geral – todas as formas",d:"Todas as formas de cálculo disponíveis.",f:Object.keys(FORMAS),lab:{a:"Dim. 1 (C / D / B)",b:"Dim. 2 (L / h / d)",c:"Dim. 3 (altura h)",bit:"Bitola / perfil",q:"Qtd"},modelo:[]},
+  geral:{rev:true,n:"Geral – todas as formas",d:"Todas as formas de cálculo disponíveis.",f:Object.keys(FORMAS),lab:{a:"Dim. 1 (C / D / B)",b:"Dim. 2 (L / h / d)",c:"Dim. 3 (altura h)",bit:"Bitola / perfil",q:"Qtd"},modelo:[]},
   isolamento:{rev:true,n:"Isolamento térmico (volume m³)",d:"Itens 1.87, 1.88 e 1.89: teto = π × D² ÷ 4 × espessura; costado = π × DN × altura × espessura; trechos retos = C × L × espessura. Na coluna “Etapa cobrada” escolha 30% · Remoção ou 70% · Instalação.",f:["volCil","volFaixa","volRet","volDir"],lab:{a:"DN do tanque / comprimento (m)",b:"Altura do costado / largura (m)",c:"Espessura (m)",q:"Qtd"},modelo:[["Isolamento do teto (π × D² ÷ 4 × espessura)","volCil"],["Isolamento do costado (π × DN × altura × espessura)","volFaixa"]]},
   civil:{rev:true,n:"Rota de fuga, minidique, muros e muretas",d:"Faixas no perímetro do tanque (π × D × largura), acessos e paredes. Na largura dá para somar: 0,4+2,15+0,4.",f:["faixa","ret","raios","trap","tri","cil","direto"],lab:{a:"C / D / B (m)",b:"Largura / d / b (m)",c:"Altura h (m)",q:"Qtd"},modelo:[["Rota de fuga no perímetro do tanque","faixa"],["Acesso à rota de fuga","ret"],["Parede interna","faixa"],["Parede externa","faixa"],["Faixa amarela","faixa"]]},
   teto:{rev:true,n:"Teto, fundo, lençol e contraventamento",d:"Círculo (π × D² ÷ 4), coroa entre dois diâmetros (flutuador = teto − lençol) e face inferior +30%.",f:["circ","coroa","coroaInf","coroaSup","rim","ret","direto","cil"],lab:{a:"Diâmetro D (m)",b:"Diâmetro interno d / altura (m)",q:"Qtd"},modelo:[["Teto / fundo (círculo)","circ"],["Flutuador (coroa: teto − lençol)","coroa"],["Contraventamento – face inferior","coroaInf"]]},
@@ -715,7 +715,7 @@ function linhaMem0(e,k,tp){
     return `<td><input id="e${k}_${c}" class="num" data-el="${k}" data-f="${c}" inputmode="decimal" value="${esc(e[c])}"></td>`; };
   return `<tr><td class="c"><b>${rot(k)}</b></td>
       <td><input id="e${k}_desc" data-el="${k}" data-f="desc" value="${esc(e.desc)}" style="min-width:200px"></td>
-      <td><select id="e${k}_tipo" data-el="${k}" data-f="tipo" style="min-width:220px">${'<option value="">—</option>'+lista.sort((x,y)=>FORMAS[x][0].localeCompare(FORMAS[y][0],"pt")).map(f=>opt(f,FORMAS[f][0],e.tipo)).join("")}</select></td>
+      <td><select id="e${k}_tipo" data-el="${k}" data-f="tipo" style="min-width:220px">${'<option value="">—</option>'+opcoesFormas(lista,e.tipo)}</select></td>
       ${colsMem(tp).map(cel).join("")}
       <td><input id="e${k}_q" class="sm num" data-el="${k}" data-f="qtd" inputmode="decimal" value="${esc(e.qtd)}" placeholder="1"></td>
       <td><input id="e${k}_p" class="sm num" data-el="${k}" data-f="pct" inputmode="decimal" value="${esc(e.pct)}" placeholder="100"></td>
@@ -854,6 +854,12 @@ function limparSecao(s){ const L=LIMPA[s]; if(!L||!cur) return; if(!confirm(L.q)
   L.f(alvo); salvar(); renderEditor();
   toast(L.ok,{label:"Desfazer",ms:10000,fn:()=>{ if(cur!==alvo){ toast("Abra a mesma MC para desfazer."); return; } Object.assign(alvo,antes); salvar(); renderEditor(); toast("Desfeito."); },
     fim:fotosAntes&&fotosAntes.length?()=>apagaOrfas(fotosAntes):null}); }
+/* lista de formas: no tipo Geral (lista longa) sai agrupada por unidade */
+const GRUPOS_F=["Área (m²)","Volume (m³)","Peso (kg)","Unidade","Diárias"];
+const grupoForma=k=>{ const F=FORMAS[k]; return F[4]==="m3"?"Volume (m³)":F[4]==="kg"?"Peso (kg)":F[3]==="un"?"Unidade":/^(diaria|dias|horas)$/.test(F[3])?"Diárias":"Área (m²)"; };
+function opcoesFormas(lista,sel){ const ord=lista.slice().sort((x,y)=>FORMAS[x][0].localeCompare(FORMAS[y][0],"pt"));
+  if(ord.length<=10) return ord.map(f=>opt(f,FORMAS[f][0],sel)).join("");
+  return GRUPOS_F.map(g=>{ const fs=ord.filter(f=>grupoForma(f)===g); return fs.length?`<optgroup label="${g}">`+fs.map(f=>opt(f,FORMAS[f][0],sel)).join("")+"</optgroup>":""; }).join(""); }
 function memVazia(m){ return m.elems.every(e=>!e.desc && !e.a && !e.b && !e.c && !e.qtd); }
 function aplicaModelo(m){ const tp=tipoMC(m); if(!memVazia(m)) return;
   const comp=(f,it)=>{ const P=PPU[it]; if(!P) return false; const k=FORMAS[f][3], g=FORMAS[f][4]; if(g) return g==="m3"?P.u==="m³":g==="kg"?/^kg$/i.test(P.u):g==="dia"?P.u==="Diária":false; return k==="diaria"||k==="dias" ? P.u==="Diária" : k==="un" ? !["m²","m","Diária"].includes(P.u) : ["m²","m"].includes(P.u); };
