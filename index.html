@@ -192,6 +192,9 @@ main{display:flex;flex-direction:column;gap:14px;min-width:0}
 section.blk{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;min-width:0}
 .blk h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;margin:0 0 10px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
 .blk h2 .num{font-family:var(--f-mono);color:var(--accent)}
+.blk h2 .limpar{margin-left:auto;align-self:center;min-height:0;font-size:11px;font-weight:500;text-transform:none;letter-spacing:0;padding:3px 10px;border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:6px;cursor:pointer}
+.blk h2 .limpar:hover:not(:disabled){color:var(--bad);border-color:var(--bad)}
+.toast button{margin-left:12px;background:transparent;border:1px solid currentColor;color:inherit;border-radius:6px;padding:2px 10px;font-weight:600;cursor:pointer}
 .blk h2 small{font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);font-size:12px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
 label.f{display:flex;flex-direction:column;gap:3px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);min-width:0}
@@ -354,7 +357,7 @@ input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:n
 </style>
 
 <header class="top">
-  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 21/11 15:49 (com logos)</span></div>
+  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 21/11 15:59 (com logos)</span></div>
   <div class="sp"></div>
   <span class="status" id="status">Conectando…</span>
   <label class="tema">Tema<select id="selTema"><option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
@@ -407,7 +410,9 @@ const pctf = x => x==null||!isFinite(x) ? "" : fmt(x*100,1)+"%";
 function periodo(bm){ const a=new Date(2024,10+bm-1,26), b=new Date(2024,10+bm,25); return [a,b]; }
 const dbr = d => d.toLocaleDateString("pt-BR");
 const itNum = it => { const m=/^1\.(\d+)$/.exec(it||""); return m?+m[1]:0; };
-let toastT; function toast(m){ const t=$("#toast"); t.textContent=m; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true,3500); }
+let toastT, toastFim=null; function toast(m,acao){ const t=$("#toast"); if(toastFim){ const f=toastFim; toastFim=null; f(); } t.textContent=m; t.hidden=false; clearTimeout(toastT);
+  if(acao){ const b=document.createElement("button"); b.type="button"; b.textContent=acao.label; b.onclick=()=>{ toastFim=null; clearTimeout(toastT); t.hidden=true; acao.fn(); }; t.appendChild(b); toastFim=acao.fim||null; }
+  toastT=setTimeout(()=>{ t.hidden=true; if(toastFim){ const f=toastFim; toastFim=null; f(); } },acao?(acao.ms||8000):3500); }
 
 /* ---------- tipos de MC e formas de cálculo ---------- */
 const TUBOS = BITOLAS.filter(b=>!/Viga|Cantoneira/.test(b[0]));
@@ -834,6 +839,19 @@ function htmlGrade(m){
     :`<p class="hint">Escolha os itens da PPU na seção 1 para montar a grade.</p>`}
   </div>`;
 }
+/* botão Limpar de cada seção: confirma, apaga só a seção e oferece Desfazer */
+const LIMPA={
+  mem:{q:"Apagar as linhas da memória de cálculo, o quadro e a OBS. da memória? O tipo de MC e os itens continuam.",ok:"Memória de cálculo limpa.",ks:["elems","aneis","tetoQ","escQ","tubQ","obsMem"],
+    f:m=>{ m.elems=[novoElem()]; m.aneis=novaGrade(); m.tetoQ=novoTeto("completo"); m.escQ={linhas:[novaLinhaTeto("escada")]}; m.tubQ={linhas:[novaLinhaTeto("linha")]}; m.obsMem=""; aplicaModelo(m); geraGrade(m); }},
+  med:{q:"Apagar o acumulado anterior, os % e as quantidades digitadas na medição?",ok:"Medição limpa.",ks:["quadro"],f:m=>{ m.quadro=m.quadro.map(()=>({ant:"",pct:"",man:""})); }},
+  et:{q:"Apagar o acompanhamento por etapas (item e lotes)?",ok:"Etapas limpas.",ks:["etapa"],f:m=>{ m.etapa={item:"",lotes:[novoLote(),novoLote()]}; }},
+  obs:{q:"Apagar os desenhos de referência e observações?",ok:"Observações limpas.",ks:["obs"],f:m=>{ m.obs=""; }},
+  fotos:{q:"Remover todas as fotos desta MC?",ok:"Fotos removidas.",ks:["fotos"],f:m=>{ m.fotos=[]; }}};
+function limparSecao(s){ const L=LIMPA[s]; if(!L||!cur) return; if(!confirm(L.q)) return;
+  const alvo=cur, antes={}; L.ks.forEach(k=>antes[k]=alvo[k]); const fotosAntes=s==="fotos"?(alvo.fotos||[]).slice():null;
+  L.f(alvo); salvar(); renderEditor();
+  toast(L.ok,{label:"Desfazer",ms:10000,fn:()=>{ if(cur!==alvo){ toast("Abra a mesma MC para desfazer."); return; } Object.assign(alvo,antes); salvar(); renderEditor(); toast("Desfeito."); },
+    fim:fotosAntes&&fotosAntes.length?()=>apagaOrfas(fotosAntes):null}); }
 function memVazia(m){ return m.elems.every(e=>!e.desc && !e.a && !e.b && !e.c && !e.qtd); }
 function aplicaModelo(m){ const tp=tipoMC(m); if(!memVazia(m)) return;
   const comp=(f,it)=>{ const P=PPU[it]; if(!P) return false; const k=FORMAS[f][3], g=FORMAS[f][4]; if(g) return g==="m3"?P.u==="m³":g==="kg"?/^kg$/i.test(P.u):g==="dia"?P.u==="Diária":false; return k==="diaria"||k==="dias" ? P.u==="Diária" : k==="un" ? !["m²","m","Diária"].includes(P.u) : ["m²","m"].includes(P.u); };
@@ -848,7 +866,7 @@ function kpis(){ const el=document.getElementById("kpis"); if(!el) return;
 function navSecoes(){ const nav=document.getElementById("secnav"); if(!nav) return;
   const secs=[...document.querySelectorAll("#ed section.blk")].filter(s=>s.querySelector("h2 .num")&&!s.hidden&&s.style.display!=="none");
   if(!secs.length){ nav.innerHTML='<div class="tt">Seções da MC</div><div class="vazio">Abra ou crie uma MC.</div>'; return; }
-  nav.innerHTML='<div class="tt">Seções da MC</div>'+secs.map((s,i)=>{ s.id="sec"+i; const h=s.querySelector("h2").cloneNode(true); const n=h.querySelector(".num").textContent; h.querySelectorAll(".num,small").forEach(x=>x.remove());
+  nav.innerHTML='<div class="tt">Seções da MC</div>'+secs.map((s,i)=>{ s.id="sec"+i; const h=s.querySelector("h2").cloneNode(true); const n=h.querySelector(".num").textContent; h.querySelectorAll(".num,small,.limpar").forEach(x=>x.remove());
     let t=h.textContent.trim().replace(/^Medição e avanço por item$/,"Medição e avanço").replace(/^Desenhos de referência e observações$/,"Desenhos e obs.").replace(/^Registro fotográfico$/,"Fotos").replace(/^Medição por etapas$/,"Etapas");
     return `<a href="#sec${i}" data-sec="${i}"><i>${esc(n)}</i>${esc(t)}</a>`; }).join("");
   marcaSecao(); }
@@ -896,7 +914,7 @@ function renderEditor(){
     <div class="crit" id="o_crit" style="margin-top:10px"></div>
   </section>
 
-  <section class="blk"><h2><span class="num">2</span> Memória de cálculo <small>${esc(tp.n)}. Uma linha por elemento; marque os itens a que a área se aplica.</small></h2>
+  <section class="blk"><h2><span class="num">2</span> Memória de cálculo <small>${esc(tp.n)}. Uma linha por elemento; marque os itens a que a área se aplica.</small><button type="button" class="limpar" data-limpar="mem" title="Apaga só o que foi preenchido nesta seção">Limpar</button></h2>
     ${htmlGrade(m)}
     <div class="tblw"><table><thead><tr><th>Nº</th><th>Descrição / origem da medida</th><th>Forma de cálculo</th>${colsMem(tp).map(([k,l])=>`<th class="${k==="bit"?"":"r"}">${esc(l)}</th>`).join("")}<th class="r">${esc(tp.lab.q||"Qtd")}</th><th class="r">% consid.</th>${etOpcoes(m).length?`<th>Etapa cobrada (critério)</th>`:""}
       ${m.itens.map((it,i)=>`<th class="c" id="o_fh${i}">${esc(it.item||"Item "+(i+1))}</th>`).join("")}<th class="r">Resultado</th><th>Cálculo</th><th></th></tr></thead><tbody>
@@ -906,7 +924,7 @@ function renderEditor(){
     <label class="f" style="margin-top:10px">OBS. da memória de cálculo <small>(informação adicional do cálculo; sai no PDF e no Excel logo abaixo da memória)</small><textarea id="obsMem" data-k="obsMem" placeholder="Ex.: área dos anéis considerada igual (altura total ÷ 6). ZTAs conforme levantamento de campo.">${esc(m.obsMem)}</textarea></label>
   </section>
 
-  <section class="blk"><h2><span class="num">3</span> Medição e avanço por item <small>${m.modoAv==="acum"?"Digite o acumulado até o BM anterior e o % acumulado até este BM (avanço total). O site calcula este BM = previsto × % acumulado − anterior.":"Digite o acumulado até o BM anterior e o % (ou a quantidade) só deste BM."}</small></h2>
+  <section class="blk"><h2><span class="num">3</span> Medição e avanço por item <small>${m.modoAv==="acum"?"Digite o acumulado até o BM anterior e o % acumulado até este BM (avanço total). O site calcula este BM = previsto × % acumulado − anterior.":"Digite o acumulado até o BM anterior e o % (ou a quantidade) só deste BM."}</small><button type="button" class="limpar" data-limpar="med" title="Apaga só o que foi preenchido nesta seção">Limpar</button></h2>
     <div class="grid" style="max-width:520px;margin-bottom:8px"><label class="f">Como informar o avanço<select id="h_modo" data-k="modoAv">${opt("acum","% acumulado até este BM (avanço total)",m.modoAv)}${opt("bm","% só deste BM",m.modoAv)}</select></label></div>
     <div class="tblw"><table><thead><tr><th>Item</th><th class="r">Qtd memória</th><th class="c">${tituloDemao(m.itens.map(x=>x.item))}</th><th class="r">Previsto</th><th class="r">Acum. anterior</th><th class="r">${m.modoAv==="acum"?"% acumulado":"% no BM"}</th><th class="r">Qtd no BM (opcional)</th><th class="r">Medido no BM</th><th class="r">Acumulado</th><th class="r">% acum.</th><th class="r">Saldo</th><th class="r">Valor no BM</th></tr></thead><tbody>
     ${m.quadro.map((q,i)=>`<tr id="qr${i}"><td><span class="out" id="o_qi${i}"></span></td><td class="r"><span class="out" id="o_qm${i}"></span></td><td class="c"><span class="out" id="o_qd${i}"></span></td><td class="r"><span class="out" id="o_qp${i}"></span></td>
@@ -917,16 +935,16 @@ function renderEditor(){
     </tbody><tfoot><tr><td colspan="11"><b>TOTAL</b></td><td class="r"><span class="out" id="o_qt"></span></td></tr></tfoot></table></div>
   </section>
 
-  <section class="blk"><h2><span class="num">4</span> Acompanhamento por etapas e BMs (opcional) <small>Alternativa à coluna "Etapa cobrada": registra, por lote, o BM em que cada etapa foi concluída (ou N/A).</small></h2>
+  <section class="blk"><h2><span class="num">4</span> Acompanhamento por etapas e BMs (opcional) <small>Alternativa à coluna "Etapa cobrada": registra, por lote, o BM em que cada etapa foi concluída (ou N/A).</small><button type="button" class="limpar" data-limpar="et" title="Apaga só o que foi preenchido nesta seção">Limpar</button></h2>
     <div class="grid" style="max-width:520px"><label class="f">Item com etapas<select id="et_item" data-k2="item"><option value="">— nenhum —</option>${Object.keys(DATA.etapas).map(it=>opt(it,it+" · "+PPU[it].d.slice(0,50),m.etapa.item)).join("")}</select></label></div>
     <div id="et_box"></div>
   </section>
 
-  <section class="blk"><h2><span class="num">5</span> Desenhos de referência e observações</h2>
+  <section class="blk"><h2><span class="num">5</span> Desenhos de referência e observações<button type="button" class="limpar" data-limpar="obs" title="Apaga só o que foi preenchido nesta seção">Limpar</button></h2>
     <textarea id="obs" data-k="obs" placeholder="DE-5290.00-6312-511-DEI-011 …">${esc(m.obs)}</textarea>
   </section>
 
-  <section class="blk"><h2><span class="num">6</span> Registro fotográfico <small>As fotos entram na planilha da MC.</small></h2>
+  <section class="blk"><h2><span class="num">6</span> Registro fotográfico <small>As fotos entram na planilha da MC.</small><button type="button" class="limpar" data-limpar="fotos" title="Apaga só o que foi preenchido nesta seção">Limpar</button></h2>
     <div class="drop" id="drop"><p style="margin:0 0 8px">Arraste as fotos aqui ou</p><label class="btn" style="display:inline-block"><input type="file" id="fFoto" accept="image/*" multiple class="vh">Escolher fotos</label><p class="hint" id="fotoMsg"></p></div>
     <div class="photos" id="photos" style="margin-top:10px"></div>
   </section>
@@ -1031,6 +1049,7 @@ ED.addEventListener("click",async e=>{
     cur.itens[i]={item:"",metodo:"",demaos:""}; cur.quadro[i]={ant:"",pct:"",man:""}; cur.elems.forEach(e=>{ if(e.fl) e.fl[i]=false; });
     renderEditor(); salvar(); toast(`Item ${cod} retirado da MC`); }
   else if(t.dataset.delFt!=null){ const [f]=cur.fotos.splice(+t.dataset.delFt,1); renderFotos(); salvar(); apagaOrfas(f?[f]:[]); }
+  else if(t.dataset.limpar){ limparSecao(t.dataset.limpar); }
   else if(t.id==="bAddEl"){ const ult=cur.elems[cur.elems.length-1]; const n=novoElem(ult&&ult.tipo||tipoMC(cur).f[0]); if(ult) n.fl=[...ult.fl]; cur.elems.push(n); renderEditor(); document.getElementById(`e${cur.elems.length-1}_desc`)?.focus(); salvar(); }
   else if(t.id==="bAnAdd"||t.id==="bAnExtra"){ cur.aneis.linhas.push(novaLinhaAnel(t.id==="bAnAdd"?"anel":"extra")); const sy=window.scrollY; renderEditor(); window.scrollTo(0,sy); document.getElementById(`an${cur.aneis.linhas.length-1}_desc`)?.focus({preventScroll:true}); salvar(); }
   else if(t.dataset.esadd){ cur.escQ.linhas.push(novaLinhaTeto(t.dataset.esadd)); const sy=window.scrollY; renderEditor(); window.scrollTo(0,sy); document.getElementById(`es${cur.escQ.linhas.length-1}_desc`)?.focus({preventScroll:true}); salvar(); }
