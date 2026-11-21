@@ -357,7 +357,7 @@ input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:n
 </style>
 
 <header class="top">
-  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 21/11 16:11 (com logos)</span></div>
+  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 21/11 16:13 (com logos)</span></div>
   <div class="sp"></div>
   <span class="status" id="status">Conectando…</span>
   <label class="tema">Tema<select id="selTema"><option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
@@ -459,7 +459,7 @@ const FORMAS = {
 };
 const JORNADA=8.8;
 const TMC = {
-  volume:{n:"Canaletas, diques e limpeza de tanque (volume m³)",d:"Limpeza de produto 1.2 / 1.3 (área do fundo × altura do produto) e limpeza de canaleta, dique e minidique 1.137.",f:["volCil","volRet","volFaixa","volDir"],lab:{a:"D / comprimento C (m)",b:"Largura L (m)",c:"Altura / profundidade h (m)",q:"Qtd"},modelo:[["Produto removido (área do fundo × altura)","volCil"],["Canaleta do dique","volRet"],["Canaleta do minidique (perímetro)","volFaixa"]]},
+  volume:{rev:true,n:"Canaletas, diques e limpeza de tanque (volume m³)",d:"Limpeza de produto 1.2 / 1.3 (área do fundo × altura do produto) e limpeza de canaleta, dique e minidique 1.137.",f:["volCil","volRet","volFaixa","volDir"],lab:{a:"D / comprimento C (m)",b:"Largura L (m)",c:"Altura / profundidade h (m)",q:"Qtd"},modelo:[["Produto removido (área do fundo × altura)","volCil"],["Canaleta do dique","volRet"],["Canaleta do minidique (perímetro)","volFaixa"]]},
   chapas:{rev:true,n:"Chapas – substituição e sobreposição (m²)",d:"Chapas de teto, lençol, flutuador e costado contadas pela quantidade (C × L × nº de chapas). Use o Saldo do quadro para acompanhar o orçado.",f:["chapa","ret","direto"],lab:{a:"Comprimento (m)",b:"Largura (m)",q:"Nº de chapas"},modelo:[["Chapa padrão 3/16\" (6,00 × 1,80 m)","chapa",{a:"6,00",b:"1,80"}]]},
   costado:{rev:true,n:"Costado – anéis do tanque (pintura m²)",d:"Pintura e tratamento dos anéis do costado. Anel inteiro: DN × altura do anel × π. Só uma parte do anel (remendos, pontos): Trecho do anel = comprimento × altura.",f:["anel","trecho","direto"],lab:{a:"DN ou comprimento (m)",b:"Altura do anel (m)",q:"Nº de anéis"},modelo:[["Anel do costado","anel"]]},
   diaria:{n:"Diárias de equipamentos e serviços",d:"PTA, gerador, bomba, guindaste (por período), topografia e caminhão vácuo (por horas ÷ jornada de 8,8 h).",f:["diaria","diasQ","horas"],lab:{a:"Início / horas",b:"Fim / jornada (h)",q:"Qtd de equipamentos"},modelo:[["","diaria"]]},
