@@ -354,6 +354,12 @@ input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:n
   .kpis,.wrap{margin-left:0}.kpis{padding:16px 16px 0;gap:10px}.wrap{padding:16px}
   .kpi{padding:10px 12px;gap:10px}.kpi .ic{width:34px;height:34px;font-size:13px}.kpi b{font-size:15px}.kpi small{font-size:10.5px}
 }
+.dlrow{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.dlrow small{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-right:4px}
+.dlrow button{position:relative;width:38px;height:34px;min-height:0;padding:0;font-size:17px;line-height:1;display:flex;align-items:center;justify-content:center;flex:none}
+.dlrow button::after{content:attr(data-tip);position:absolute;top:calc(100% + 6px);left:50%;transform:translateX(-50%);background:#14212e;color:#fff;font-size:12px;font-weight:400;padding:4px 8px;border-radius:6px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .12s;z-index:20}
+.dlrow button:hover::after,.dlrow button:focus-visible::after{opacity:1}
+.dlrow button:last-child::after{left:auto;right:0;transform:none}
 .dlgov{position:fixed;inset:0;background:rgba(8,16,26,.55);display:flex;align-items:flex-start;justify-content:center;z-index:60;padding:40px 16px;overflow:auto}
 .dlgov[hidden]{display:none}
 .dlg{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);width:min(560px,100%);padding:18px 20px;display:flex;flex-direction:column;gap:12px}
@@ -372,7 +378,7 @@ input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:n
 </style>
 
 <header class="top">
-  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 25/11 14:21 (com logos)</span></div>
+  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 25/11 14:35 (com logos)</span></div>
   <div class="sp"></div>
   <span class="status" id="status">Conectando…</span>
   <label class="tema">Tema<select id="selTema"><option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
@@ -388,10 +394,12 @@ input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:n
     </div>
     <div class="mclist" id="list"><div class="empty">Carregando as MCs salvas…</div></div>
     <label class="f oriw">Página do Excel<select class="selOri"><option value="portrait">Vertical (em pé)</option><option value="landscape">Horizontal (deitada)</option></select></label>
-    <button id="bBM">Baixar todas as MCs deste BM (.xlsx)</button>
-    <button id="bBMpdf">Baixar todas as MCs deste BM (PDF)</button>
-    <button id="bCtrl">Baixar controle da medição (.xlsx)</button>
-    <button id="bImgTq">Imagem dos itens de um tanque (PNG)</button>
+    <div class="dlrow"><small>Baixar</small>
+      <button type="button" id="bBM" data-tip="Todas as MCs deste BM (.xlsx)" aria-label="Baixar todas as MCs deste BM em Excel">📊</button>
+      <button type="button" id="bBMpdf" data-tip="Todas as MCs deste BM (PDF)" aria-label="Baixar todas as MCs deste BM em PDF">📄</button>
+      <button type="button" id="bCtrl" data-tip="Controle da medição (.xlsx)" aria-label="Baixar o controle da medição">🧾</button>
+      <button type="button" id="bImgTq" data-tip="Imagem dos itens de um tanque" aria-label="Imagem dos itens de um tanque">🖼</button>
+    </div>
     <p class="hint">Cada MC vira uma aba, com fórmulas e fotos, no padrão do contrato.</p>
   </aside>
   <main id="ed"></main>
