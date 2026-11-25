@@ -354,10 +354,25 @@ input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:n
   .kpis,.wrap{margin-left:0}.kpis{padding:16px 16px 0;gap:10px}.wrap{padding:16px}
   .kpi{padding:10px 12px;gap:10px}.kpi .ic{width:34px;height:34px;font-size:13px}.kpi b{font-size:15px}.kpi small{font-size:10.5px}
 }
+.dlgov{position:fixed;inset:0;background:rgba(8,16,26,.55);display:flex;align-items:flex-start;justify-content:center;z-index:60;padding:40px 16px;overflow:auto}
+.dlgov[hidden]{display:none}
+.dlg{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);width:min(560px,100%);padding:18px 20px;display:flex;flex-direction:column;gap:12px}
+.dlg.larga{width:min(1000px,100%)}
+.dlg h3{margin:0;font-size:17px}
+.dlg p{margin:0;font-size:13px;color:var(--muted)}
+.dlg .lin{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.dlg .lin label.f{flex:1 1 160px}
+.dlg .acts{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.dlg .chk{display:flex;gap:8px;align-items:center;justify-content:flex-start;font-size:13px;color:var(--ink);align-self:flex-start;cursor:pointer}
+.dlg .chk input{width:auto;flex:none;margin:0;min-height:0}
+.dlg .resumo{font-size:13px;background:var(--chip);border-radius:8px;padding:8px 10px;line-height:1.5}
+.dlg .resumo b{color:var(--ink)}
+.dlg .prev{border:1px solid var(--line);border-radius:8px;overflow:auto;max-height:60vh;background:#fff}
+.dlg .prev img{display:block;max-width:100%;height:auto}
 </style>
 
 <header class="top">
-  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 21/11 17:35 (com logos)</span></div>
+  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 25/11 13:43 (com logos)</span></div>
   <div class="sp"></div>
   <span class="status" id="status">Conectando…</span>
   <label class="tema">Tema<select id="selTema"><option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
@@ -375,6 +390,8 @@ input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:n
     <label class="f oriw">Página do Excel<select class="selOri"><option value="portrait">Vertical (em pé)</option><option value="landscape">Horizontal (deitada)</option></select></label>
     <button id="bBM">Baixar todas as MCs deste BM (.xlsx)</button>
     <button id="bBMpdf">Baixar todas as MCs deste BM (PDF)</button>
+    <button id="bCtrl">Baixar controle da medição (.xlsx)</button>
+    <button id="bImgTq">Imagem dos itens de um tanque (PNG)</button>
     <p class="hint">Cada MC vira uma aba, com fórmulas e fotos, no padrão do contrato.</p>
   </aside>
   <main id="ed"></main>
@@ -1136,6 +1153,197 @@ $("#bBMpdf").addEventListener("click",()=>{ const ids=idsFiltrados(); if(!ids.le
   baixarPDF(ids.map(id=>MCS[id]), `MCs_BM-${String(filtroBM??"todos").padStart(3,"0")}_TANQUES.pdf`); });
 $("#bBM").addEventListener("click",()=>{ const ids=idsFiltrados(); if(!ids.length){ toast("Nenhuma MC neste BM."); return; }
   baixar(ids.map(id=>MCS[id]), `MCs_BM-${String(filtroBM??"todos").padStart(3,"0")}_TANQUES.xlsx`); });
+/* ---------- controle da medição (planilha) e imagem dos itens por tanque ---------- */
+const bmTxt = b => "BM-"+String(b).padStart(3,"0");
+const tagDe = m => tagTanque(m.tanque) || String(m.tanque||"").trim().toUpperCase();
+const roDe = m => { const s=String(m.ro||"").trim().toUpperCase().replace(/\s+/g,""); if(!s) return "SEM RO"; const d=/^(?:RO)?-?(\d+)$/.exec(s); return d?"RO-"+d[1]:s; };
+const mcTxt = m => { const s=String(m.mc||"").trim().toUpperCase(); const d=/^(?:MC)?\s*-?\s*(\d+)$/.exec(s); return d?"MC-"+d[1].padStart(3,"0"):(s||"MC SEM Nº"); };
+const ordemMC = (a,b) => mcTxt(a).localeCompare(mcTxt(b),"pt-BR",{numeric:true});
+const linhasCobradas = m => calcMC(m).linhas.filter(l=>l && Math.abs(l.bm)>0.0005);
+const MESES=["JANEIRO","FEVEREIRO","MARÇO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];
+const mesBM = bm => { const f=periodo(bm)[1]; return MESES[f.getMonth()]+"/"+f.getFullYear(); };
+const lsGet = k => { try{ return localStorage.getItem(k); }catch(e){ return null; } }, lsSet = (k,v) => { try{ localStorage.setItem(k,v); }catch(e){} };
+function dialogo(html,larga){ let ov=$("#dlgov");
+  if(!ov){ ov=document.createElement("div"); ov.id="dlgov"; ov.className="dlgov"; document.body.appendChild(ov); ov.addEventListener("click",e=>{ if(e.target===ov) fechaDlg(); }); }
+  ov.innerHTML=`<div class="dlg${larga?" larga":""}" role="dialog" aria-modal="true">${html}</div>`; ov.hidden=false; return ov.firstChild; }
+function fechaDlg(){ const ov=$("#dlgov"); if(ov){ ov.hidden=true; ov.innerHTML=""; } }
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&$("#dlgov")&&!$("#dlgov").hidden) fechaDlg(); });
+async function salvaArquivo(blob,nome){
+  if(!downloads){ toast("Este navegador não permite baixar arquivos daqui."); return; }
+  try{ await downloads.save({filename:nome,data:blob}); toast("Pronto: "+nome); }
+  catch(e){ toast(e.code==="declined"?"Download cancelado.":"Não foi possível baixar: "+(e.code||e.message)); } }
+
+$("#bCtrl").addEventListener("click",()=>{
+  if(filtroBM==null){ toast("Escolha um BM no filtro da lista para gerar o controle."); return; }
+  const bm=filtroBM, todas=Object.values(MCS).filter(m=>m.bm===bm), fin=todas.filter(m=>m.fin), falta=todas.length-fin.length;
+  const tot=r2(fin.reduce((s,m)=>s+calcMC(m).total,0));
+  const d=dialogo(`<h3>Controle da medição · ${bmTxt(bm)} (${mesBM(bm)})</h3>
+    <p>Gera a planilha com o resumo dos itens, o controle por RO e a lista de MCs. Entram só as MCs marcadas como finalizadas.</p>
+    <div class="resumo"><b>${fin.length}</b> MC(s) finalizada(s), somando <b>${brl(tot)}</b> (P0).${falta?`<br><b>${falta}</b> MC(s) ainda não finalizada(s): ficam de fora e aparecem na aba FALTAM FINALIZAR.`:""}</div>
+    <div class="lin"><label class="f">Reajuste do mês (%)<input id="dRj" inputmode="decimal" placeholder="ex.: 6,74" value="${esc(lsGet("mc_reaj_"+bm)||"")}"></label></div>
+    <p>O reajuste muda a cada mês. Ele vai para uma célula amarela da aba RO(SAMC) e pode ser trocado lá depois; o total P1 recalcula sozinho.</p>
+    <div class="acts"><button type="button" id="dNao">Cancelar</button><button type="button" class="pri" id="dSim" ${fin.length?"":"disabled"}>Baixar planilha</button></div>`);
+  d.querySelector("#dNao").onclick=fechaDlg;
+  d.querySelector("#dSim").onclick=async()=>{ const v=d.querySelector("#dRj").value.trim(); lsSet("mc_reaj_"+bm,v); fechaDlg(); await baixarControle(bm,num(v.replace("%",""))); };
+  d.querySelector("#dRj").focus();
+});
+
+async function baixarControle(bm, rjPct){
+  if(typeof ExcelJS==="undefined"){ toast("A biblioteca de planilhas não carregou. Recarregue a página."); return; }
+  toast("Montando o controle da medição…");
+  const todas=Object.values(MCS).filter(m=>m.bm===bm).sort(ordemMC), fin=todas.filter(m=>m.fin), pend=todas.filter(m=>!m.fin);
+  const [ini,fim]=periodo(bm), MES=mesBM(bm), HOJE=new Date().toLocaleDateString("pt-BR");
+  const wb=new ExcelJS.Workbook(); wb.creator="Gerador de MC";
+  const thin={style:"thin",color:{argb:"FF808080"}}, BOX={top:thin,left:thin,bottom:thin,right:thin};
+  const fill=c=>({type:"pattern",pattern:"solid",fgColor:{argb:c}});
+  const AZ=fill("FF1F4E78"), INP=fill("FFFFF2CC"), TOT=fill("FFE2EFDA"), ALE=fill("FFFCE4D6");
+  const nova=(nome,larg)=>{ const ws=wb.addWorksheet(nome,{pageSetup:{orientation:"landscape",paperSize:9,fitToPage:true,fitToWidth:1,fitToHeight:0,margins:{left:.3,right:.3,top:.4,bottom:.4,header:.2,footer:.2}},views:[{state:"frozen",ySplit:3,showGridLines:false}]});
+    larg.forEach((w,i)=>ws.getColumn(i+1).width=w); return ws; };
+  const titulo=(ws,ult,t,sub)=>{ ws.mergeCells(`A1:${ult}1`); const a=ws.getCell("A1"); a.value=t; a.font={name:"Arial",size:13,bold:true,color:{argb:"FF1F4E78"}}; ws.getRow(1).height=22;
+    ws.mergeCells(`A2:${ult}2`); const b=ws.getCell("A2"); b.value=sub; b.font={name:"Arial",size:9,italic:true,color:{argb:"FF595959"}}; };
+  const cab=(ws,r,hs)=>{ const row=ws.getRow(r); hs.forEach((h,i)=>{ const c=row.getCell(i+1); c.value=h; c.font={name:"Arial",size:9,bold:true,color:{argb:"FFFFFFFF"}}; c.fill=AZ; c.border=BOX; c.alignment={horizontal:"center",vertical:"middle",wrapText:true}; }); row.height=30; };
+  const put=(ws,r,col,v,o={})=>{ const c=ws.getCell(r,col); c.value=v; c.border=BOX; c.font={name:"Arial",size:9,bold:!!o.b};
+    c.alignment={horizontal:o.h||"left",vertical:"middle",wrapText:!!o.wrap}; if(o.f) c.numFmt=o.f; if(o.fill) c.fill=o.fill;
+    if(o.lista) c.dataValidation={type:"list",allowBlank:true,showErrorMessage:false,formulae:['"'+o.lista+'"']}; return c; };
+  const F=(f,result)=>({formula:f,result});
+  const SUB=`Contrato ${CONTRATO} · ${bmTxt(bm)} · período ${dbr(ini)} a ${dbr(fim)} · só MCs finalizadas no site · gerado em ${HOJE}`;
+
+  /* RESUMO BM: uma linha por item medido de cada MC finalizada */
+  const R=nova("RESUMO BM",[9,11,12,58,7,14,13,13,16,42,10,13,24]);
+  titulo(R,"M",`RESUMO DA MEDIÇÃO · ${bmTxt(bm)} · ${MES}`,SUB);
+  cab(R,3,["ITEM","RO","TQ (Id Serviço)","DESCRIÇÃO DO ITEM","UNID.","QUANTIDADE","VALOR PPU","PREÇO APLICADO","A MEDIR","ATIVIDADE","MC","SITUAÇÃO","OBS"]);
+  let r=4; const R0=4;
+  fin.forEach(m=>{ const ro=roDe(m), tq=tagDe(m), mc=mcTxt(m);
+    linhasCobradas(m).forEach(l=>{
+      put(R,r,1,l.item,{h:"center",b:1}); put(R,r,2,ro,{h:"center"}); put(R,r,3,tq,{h:"center"});
+      put(R,r,4,F(ppuRef("B","$A"+r),String(l.P.d).trim()),{wrap:true}); put(R,r,5,F(ppuRef("C","$A"+r),l.P.u),{h:"center"});
+      put(R,r,6,l.bm,{h:"right",f:"#,##0.000"}); put(R,r,7,F(ppuRef("D","$A"+r),l.P.p),{h:"right",f:"#,##0.00"});
+      put(R,r,8,l.precoAp,{h:"right",f:"#,##0.00",fill:l.fat!==1?ALE:undefined}); put(R,r,9,F(`ROUND(F${r}*H${r},2)`,l.valor),{h:"right",f:"#,##0.00;[Red]-#,##0.00",b:1});
+      put(R,r,10,String(m.servico||"").toUpperCase(),{wrap:true}); put(R,r,11,mc,{h:"center"}); put(R,r,12,null,{h:"center",fill:INP,lista:"LANÇADO,SEM SALDO"});
+      put(R,r,13,l.fat!==1?"Método convencional (−30%)":(l.bm<0?"Quantidade negativa (estorno)":null),{wrap:true});
+      r++; }); });
+  const R1=Math.max(R0,r-1), RT=r;
+  if(r===R0){ put(R,r,1,"Nenhum item medido nas MCs finalizadas.",{}); R.mergeCells(`A${r}:M${r}`); }
+  else{ for(let k=1;k<=13;k++) put(R,RT,k,null,{fill:TOT,b:1}); R.getCell(RT,4).value="TOTAL (soma o que estiver filtrado)";
+    R.getCell(RT,6).value=F(`SUBTOTAL(109,F${R0}:F${R1})`); R.getCell(RT,6).numFmt="#,##0.000";
+    R.getCell(RT,9).value=F(`SUBTOTAL(109,I${R0}:I${R1})`,r2(fin.reduce((s,m)=>s+calcMC(m).total,0))); R.getCell(RT,9).numFmt="#,##0.00;[Red]-#,##0.00";
+    R.autoFilter={from:"A3",to:`M${R1}`}; }
+  const rg=c=>`'RESUMO BM'!$${c}$${R0}:$${c}$${R1}`;
+
+  /* RO(SAMC) - CONTROLE: valor por RO e tanque, documentos e resumo do BM com reajuste */
+  const S=nova("RO(SAMC) - CONTROLE",[13,13,22,30,22,26]);
+  titulo(S,"F",`CONTROLE POR RO (SAMC) · ${bmTxt(bm)} · ${MES}`,SUB);
+  cab(S,3,["RO","TQ","VALOR","RELATÓRIOS / DOCUMENTAÇÃO / PTS","MEMÓRIA DE CÁLCULO","SITUAÇÃO"]);
+  const grupos=[]; fin.forEach(m=>{ const k=roDe(m)+"|"+tagDe(m); let g=grupos.find(x=>x.k===k); if(!g){ g={k,ro:roDe(m),tq:tagDe(m),v:0}; grupos.push(g); } g.v=r2(g.v+calcMC(m).total); });
+  grupos.sort((a,b)=>a.ro.localeCompare(b.ro,"pt-BR",{numeric:true})||a.tq.localeCompare(b.tq));
+  let s=4; grupos.forEach(g=>{ put(S,s,1,g.ro,{h:"center",b:1,fill:g.ro==="SEM RO"?ALE:undefined}); put(S,s,2,g.tq,{h:"center"});
+    put(S,s,3,F(`SUMIFS(${rg("I")},${rg("B")},A${s},${rg("C")},B${s})`,g.v),{h:"right",f:"#,##0.00"});
+    put(S,s,4,null,{fill:INP,lista:"PTS ANEXADAS,-"}); put(S,s,5,null,{fill:INP,lista:"ANEXADAS,A ANEXAR"}); put(S,s,6,null,{fill:INP,lista:"A ENVIAR,ENVIADO,APROVADO,CORRIGIR"}); s++; });
+  const S1=Math.max(4,s-1); for(let k=1;k<=6;k++) put(S,s,k,null,{fill:TOT,b:1}); S.getCell(s,2).value="TOTAL"; S.getCell(s,3).value=F(`SUM(C4:C${S1})`,r2(grupos.reduce((a,g)=>a+g.v,0))); S.getCell(s,3).numFmt="#,##0.00";
+  let q=s+2; const P0=r2(fin.reduce((a,m)=>a+calcMC(m).total,0));
+  const P0p=r2(fin.reduce((a,m)=>a+linhasCobradas(m).reduce((x,l)=>x+(l.valor>0?l.valor:0),0),0));
+  S.mergeCells(`A${q}:B${q}`); put(S,q,1,"REAJUSTE DO MÊS",{b:1}); put(S,q,3,rjPct==null?null:rjPct/100,{fill:INP,b:1,h:"right",f:"0.00%"});
+  S.mergeCells(`D${q}:F${q}`); S.getCell(q,4).value="← digite aqui o reajuste deste BM (ex.: 6,74%)"; S.getCell(q,4).font={name:"Arial",size:9,italic:true,color:{argb:"FF595959"}};
+  const RJ="$C$"+q; q+=2;
+  const bloco=(c0,tit,fP0,vP0)=>{ const L=String.fromCharCode(64+c0), L2=String.fromCharCode(65+c0);
+    S.mergeCells(`${L}${q}:${L2}${q}`); put(S,q,c0,tit,{b:1,h:"center",fill:fill("FFDDEBF7")}); S.getCell(q,c0+1).border=BOX;
+    put(S,q+1,c0,"DESCRIÇÃO",{b:1}); put(S,q+1,c0+1,`${bmTxt(bm)} ${MES}`,{b:1,h:"center"});
+    put(S,q+2,c0,tit.includes("SEM")?"P0 (SEM NEGATIVOS)":"P0",{}); put(S,q+2,c0+1,F(fP0,vP0),{h:"right",f:"#,##0.00"});
+    put(S,q+3,c0,"REAJUSTE",{}); put(S,q+3,c0+1,F(`${L2}${q+2}*${RJ}`,rjPct==null?0:r2(vP0*rjPct/100)),{h:"right",f:"#,##0.00"});
+    put(S,q+4,c0,"TOTAL P1",{b:1,fill:TOT}); put(S,q+4,c0+1,F(`${L2}${q+2}+${L2}${q+3}`,rjPct==null?vP0:r2(vP0*(1+rjPct/100))),{h:"right",f:"#,##0.00",b:1,fill:TOT}); };
+  bloco(2,`RESUMO MEDIÇÃO ${bmTxt(bm)} TANQUES`,`SUM(${rg("I")})`,P0);
+  bloco(5,`RESUMO ${bmTxt(bm)} (SEM NEGATIVOS)`,`SUMIF(${rg("I")},">0")`,P0p);
+  S.getColumn(5).width=22;
+
+  /* CONTROLE MC: uma linha por MC finalizada */
+  const C=nova("CONTROLE MC",[11,12,52,20,14,32,16]);
+  titulo(C,"G",`CONTROLE DAS MCs · ${bmTxt(bm)} · ${MES}`,SUB);
+  cab(C,3,["MC","TQ","NOME","SITUAÇÃO","SAMC","OBS","VALOR"]);
+  let c=4; fin.forEach(m=>{ put(C,c,1,mcTxt(m),{h:"center",b:1}); put(C,c,2,tagDe(m),{h:"center"}); put(C,c,3,String(m.servico||"").toUpperCase(),{wrap:true});
+    put(C,c,4,"FINALIZADA"+(m.finEm?" em "+m.finEm:""),{h:"center"}); put(C,c,5,null,{fill:INP,h:"center",lista:"ANEXADO,A ANEXAR"}); put(C,c,6,null,{fill:INP,wrap:true});
+    put(C,c,7,F(`SUMIFS(${rg("I")},${rg("K")},A${c},${rg("C")},B${c})`,calcMC(m).total),{h:"right",f:"#,##0.00;[Red]-#,##0.00"}); c++; });
+  for(let k=1;k<=7;k++) put(C,c,k,null,{fill:TOT,b:1}); C.getCell(c,3).value=`TOTAL · ${fin.length} MC(s)`; C.getCell(c,7).value=F(`SUM(G4:G${Math.max(4,c-1)})`,P0); C.getCell(c,7).numFmt="#,##0.00";
+
+  /* FALTAM FINALIZAR: MCs do BM que ficaram de fora */
+  const P=nova("FALTAM FINALIZAR",[11,12,48,18,52,16]);
+  titulo(P,"F",`MCs DO ${bmTxt(bm)} QUE AINDA NÃO ESTÃO FINALIZADAS`,"Estas MCs não entraram no controle. Finalize no site e baixe o controle de novo.");
+  cab(P,3,["MC","TQ","NOME","SITUAÇÃO","PENDÊNCIA","VALOR NO SITE"]);
+  let p=4; pend.forEach(m=>{ const pe=m.pend||m.pendOn; put(P,p,1,mcTxt(m),{h:"center",b:1}); put(P,p,2,tagDe(m),{h:"center"}); put(P,p,3,String(m.servico||"").toUpperCase(),{wrap:true});
+    put(P,p,4,pe?"COM PENDÊNCIA":"EM ANDAMENTO",{h:"center",fill:pe?ALE:undefined}); put(P,p,5,m.pend||null,{wrap:true}); put(P,p,6,calcMC(m).total,{h:"right",f:"#,##0.00"}); p++; });
+  if(!pend.length){ P.mergeCells("A4:F4"); put(P,4,1,"Todas as MCs deste BM estão finalizadas.",{}); }
+
+  folhaPPU(wb);
+  const buf=await wb.xlsx.writeBuffer();
+  await salvaArquivo(new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}),`CONTROLE DE MEDICAO_${bmTxt(bm)}_${MES.replace("/","-").replace("Ç","C")}.xlsx`);
+}
+
+/* imagem (PNG) com os itens cobrados num tanque, somados por item */
+function itensDoTanque(tq,bm,soFin){
+  const mcs=Object.values(MCS).filter(m=>tagDe(m)===tq&&(bm==null||m.bm===bm)).sort((a,b)=>a.bm-b.bm||ordemMC(a,b));
+  const usadas=mcs.filter(m=>!soFin||m.fin), fora=mcs.length-usadas.length, G={};
+  usadas.forEach(m=>linhasCobradas(m).forEach(l=>{ const k=l.item+"|"+l.precoAp;
+    const g=G[k]||(G[k]={item:l.item,d:descCurta(l.P.d),u:l.P.u,preco:l.precoAp,fat:l.fat,q:0,v:0,mcs:[]});
+    g.q=r3(g.q+l.bm); g.v=r2(g.v+l.valor); const t=mcTxt(m)+(bm==null?" ("+bmTxt(m.bm)+")":""); if(!g.mcs.includes(t)) g.mcs.push(t); }));
+  const itens=Object.values(G).sort((a,b)=>itNum(a.item)-itNum(b.item)||b.preco-a.preco);
+  return {itens,usadas,fora,total:r2(itens.reduce((s,g)=>s+g.v,0)),bms:[...new Set(usadas.map(m=>m.bm))]};
+}
+function desenhaTanque(tq,bm,soFin,R){
+  const S=2, W=1180, M=24, FT="Arial, Helvetica, sans-serif";
+  const cols=[["ITEM",64,"c"],["DESCRIÇÃO",470,"l"],["UNID.",54,"c"],["QUANTIDADE",110,"r"],["PREÇO UNIT. (R$)",118,"r"],["VALOR (R$)",130,"r"],["MCs",186,"l"]];
+  const cv=document.createElement("canvas"), x=cv.getContext("2d");
+  const quebra=(t,w,font)=>{ x.font=font; const out=[]; String(t||"").split("\n").forEach(par=>{ let lin=""; par.split(/\s+/).filter(Boolean).forEach(p=>{ const tt=lin?lin+" "+p:p; if(x.measureText(tt).width>w&&lin){ out.push(lin); lin=p; } else lin=tt; }); out.push(lin); }); return out; };
+  const F13="13px "+FT, F13B="bold 13px "+FT, LH=18, PAD=8;
+  const linhas=R.itens.map(g=>{ const cel=[g.item,g.d+(g.fat!==1?" (convencional −30%)":""),g.u,fmt(g.q,3),fmt(g.preco,2),fmt(g.v,2),g.mcs.join(", ")];
+    const ls=cel.map((t,i)=>quebra(t,cols[i][1]-2*PAD,i===0?F13B:F13)); return {ls,h:Math.max(...ls.map(a=>a.length))*LH+2*PAD,neg:g.v<0}; });
+  const t=DATA.tanques[tq], [ini,fim]=bm!=null?periodo(bm):[null,null];
+  const per=bm!=null?`${bmTxt(bm)} · ${dbr(ini)} a ${dbr(fim)}`:(R.bms.length?`Todos os BMs (${R.bms.map(bmTxt).join(", ")})`:"Todos os BMs");
+  const cap=s=>s?s.charAt(0)+s.slice(1).toLowerCase().replace(/conico/,"cônico").replace(/geodesico/,"geodésico"):"";
+  const info=t?[t.d!=null?"Diâmetro "+fmt(t.d,2)+" m":"",t.h!=null?"Altura "+fmt(t.h,3)+" m":"",t.prod||"",t.teto?"Teto "+cap(t.teto).toLowerCase():"",t.un||""].filter(Boolean).join("  ·  "):"";
+  const HH=info?118:96, TH=34, corpo=linhas.reduce((s,l)=>s+l.h,0)||44, H=HH+16+TH+corpo+40+24;
+  cv.width=W*S; cv.height=H*S; x.scale(S,S);
+  x.fillStyle="#ffffff"; x.fillRect(0,0,W,H);
+  x.fillStyle="#1F4E78"; x.fillRect(0,0,W,HH);
+  x.fillStyle="#ffffff"; x.font="bold 26px "+FT; x.textBaseline="alphabetic"; x.fillText("ITENS COBRADOS · "+tq,M,40);
+  x.font="15px "+FT; x.fillText(`Contrato ${CONTRATO} · RNEST · ${per}`,M,66);
+  if(info){ x.fillStyle="#cfe0f1"; x.fillText(info,M,90); }
+  x.fillStyle="#cfe0f1"; x.font="12px "+FT; x.fillText((soFin?"Só MCs finalizadas":"Todas as MCs (finalizadas e em andamento)")+` · ${R.usadas.length} MC(s) · gerado em ${new Date().toLocaleDateString("pt-BR")}`,M,HH-12);
+  let y=HH+16, cx=M; const larg=W-2*M;
+  x.fillStyle="#DDEBF7"; x.fillRect(M,y,larg,TH); x.fillStyle="#1F4E78"; x.font="bold 12px "+FT;
+  cols.forEach(([n,w,a])=>{ x.textAlign=a==="c"?"center":a==="r"?"right":"left"; x.fillText(n,a==="c"?cx+w/2:a==="r"?cx+w-PAD:cx+PAD,y+22); cx+=w; });
+  y+=TH; x.strokeStyle="#c9d3de"; x.lineWidth=1;
+  if(!linhas.length){ x.textAlign="left"; x.fillStyle="#5b6876"; x.font="italic 14px "+FT; x.fillText("Nenhum item cobrado neste tanque para o período escolhido.",M+PAD,y+28); y+=44; }
+  linhas.forEach((l,k)=>{ if(k%2){ x.fillStyle="#f6f8fb"; x.fillRect(M,y,larg,l.h); }
+    cx=M; l.ls.forEach((ls,i)=>{ const [,w,a]=cols[i]; x.textAlign=a==="c"?"center":a==="r"?"right":"left"; x.font=i===0||i===5?F13B:F13; x.fillStyle=i===5&&l.neg?"#b3261e":"#14212e";
+      ls.forEach((s,j)=>x.fillText(s,a==="c"?cx+w/2:a==="r"?cx+w-PAD:cx+PAD,y+PAD+13+j*LH)); cx+=w; });
+    y+=l.h; x.beginPath(); x.moveTo(M,y+.5); x.lineTo(M+larg,y+.5); x.stroke(); });
+  x.fillStyle="#E2EFDA"; x.fillRect(M,y,larg,40); x.fillStyle="#14212e"; x.font="bold 15px "+FT; x.textAlign="left"; x.fillText("TOTAL",M+PAD,y+26);
+  x.textAlign="right"; const xv=M+cols.slice(0,6).reduce((s,c)=>s+c[1],0)-PAD; x.fillText(brl(R.total),xv,y+26);
+  x.strokeStyle="#9fb1c4"; x.strokeRect(M+.5,HH+16.5,larg-1,y+40-HH-16);
+  return cv;
+}
+$("#bImgTq").addEventListener("click",()=>{
+  const tags=[...new Set(Object.values(MCS).map(tagDe).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"pt-BR",{numeric:true}));
+  if(!tags.length){ toast("Nenhuma MC com tanque informado."); return; }
+  const sug=cur&&tagDe(cur)?tagDe(cur):tags[0], bms=[...new Set(Object.values(MCS).map(m=>m.bm))].sort((a,b)=>b-a);
+  const d=dialogo(`<h3>Imagem dos itens de um tanque</h3>
+    <p>Escolha o tanque e o período. A imagem soma, por item, o que foi cobrado nas MCs, com o valor e as MCs de origem.</p>
+    <div class="lin"><label class="f">Tanque<select id="iTq">${tags.map(t=>opt(t,t,sug)).join("")}</select></label>
+      <label class="f">Período<select id="iBm"><option value="">Todos os BMs (acumulado)</option>${bms.map(b=>`<option value="${b}" ${b===filtroBM?"selected":""}>${bmTxt(b)} (${mesBM(b)})</option>`).join("")}</select></label></div>
+    <label class="chk"><input type="checkbox" id="iFin" checked> Só MCs finalizadas</label>
+    <div class="resumo" id="iRes"></div><div class="prev" id="iPrev"></div>
+    <div class="acts"><button type="button" id="iFecha">Fechar</button><button type="button" id="iCopia">Copiar imagem</button><button type="button" class="pri" id="iBaixa">Baixar PNG</button></div>`,true);
+  let blob=null, nome="", url=null;
+  const gera=async()=>{ const tq=d.querySelector("#iTq").value, bv=d.querySelector("#iBm").value, bm=bv===""?null:+bv, so=d.querySelector("#iFin").checked;
+    const R=itensDoTanque(tq,bm,so);
+    d.querySelector("#iRes").innerHTML=`<b>${R.itens.length}</b> item(ns) em <b>${R.usadas.length}</b> MC(s), total <b>${brl(R.total)}</b>.`+(R.fora?` ${R.fora} MC(s) não finalizada(s) ficaram de fora.`:"");
+    const cv=desenhaTanque(tq,bm,so,R); blob=await new Promise(ok=>cv.toBlob(ok,"image/png"));
+    if(url) URL.revokeObjectURL(url); url=URL.createObjectURL(blob); d.querySelector("#iPrev").innerHTML=`<img alt="Itens cobrados no ${esc(tq)}" src="${url}">`;
+    nome=`ITENS COBRADOS_${tq}_${bm==null?"TODOS OS BMs":bmTxt(bm)}.png`; };
+  ["#iTq","#iBm","#iFin"].forEach(s=>d.querySelector(s).addEventListener("change",gera)); gera();
+  d.querySelector("#iFecha").onclick=fechaDlg;
+  d.querySelector("#iBaixa").onclick=()=>{ if(blob) salvaArquivo(blob,nome); };
+  d.querySelector("#iCopia").onclick=async()=>{ try{ await navigator.clipboard.write([new ClipboardItem({"image/png":blob})]); toast("Imagem copiada. Cole no e-mail ou WhatsApp."); }catch(e){ toast("Este navegador não deixa copiar imagem. Use Baixar PNG."); } };
+});
 async function fotoBuf(f){
   if(BLOBS[f.id]) return await BLOBS[f.id].arrayBuffer();
   if(f.db){ const u=await carregaFotoDb(f.id); if(!u) return null; const b=atob(u.split(",")[1]); const a=new Uint8Array(b.length); for(let i=0;i<b.length;i++) a[i]=b.charCodeAt(i); return a.buffer; }
