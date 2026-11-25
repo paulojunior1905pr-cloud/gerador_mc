@@ -372,7 +372,7 @@ input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:n
 </style>
 
 <header class="top">
-  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 25/11 13:43 (com logos)</span></div>
+  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 25/11 14:08 (com logos)</span></div>
   <div class="sp"></div>
   <span class="status" id="status">Conectando…</span>
   <label class="tema">Tema<select id="selTema"><option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
@@ -1209,25 +1209,26 @@ async function baixarControle(bm, rjPct){
   const SUB=`Contrato ${CONTRATO} · ${bmTxt(bm)} · período ${dbr(ini)} a ${dbr(fim)} · só MCs finalizadas no site · gerado em ${HOJE}`;
 
   /* RESUMO BM: uma linha por item medido de cada MC finalizada */
-  const R=nova("RESUMO BM",[9,11,12,58,7,14,13,13,16,42,10,13,24]);
-  titulo(R,"M",`RESUMO DA MEDIÇÃO · ${bmTxt(bm)} · ${MES}`,SUB);
-  cab(R,3,["ITEM","RO","TQ (Id Serviço)","DESCRIÇÃO DO ITEM","UNID.","QUANTIDADE","VALOR PPU","PREÇO APLICADO","A MEDIR","ATIVIDADE","MC","SITUAÇÃO","OBS"]);
+  const R=nova("RESUMO BM",[9,11,12,58,7,14,13,16,42,10,13,30]);
+  titulo(R,"L",`RESUMO DA MEDIÇÃO · ${bmTxt(bm)} · ${MES}`,SUB);
+  cab(R,3,["ITEM","RO","TQ (Id Serviço)","DESCRIÇÃO DO ITEM","UNID.","QUANTIDADE","VALOR PPU","A MEDIR","ATIVIDADE","MC","SITUAÇÃO","OBS"]);
   let r=4; const R0=4;
   fin.forEach(m=>{ const ro=roDe(m), tq=tagDe(m), mc=mcTxt(m);
     linhasCobradas(m).forEach(l=>{
       put(R,r,1,l.item,{h:"center",b:1}); put(R,r,2,ro,{h:"center"}); put(R,r,3,tq,{h:"center"});
       put(R,r,4,F(ppuRef("B","$A"+r),String(l.P.d).trim()),{wrap:true}); put(R,r,5,F(ppuRef("C","$A"+r),l.P.u),{h:"center"});
       put(R,r,6,l.bm,{h:"right",f:"#,##0.000"}); put(R,r,7,F(ppuRef("D","$A"+r),l.P.p),{h:"right",f:"#,##0.00"});
-      put(R,r,8,l.precoAp,{h:"right",f:"#,##0.00",fill:l.fat!==1?ALE:undefined}); put(R,r,9,F(`ROUND(F${r}*H${r},2)`,l.valor),{h:"right",f:"#,##0.00;[Red]-#,##0.00",b:1});
-      put(R,r,10,String(m.servico||"").toUpperCase(),{wrap:true}); put(R,r,11,mc,{h:"center"}); put(R,r,12,null,{h:"center",fill:INP,lista:"LANÇADO,SEM SALDO"});
-      put(R,r,13,l.fat!==1?"Método convencional (−30%)":(l.bm<0?"Quantidade negativa (estorno)":null),{wrap:true});
+      /* método convencional: o preço da PPU cai 30% dentro da própria fórmula, para o valor bater com a MC */
+      put(R,r,8,F(l.fat!==1?`ROUND(F${r}*ROUND(G${r}*${l.fat},2),2)`:`ROUND(F${r}*G${r},2)`,l.valor),{h:"right",f:"#,##0.00;[Red]-#,##0.00",b:1});
+      put(R,r,9,String(m.servico||"").toUpperCase(),{wrap:true}); put(R,r,10,mc,{h:"center"}); put(R,r,11,null,{h:"center",fill:INP,lista:"LANÇADO,SEM SALDO"});
+      put(R,r,12,null,{wrap:true});
       r++; }); });
   const R1=Math.max(R0,r-1), RT=r;
-  if(r===R0){ put(R,r,1,"Nenhum item medido nas MCs finalizadas.",{}); R.mergeCells(`A${r}:M${r}`); }
-  else{ for(let k=1;k<=13;k++) put(R,RT,k,null,{fill:TOT,b:1}); R.getCell(RT,4).value="TOTAL (soma o que estiver filtrado)";
+  if(r===R0){ put(R,r,1,"Nenhum item medido nas MCs finalizadas.",{}); R.mergeCells(`A${r}:L${r}`); }
+  else{ for(let k=1;k<=12;k++) put(R,RT,k,null,{fill:TOT,b:1}); R.getCell(RT,4).value="TOTAL (soma o que estiver filtrado)";
     R.getCell(RT,6).value=F(`SUBTOTAL(109,F${R0}:F${R1})`); R.getCell(RT,6).numFmt="#,##0.000";
-    R.getCell(RT,9).value=F(`SUBTOTAL(109,I${R0}:I${R1})`,r2(fin.reduce((s,m)=>s+calcMC(m).total,0))); R.getCell(RT,9).numFmt="#,##0.00;[Red]-#,##0.00";
-    R.autoFilter={from:"A3",to:`M${R1}`}; }
+    R.getCell(RT,8).value=F(`SUBTOTAL(109,H${R0}:H${R1})`,r2(fin.reduce((s,m)=>s+calcMC(m).total,0))); R.getCell(RT,8).numFmt="#,##0.00;[Red]-#,##0.00";
+    R.autoFilter={from:"A3",to:`L${R1}`}; }
   const rg=c=>`'RESUMO BM'!$${c}$${R0}:$${c}$${R1}`;
 
   /* RO(SAMC) - CONTROLE: valor por RO e tanque, documentos e resumo do BM com reajuste */
@@ -1237,7 +1238,7 @@ async function baixarControle(bm, rjPct){
   const grupos=[]; fin.forEach(m=>{ const k=roDe(m)+"|"+tagDe(m); let g=grupos.find(x=>x.k===k); if(!g){ g={k,ro:roDe(m),tq:tagDe(m),v:0}; grupos.push(g); } g.v=r2(g.v+calcMC(m).total); });
   grupos.sort((a,b)=>a.ro.localeCompare(b.ro,"pt-BR",{numeric:true})||a.tq.localeCompare(b.tq));
   let s=4; grupos.forEach(g=>{ put(S,s,1,g.ro,{h:"center",b:1,fill:g.ro==="SEM RO"?ALE:undefined}); put(S,s,2,g.tq,{h:"center"});
-    put(S,s,3,F(`SUMIFS(${rg("I")},${rg("B")},A${s},${rg("C")},B${s})`,g.v),{h:"right",f:"#,##0.00"});
+    put(S,s,3,F(`SUMIFS(${rg("H")},${rg("B")},A${s},${rg("C")},B${s})`,g.v),{h:"right",f:"#,##0.00"});
     put(S,s,4,null,{fill:INP,lista:"PTS ANEXADAS,-"}); put(S,s,5,null,{fill:INP,lista:"ANEXADAS,A ANEXAR"}); put(S,s,6,null,{fill:INP,lista:"A ENVIAR,ENVIADO,APROVADO,CORRIGIR"}); s++; });
   const S1=Math.max(4,s-1); for(let k=1;k<=6;k++) put(S,s,k,null,{fill:TOT,b:1}); S.getCell(s,2).value="TOTAL"; S.getCell(s,3).value=F(`SUM(C4:C${S1})`,r2(grupos.reduce((a,g)=>a+g.v,0))); S.getCell(s,3).numFmt="#,##0.00";
   let q=s+2; const P0=r2(fin.reduce((a,m)=>a+calcMC(m).total,0));
@@ -1251,8 +1252,8 @@ async function baixarControle(bm, rjPct){
     put(S,q+2,c0,tit.includes("SEM")?"P0 (SEM NEGATIVOS)":"P0",{}); put(S,q+2,c0+1,F(fP0,vP0),{h:"right",f:"#,##0.00"});
     put(S,q+3,c0,"REAJUSTE",{}); put(S,q+3,c0+1,F(`${L2}${q+2}*${RJ}`,rjPct==null?0:r2(vP0*rjPct/100)),{h:"right",f:"#,##0.00"});
     put(S,q+4,c0,"TOTAL P1",{b:1,fill:TOT}); put(S,q+4,c0+1,F(`${L2}${q+2}+${L2}${q+3}`,rjPct==null?vP0:r2(vP0*(1+rjPct/100))),{h:"right",f:"#,##0.00",b:1,fill:TOT}); };
-  bloco(2,`RESUMO MEDIÇÃO ${bmTxt(bm)} TANQUES`,`SUM(${rg("I")})`,P0);
-  bloco(5,`RESUMO ${bmTxt(bm)} (SEM NEGATIVOS)`,`SUMIF(${rg("I")},">0")`,P0p);
+  bloco(2,`RESUMO MEDIÇÃO ${bmTxt(bm)} TANQUES`,`SUM(${rg("H")})`,P0);
+  bloco(5,`RESUMO ${bmTxt(bm)} (SEM NEGATIVOS)`,`SUMIF(${rg("H")},">0")`,P0p);
   S.getColumn(5).width=22;
 
   /* CONTROLE MC: uma linha por MC finalizada */
@@ -1261,7 +1262,7 @@ async function baixarControle(bm, rjPct){
   cab(C,3,["MC","TQ","NOME","SITUAÇÃO","SAMC","OBS","VALOR"]);
   let c=4; fin.forEach(m=>{ put(C,c,1,mcTxt(m),{h:"center",b:1}); put(C,c,2,tagDe(m),{h:"center"}); put(C,c,3,String(m.servico||"").toUpperCase(),{wrap:true});
     put(C,c,4,"FINALIZADA"+(m.finEm?" em "+m.finEm:""),{h:"center"}); put(C,c,5,null,{fill:INP,h:"center",lista:"ANEXADO,A ANEXAR"}); put(C,c,6,null,{fill:INP,wrap:true});
-    put(C,c,7,F(`SUMIFS(${rg("I")},${rg("K")},A${c},${rg("C")},B${c})`,calcMC(m).total),{h:"right",f:"#,##0.00;[Red]-#,##0.00"}); c++; });
+    put(C,c,7,F(`SUMIFS(${rg("H")},${rg("J")},A${c},${rg("C")},B${c})`,calcMC(m).total),{h:"right",f:"#,##0.00;[Red]-#,##0.00"}); c++; });
   for(let k=1;k<=7;k++) put(C,c,k,null,{fill:TOT,b:1}); C.getCell(c,3).value=`TOTAL · ${fin.length} MC(s)`; C.getCell(c,7).value=F(`SUM(G4:G${Math.max(4,c-1)})`,P0); C.getCell(c,7).numFmt="#,##0.00";
 
   /* FALTAM FINALIZAR: MCs do BM que ficaram de fora */
@@ -1299,14 +1300,11 @@ function desenhaTanque(tq,bm,soFin,R){
   const per=bm!=null?`${bmTxt(bm)} · ${dbr(ini)} a ${dbr(fim)}`:(R.bms.length?`Todos os BMs (${R.bms.map(bmTxt).join(", ")})`:"Todos os BMs");
   const cap=s=>s?s.charAt(0)+s.slice(1).toLowerCase().replace(/conico/,"cônico").replace(/geodesico/,"geodésico"):"";
   const info=t?[t.d!=null?"Diâmetro "+fmt(t.d,2)+" m":"",t.h!=null?"Altura "+fmt(t.h,3)+" m":"",t.prod||"",t.teto?"Teto "+cap(t.teto).toLowerCase():"",t.un||""].filter(Boolean).join("  ·  "):"";
-  const HH=info?118:96, TH=34, corpo=linhas.reduce((s,l)=>s+l.h,0)||44, H=HH+16+TH+corpo+40+24;
+  const HH=64, TH=34, corpo=linhas.reduce((s,l)=>s+l.h,0)||44, H=HH+16+TH+corpo+40+24;
   cv.width=W*S; cv.height=H*S; x.scale(S,S);
   x.fillStyle="#ffffff"; x.fillRect(0,0,W,H);
   x.fillStyle="#1F4E78"; x.fillRect(0,0,W,HH);
-  x.fillStyle="#ffffff"; x.font="bold 26px "+FT; x.textBaseline="alphabetic"; x.fillText("ITENS COBRADOS · "+tq,M,40);
-  x.font="15px "+FT; x.fillText(`Contrato ${CONTRATO} · RNEST · ${per}`,M,66);
-  if(info){ x.fillStyle="#cfe0f1"; x.fillText(info,M,90); }
-  x.fillStyle="#cfe0f1"; x.font="12px "+FT; x.fillText((soFin?"Só MCs finalizadas":"Todas as MCs (finalizadas e em andamento)")+` · ${R.usadas.length} MC(s) · gerado em ${new Date().toLocaleDateString("pt-BR")}`,M,HH-12);
+  x.fillStyle="#ffffff"; x.font="bold 26px "+FT; x.textBaseline="alphabetic"; x.fillText("ITENS COBRADOS · "+tq,M,41);
   let y=HH+16, cx=M; const larg=W-2*M;
   x.fillStyle="#DDEBF7"; x.fillRect(M,y,larg,TH); x.fillStyle="#1F4E78"; x.font="bold 12px "+FT;
   cols.forEach(([n,w,a])=>{ x.textAlign=a==="c"?"center":a==="r"?"right":"left"; x.fillText(n,a==="c"?cx+w/2:a==="r"?cx+w-PAD:cx+PAD,y+22); cx+=w; });
