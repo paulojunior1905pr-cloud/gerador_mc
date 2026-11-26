@@ -378,7 +378,7 @@ input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:n
 </style>
 
 <header class="top">
-  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 25/11 14:35 (com logos)</span></div>
+  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 26/11 13:38 (com logos)</span></div>
   <div class="sp"></div>
   <span class="status" id="status">Conectando…</span>
   <label class="tema">Tema<select id="selTema"><option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
@@ -472,6 +472,7 @@ const FORMAS = {
   retoque:["Retoque de pintura (0,15 m² cada)",1,"","retoque"],
   chapa:["Chapa (C × L × nº de chapas)",1,"ab","ret"],
   un:["Unidade",1,"","un"],
+  hsDir:["Horas trabalhadas (Hs, total informado)",1,"a","direto","hs"],
   diaria:["Diárias pelo período (fim − início + 1)",1,"ab","diaria"],
   diasQ:["Diárias (número de dias)",1,"a","dias"],
   horas:["Diárias por horas (horas ÷ jornada de 8,8 h ou 24 h)",1,"ab","horas","dia"],
@@ -600,7 +601,7 @@ const CAMPOS_CONTA=[["a","1ª medida"],["b","2ª medida"],["c","3ª medida"],["q
 function textoElem(e){
   const k=formaDe(e); if(!k) return ""; const er=camposConta(e).map(([f,n])=>{ const m=erroConta(e[f]); return m?n+": "+m:null; }).filter(Boolean); if(er.length) return "⚠ Conta com erro ("+er.join("; ")+")"; const F=FORMAS[k]; const A=numE(e.a), B=numE(e.b), C=numE(e.c), q=numE(e.qtd), p=numE(e.pct);
   const a=dimTxt(e.a,A), b=dimTxt(e.b,B), c=dimTxt(e.c,C); let s;
-  switch(F[3]){ case "direto": s=a; break; case "ret": s=NOMES[k]?NOMES[k][0]+" "+a+" × "+NOMES[k][1]+" "+b:a+" × "+b; break; case "tri": s=a+" × "+b+" ÷ 2"; break; case "trap": s="("+a+" + "+b+") ÷ 2 × "+c; break;
+  switch(F[3]){ case "direto": s=F[4]==="hs"?"Total de horas informado":a; break; case "ret": s=NOMES[k]?NOMES[k][0]+" "+a+" × "+NOMES[k][1]+" "+b:a+" × "+b; break; case "tri": s=a+" × "+b+" ÷ 2"; break; case "trap": s="("+a+" + "+b+") ÷ 2 × "+c; break;
     case "cil": s=NOMES[k]?NOMES[k][0]+" "+a+" × "+NOMES[k][1]+" "+b+" × π "+fmt(PI,4):"π × "+a+" × "+b; break; case "circ": s="DN "+a+" × DN "+a+" × π "+fmt(PI,4)+" ÷ 4"; break; case "coroa": s="(DN "+a+"² − d "+b+"²) × π "+fmt(PI,4)+" ÷ 4"; break; case "raios": s="π × ("+a+"² − "+b+"²)"; break;
     case "bit": s=(k==="tubo"?"Ø "+(e.bit||"escolha o diâmetro")+" – C "+a+" m":(e.bit||"escolha o perfil")+" – "+a+" m")+" × "+fmt(M2M[e.bit]||0,2)+" m²/m"; break; case "retoque": s="0,15 m²"; break;
     case "diaria": s=`(${dBR(e.b)} − ${dBR(e.a)} + 1 dia)`; break;
@@ -611,7 +612,7 @@ function textoElem(e){
   if(q!=null && q!==1) s+=" × "+(ehConta(e.qtd)?contaTxt(e.qtd):fmt(q,q%1?2:0));
   if(p!=null && p!==100) s+=" × "+fmt(p,p%1?1:0)+"%";
   const ex=etParse(e.et); if(ex) s+=" × "+fmt(ex.f*100,0)+"% ("+ex.item+": "+ex.nome+")";
-  return s+" = "+fmt(calcElem(e),3)+(FORMAS[k][4]==="m3"?" m³":FORMAS[k][4]==="kg"?" kg":/^(cil|ret|tri|trap|circ|coroa|raios|bit|retoque)$/.test(F[3])?" m²":"");
+  return s+" = "+fmt(calcElem(e),3)+(FORMAS[k][4]==="m3"?" m³":FORMAS[k][4]==="hs"?" h":FORMAS[k][4]==="kg"?" kg":/^(cil|ret|tri|trap|circ|coroa|raios|bit|retoque)$/.test(F[3])?" m²":"");
 }
 function etapasDe(it){ return DATA.etapas[it]||null; }
 function calcEtapas(m){
@@ -880,14 +881,14 @@ function limparSecao(s){ const L=LIMPA[s]; if(!L||!cur) return; if(!confirm(L.q)
   toast(L.ok,{label:"Desfazer",ms:10000,fn:()=>{ if(cur!==alvo){ toast("Abra a mesma MC para desfazer."); return; } Object.assign(alvo,antes); salvar(); renderEditor(); toast("Desfeito."); },
     fim:fotosAntes&&fotosAntes.length?()=>apagaOrfas(fotosAntes):null}); }
 /* lista de formas: no tipo Geral (lista longa) sai agrupada por unidade */
-const GRUPOS_F=["Área (m²)","Volume (m³)","Peso (kg)","Unidade","Diárias"];
-const grupoForma=k=>{ const F=FORMAS[k]; return F[4]==="m3"?"Volume (m³)":F[4]==="kg"?"Peso (kg)":F[3]==="un"?"Unidade":/^(diaria|dias|horas)$/.test(F[3])?"Diárias":"Área (m²)"; };
+const GRUPOS_F=["Área (m²)","Volume (m³)","Peso (kg)","Unidade","Horas (Hs)","Diárias"];
+const grupoForma=k=>{ const F=FORMAS[k]; return F[4]==="m3"?"Volume (m³)":F[4]==="kg"?"Peso (kg)":F[4]==="hs"?"Horas (Hs)":F[3]==="un"?"Unidade":/^(diaria|dias|horas)$/.test(F[3])?"Diárias":"Área (m²)"; };
 function opcoesFormas(lista,sel){ const ord=lista.slice().sort((x,y)=>FORMAS[x][0].localeCompare(FORMAS[y][0],"pt"));
   if(ord.length<=10) return ord.map(f=>opt(f,FORMAS[f][0],sel)).join("");
   return GRUPOS_F.map(g=>{ const fs=ord.filter(f=>grupoForma(f)===g); return fs.length?`<optgroup label="${g}">`+fs.map(f=>opt(f,FORMAS[f][0],sel)).join("")+"</optgroup>":""; }).join(""); }
 function memVazia(m){ return m.elems.every(e=>!e.desc && !e.a && !e.b && !e.c && !e.qtd); }
 function aplicaModelo(m){ const tp=tipoMC(m); if(!memVazia(m)) return;
-  const comp=(f,it)=>{ const P=PPU[it]; if(!P) return false; const k=FORMAS[f][3], g=FORMAS[f][4]; if(g) return g==="m3"?P.u==="m³":g==="kg"?/^kg$/i.test(P.u):g==="dia"?P.u==="Diária":false; return k==="diaria"||k==="dias" ? P.u==="Diária" : k==="un" ? !["m²","m","Diária"].includes(P.u) : ["m²","m"].includes(P.u); };
+  const comp=(f,it)=>{ const P=PPU[it]; if(!P) return false; const k=FORMAS[f][3], g=FORMAS[f][4]; if(g) return g==="m3"?P.u==="m³":g==="kg"?/^kg$/i.test(P.u):g==="dia"?P.u==="Diária":g==="hs"?/^hs?$/i.test(P.u):false; return k==="diaria"||k==="dias" ? P.u==="Diária" : k==="un" ? !["m²","m","Diária"].includes(P.u) : ["m²","m"].includes(P.u); };
   m.elems=(tp.modelo.length?tp.modelo:[["",tp.f[0]]]).map(([d,f,o])=>Object.assign(novoElem(f),o||{},{desc:d,fl:m.itens.map(it=>comp(f,it.item))})); }
 
 /* ---------- indicadores do topo e índice das seções ---------- */
@@ -1403,7 +1404,7 @@ async function pdfMC(doc, m, VERT){
   // critério
   if(L.length){ sub("Critério de medição"); T({body:L.map(l=>[{content:l.item,styles:{fontStyle:"bold",halign:"center"}},pdfTxt(critTxt(l))]),styles:{fontSize:FS,cellPadding:2},columnStyles:{0:{cellWidth:16}}}); }
   // 2 memória
-  sec("MEMÓRIA DE CÁLCULO – "+tipoMC(m).n.toUpperCase().replace(/M²/g,"m²").replace(/M³/g,"m³"));
+  sec("MEMÓRIA DE CÁLCULO");
   const els=m.elems.map((e,k)=>({e,v:c.el[k]})).filter(x=>formaDe(x.e));
   T({head:[["Nº","DESCRIÇÃO DO ELEMENTO / ORIGEM","FORMA DE CÁLCULO","CÁLCULO DEMONSTRADO","RESULTADO",...L.map(l=>l.item)]],
     body:els.map((x,j)=>[rot(j),pdfTxt(x.e.desc),pdfTxt(FORMAS[formaDe(x.e)][0].replace(/\s*\([^()]*\)\s*$/,"")),pdfTxt(textoElem(x.e).replace(/π (?=\d)/g,"")),{content:fmt(x.v,3),styles:{fontStyle:"bold",halign:"right"}},...L.map(l=>({content:x.e.fl[l.i]?(fm(x.e,l.i)>1?fm(x.e,l.i)+"×":"x"):"",styles:{halign:"center",fontStyle:"bold"}}))]),
@@ -1535,7 +1536,7 @@ async function folhaMC(wb, nome, m){
   r++;
   // 2 memória
   const tp=tipoMC(m);
-  sec(r,"2. MEMÓRIA DE CÁLCULO – "+tp.n.toUpperCase().replace(/M²/g,"m²").replace(/M³/g,"m³")); r++;
+  sec(r,"2. MEMÓRIA DE CÁLCULO"); r++;
   const hl=k=>abXL((usaCampo(tp,k)?(tp.lab[k]||{a:"DIM. 1",b:"DIM. 2",c:"DIM. 3",bit:"BITOLA / PERFIL"}[k]):"—").toUpperCase()).replace("(M)","(m)");
   const els0=m.elems.filter(e=>formaDe(e)), semFG=!els0.some(e=>{ const Fm=FORMAS[formaDe(e)]; return Fm[3]==="bit"||Fm[2].includes("c"); });
   const CD=L.length<6?C(12+L.length):"R", CDm=CD==="R"?null:"R", CINZA={type:"pattern",pattern:"solid",fgColor:{argb:"FFEDEDED"}};
