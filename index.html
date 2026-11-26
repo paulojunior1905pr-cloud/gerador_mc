@@ -378,7 +378,7 @@ input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:n
 </style>
 
 <header class="top">
-  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 26/11 13:38 (com logos)</span></div>
+  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 26/11 18:03 (com logos)</span></div>
   <div class="sp"></div>
   <span class="status" id="status">Conectando…</span>
   <label class="tema">Tema<select id="selTema"><option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
@@ -1287,19 +1287,19 @@ async function baixarControle(bm, rjPct){
   await salvaArquivo(new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}),`CONTROLE DE MEDICAO_${bmTxt(bm)}_${MES.replace("/","-").replace("Ç","C")}.xlsx`);
 }
 
-/* imagem (PNG) com os itens cobrados num tanque, somados por item */
+/* imagem (PNG) com os itens cobrados num tanque: uma linha por item em cada MC (o mesmo item em duas MCs sai em duas linhas) */
 function itensDoTanque(tq,bm,soFin){
   const mcs=Object.values(MCS).filter(m=>tagDe(m)===tq&&(bm==null||m.bm===bm)).sort((a,b)=>a.bm-b.bm||ordemMC(a,b));
   const usadas=mcs.filter(m=>!soFin||m.fin), fora=mcs.length-usadas.length, G={};
-  usadas.forEach(m=>linhasCobradas(m).forEach(l=>{ const k=l.item+"|"+l.precoAp;
-    const g=G[k]||(G[k]={item:l.item,d:descCurta(l.P.d),u:l.P.u,preco:l.precoAp,fat:l.fat,q:0,v:0,mcs:[],ros:[]});
+  usadas.forEach((m,mi)=>linhasCobradas(m).forEach(l=>{ const k=l.item+"|"+l.precoAp+"|"+mi;
+    const g=G[k]||(G[k]={mi,item:l.item,d:descCurta(l.P.d),u:l.P.u,preco:l.precoAp,fat:l.fat,q:0,v:0,mcs:[],ros:[]});
     g.q=r3(g.q+l.bm); g.v=r2(g.v+l.valor); const t=mcTxt(m)+(bm==null?" ("+bmTxt(m.bm)+")":""); if(!g.mcs.includes(t)) g.mcs.push(t); const ro=roDe(m); if(!g.ros.includes(ro)) g.ros.push(ro); }));
-  const itens=Object.values(G).sort((a,b)=>itNum(a.item)-itNum(b.item)||b.preco-a.preco);
+  const itens=Object.values(G).sort((a,b)=>itNum(a.item)-itNum(b.item)||a.mi-b.mi||b.preco-a.preco);
   return {itens,usadas,fora,total:r2(itens.reduce((s,g)=>s+g.v,0)),bms:[...new Set(usadas.map(m=>m.bm))]};
 }
 function desenhaTanque(tq,bm,soFin,R){
   const S=2, W=1180, M=24, FT="Arial, Helvetica, sans-serif";
-  const cols=[["ITEM",64,"c"],["RO",88,"c"],["DESCRIÇÃO",412,"l"],["UNID.",54,"c"],["QUANTIDADE",104,"r"],["PREÇO UNIT. (R$)",114,"r"],["VALOR (R$)",124,"r"],["MCs",172,"l"]];
+  const cols=[["ITEM",64,"c"],["RO",88,"c"],["DESCRIÇÃO",412,"l"],["UNID.",54,"c"],["QUANTIDADE",104,"r"],["PREÇO UNIT. (R$)",114,"r"],["VALOR (R$)",124,"r"],["MC",172,"l"]];
   const cv=document.createElement("canvas"), x=cv.getContext("2d");
   const quebra=(t,w,font)=>{ x.font=font; const out=[]; String(t||"").split("\n").forEach(par=>{ let lin=""; par.split(/\s+/).filter(Boolean).forEach(p=>{ const tt=lin?lin+" "+p:p; if(x.measureText(tt).width>w&&lin){ out.push(lin); lin=p; } else lin=tt; }); out.push(lin); }); return out; };
   const F13="13px "+FT, F13B="bold 13px "+FT, LH=18, PAD=8;
@@ -1333,7 +1333,7 @@ $("#bImgTq").addEventListener("click",()=>{
   if(!tags.length){ toast("Nenhuma MC com tanque informado."); return; }
   const sug=cur&&tagDe(cur)?tagDe(cur):tags[0], bms=[...new Set(Object.values(MCS).map(m=>m.bm))].sort((a,b)=>b-a);
   const d=dialogo(`<h3>Imagem dos itens de um tanque</h3>
-    <p>Escolha o tanque e o período. A imagem soma, por item, o que foi cobrado nas MCs, com o valor e as MCs de origem.</p>
+    <p>Escolha o tanque e o período. A imagem mostra cada item cobrado em cada MC, com a quantidade, o valor e a MC de origem. O mesmo item em duas MCs sai em duas linhas.</p>
     <div class="lin"><label class="f">Tanque<select id="iTq">${tags.map(t=>opt(t,t,sug)).join("")}</select></label>
       <label class="f">Período<select id="iBm"><option value="">Todos os BMs (acumulado)</option>${bms.map(b=>`<option value="${b}" ${b===filtroBM?"selected":""}>${bmTxt(b)} (${mesBM(b)})</option>`).join("")}</select></label></div>
     <label class="chk"><input type="checkbox" id="iFin" checked> Só MCs finalizadas</label>
