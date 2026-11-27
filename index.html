@@ -192,6 +192,7 @@ main{display:flex;flex-direction:column;gap:14px;min-width:0}
 section.blk{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;min-width:0}
 .blk h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;margin:0 0 10px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
 .blk h2 .num{font-family:var(--f-mono);color:var(--accent)}
+.fnome{display:block;width:100%;margin-top:4px;font-size:12px;padding:3px 6px}
 .blk h2 .limpar{margin-left:auto;align-self:center;min-height:0;font-size:11px;font-weight:500;text-transform:none;letter-spacing:0;padding:3px 10px;border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:6px;cursor:pointer}
 .blk h2 .limpar:hover:not(:disabled){color:var(--bad);border-color:var(--bad)}
 .toast button{margin-left:12px;background:transparent;border:1px solid currentColor;color:inherit;border-radius:6px;padding:2px 10px;font-weight:600;cursor:pointer}
@@ -378,7 +379,7 @@ input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:n
 </style>
 
 <header class="top">
-  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 26/11 21:48 (com logos)</span></div>
+  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 26/11 22:05 (com logos)</span></div>
   <div class="sp"></div>
   <span class="status" id="status">Conectando…</span>
   <label class="tema">Tema<select id="selTema"><option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
@@ -741,8 +742,10 @@ $("#bNova").addEventListener("click",()=>{ curId=null; cur=novaMC(filtroBM||BM_A
 const opt=(v,l,sel)=>`<option value="${esc(v)}" ${v===sel?"selected":""}>${esc(l)}</option>`;
 const itemOpts = sel => '<option value="">—</option>'+ITENS.map(it=>opt(it,it+" · "+PPU[it].d.slice(0,60),sel)).join("");
 function colsMem(tp){ return [["a",tp.lab.a||"Dim. 1"],["b",tp.lab.b||"Dim. 2"],["c",tp.lab.c||"Dim. 3"],["bit",tp.lab.bit||"Bitola / perfil"]].filter(([k])=>usaCampo(tp,k)); }
+const nomeFormaPad=k=>FORMAS[k][0].replace(/\s*\([^()]*\)\s*$/,"");
+const nomeForma=e=>(e.fnome||"").trim()||nomeFormaPad(formaDe(e));
 function linhaMem(e,k,tp){ const h=linhaMem0(e,k,tp); if(!e.gen) return h;
-  return h.replace(/^<tr>/,'<tr class="gen">').replace(/<input (?![^>]*type="checkbox")/g,'<input disabled ').replace(/<select /g,'<select disabled ').replace(/<input type="checkbox"/g,'<input type="checkbox" disabled').replace(/<button class="ghost" data-del-el="\d+"[^>]*>✕<\/button>/,'<span class="hint" title="Linha montada pelo Quadro dos anéis. Altere na grade.">grade</span>'); }
+  return h.replace(/^<tr>/,'<tr class="gen">').replace(/<input (?![^>]*(?:type="checkbox"|data-livre))/g,'<input disabled ').replace(/<select /g,'<select disabled ').replace(/<input type="checkbox"/g,'<input type="checkbox" disabled').replace(/<button class="ghost" data-del-el="\d+"[^>]*>✕<\/button>/,'<span class="hint" title="Linha montada pelo Quadro dos anéis. Altere na grade.">grade</span>'); }
 function linhaMem0(e,k,tp){
   const k0=formaDe(e), F=k0?FORMAS[k0]:null, usa=c=> F && (c==="bit" ? F[3]==="bit" : F[2].includes(c));
   const lista=[...tp.f]; if(k0 && !lista.includes(k0)) lista.push(k0);
@@ -752,7 +755,7 @@ function linhaMem0(e,k,tp){
     return `<td><input id="e${k}_${c}" class="num" data-el="${k}" data-f="${c}" inputmode="decimal" value="${esc(e[c])}"></td>`; };
   return `<tr><td class="c"><b>${rot(k)}</b></td>
       <td><input id="e${k}_desc" data-el="${k}" data-f="desc" value="${esc(e.desc)}" style="min-width:200px"></td>
-      <td><select id="e${k}_tipo" data-el="${k}" data-f="tipo" style="min-width:220px">${'<option value="">—</option>'+opcoesFormas(lista,e.tipo)}</select></td>
+      <td><select id="e${k}_tipo" data-el="${k}" data-f="tipo" style="min-width:220px">${'<option value="">—</option>'+opcoesFormas(lista,e.tipo)}</select>${F?`<input id="e${k}_fn" class="fnome" data-livre="1" data-el="${k}" data-f="fnome" value="${esc(e.fnome||"")}" placeholder="${esc(nomeFormaPad(k0))}" title="Nome que sai no PDF e no Excel. Vazio = nome padrão da forma. Não muda a conta.">`:""}</td>
       ${colsMem(tp).map(cel).join("")}
       <td><input id="e${k}_q" class="sm num" data-el="${k}" data-f="qtd" inputmode="decimal" value="${esc(e.qtd)}" placeholder="1"></td>
       <td><input id="e${k}_p" class="sm num" data-el="${k}" data-f="pct" inputmode="decimal" value="${esc(e.pct)}" placeholder="100"></td>
@@ -799,6 +802,7 @@ function geraGrade(m){
       e.fl=vs.map(v=>v>=1); if(mx>1) e.dm=vs.slice(); e.gen=true; ger.push(e); } });
   if(!ger.length && !m.elems.some(e=>e.gen)) return;
   m.itens.forEach((it,i)=>{ if(itemNaGrade(m,i) && usaDemao(it.item)) it.demaos="1"; });
+  const fn={}; m.elems.forEach(e=>{ if(e.gen&&e.fnome) fn[e.tipo+"|"+e.desc]=e.fnome; }); ger.forEach(e=>{ const v=fn[e.tipo+"|"+e.desc]; if(v) e.fnome=v; });
   const manuais=m.elems.filter(e=>!e.gen && (e.a||e.b||e.c||e.qtd));
   m.elems=ger.concat(manuais); if(!m.elems.length) m.elems.push(novoElem(tipoMC(m).f[0]));
 }
@@ -1448,7 +1452,7 @@ async function pdfMC(doc, m, VERT){
   sec("MEMÓRIA DE CÁLCULO");
   const els=m.elems.map((e,k)=>({e,v:c.el[k]})).filter(x=>formaDe(x.e));
   T({head:[["Nº","DESCRIÇÃO DO ELEMENTO / ORIGEM","FORMA DE CÁLCULO","CÁLCULO DEMONSTRADO","RESULTADO",...L.map(l=>l.item)]],
-    body:els.map((x,j)=>[rot(j),pdfTxt(x.e.desc),pdfTxt(FORMAS[formaDe(x.e)][0].replace(/\s*\([^()]*\)\s*$/,"")),pdfTxt(textoElem(x.e).replace(/π (?=\d)/g,"")),{content:fmt(x.v,3),styles:{fontStyle:"bold",halign:"right"}},...L.map(l=>({content:x.e.fl[l.i]?(fm(x.e,l.i)>1?fm(x.e,l.i)+"×":"x"):"",styles:{halign:"center",fontStyle:"bold"}}))]),
+    body:els.map((x,j)=>[rot(j),pdfTxt(x.e.desc),pdfTxt(nomeForma(x.e)),pdfTxt(textoElem(x.e).replace(/π (?=\d)/g,"")),{content:fmt(x.v,3),styles:{fontStyle:"bold",halign:"right"}},...L.map(l=>({content:x.e.fl[l.i]?(fm(x.e,l.i)>1?fm(x.e,l.i)+"×":"x"):"",styles:{halign:"center",fontStyle:"bold"}}))]),
     foot:[[{content:"QUANTIDADE DA MEMÓRIA POR ITEM",colSpan:5,styles:{halign:"left"}},...L.map(l=>{ const t=fmt(l.mem,3), w=(VERT?13:16)-2.2; doc.setFont("helvetica","bold"); const fz=Math.min(FS, w*72/25.4/(doc.getStringUnitWidth(t)||1)); return {content:t,styles:{halign:"center",fontSize:Math.max(5,Math.floor(fz*10)/10),cellPadding:{top:1.5,bottom:1.5,left:0.8,right:0.8}}}; })]],
     columnStyles:Object.assign({0:{cellWidth:7,halign:"center"},2:{cellWidth:VERT?28:40},4:{cellWidth:20}},Object.fromEntries(L.map((_,k)=>[5+k,{cellWidth:VERT?13:16}])))});
   const dem=MOSTRA_RESUMO&&somaItens(m,c); if(dem){ y-=2; T({body:[[pdfTxt(dem)]],styles:{fontSize:FS-0.5,fontStyle:"italic",fillColor:[248,248,248]}}); }
@@ -1586,7 +1590,7 @@ async function folhaMC(wb, nome, m){
   const M0=r+1; const els=m.elems.map((e,k)=>({e,k,v:c.el[k]})).filter(x=>formaDe(x.e));
   const dimXL=(raw,usa)=>{ if(!usa) return null; if(ehConta(raw)){ const f=contaXL(raw); return f?F(f,numE(raw)):numE(raw); } return numE(raw)??0; };
   els.forEach((x,j)=>{ const e=x.e, rr=M0+j, k0=formaDe(e), Fm=FORMAS[k0], kind=Fm[3], u=cc=>Fm[2].includes(cc);
-    put("A"+rr,rot(j),{h:"center",b:1}); put("B"+rr,e.desc,{fill:INP,sz:8}); put("C"+rr,Fm[0],{sz:8});
+    put("A"+rr,rot(j),{h:"center",b:1}); put("B"+rr,e.desc,{fill:INP,sz:8}); const FN=(e.fnome||"").trim()||Fm[0]; put("C"+rr,FN,{sz:8});
     if(kind==="diaria"){ put("D"+rr,dataISO(e.a),{fill:INP,h:"center",f:"dd/mm/yyyy"}); put("E"+rr,dataISO(e.b),{fill:INP,h:"center",f:"dd/mm/yyyy"}); }
     else { put("D"+rr,dimXL(e.a,u("a")),{fill:u("a")?INP:null,h:"right",f:"#,##0.00##"}); put("E"+rr,kind==="horas"&&numE(e.b)==null?JORNADA:dimXL(e.b,u("b")),{fill:u("b")?INP:null,h:"right",f:"#,##0.00##"}); }
     if(semFG) put("F"+rr,null,{m:"G"+rr,fill:CINZA});
@@ -1596,7 +1600,7 @@ async function folhaMC(wb, nome, m){
     const base={direto:`D${rr}`,ret:`D${rr}*E${rr}`,tri:`D${rr}*E${rr}/2`,trap:`(D${rr}+E${rr})/2*F${rr}`,cil:`D${rr}*E${rr}`,pesc:`${PI}*D${rr}*0.0254*E${rr}`,circ:`${PI}*D${rr}^2/4`,coroa:`${PI}*(D${rr}^2-E${rr}^2)/4`,raios:`${PI}*(D${rr}^2-E${rr}^2)`,bit:`D${rr}*G${rr}`,retoque:"0.15",diaria:`(E${rr}-D${rr}+1)`,dias:`D${rr}`,un:"1",horas:`D${rr}/E${rr}`,vret:`D${rr}*E${rr}*F${rr}`,vcil:`${PI}*D${rr}^2/4*F${rr}`,vfaixa:`${PI}*D${rr}*E${rr}*F${rr}`}[kind];
     put("K"+rr,F(`ROUND(${base}*I${rr}*H${rr}*J${rr}${etParse(e.et)?"*"+etFator(e):""},3)`,x.v),{h:"right",f:"#,##0.000",b:1});
     L.forEach((l,k)=>put(C(12+k)+rr,e.fl[l.i]?fm(e,l.i):null,{fill:INP,h:"center",b:1,f:'[=1]"x";0"×"'}));
-    const tx=textoElem(e); put(CD+rr,tx,{m:CDm&&CDm+rr,sz:8}); ws.getRow(rr).height=altL(Math.max(nLin(e.desc,W[1]),nLin(Fm[0],W[2]),nLin(tx,larg(CD,"R")))); });
+    const tx=textoElem(e); put(CD+rr,tx,{m:CDm&&CDm+rr,sz:8}); ws.getRow(rr).height=altL(Math.max(nLin(e.desc,W[1]),nLin(FN,W[2]),nLin(tx,larg(CD,"R")))); });
   const ME=M0+Math.max(els.length,1)-1; r=ME+1;
   put("A"+r,"QUANTIDADE DA MEMÓRIA POR ITEM",{m:"K"+r,fill:TOT,b:1,h:"left"});
   const memCell={}; L.forEach((l,k)=>{ const col=C(12+k); memCell[l.i]=col+r; put(col+r,F(`SUMPRODUCT(${col}${M0}:${col}${ME},$K$${M0}:$K$${ME})`,l.mem),{fill:TOT,b:1,sz:8,h:"center",f:"#,##0.000"}); });
