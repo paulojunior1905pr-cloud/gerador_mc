@@ -458,6 +458,7 @@ const FORMAS = {
   coroaInf:["Contraventamento – face inferior (+30% fator contábil)",1.3,"ab","coroa"],
   coroaSup:["Contraventamento – face superior (sem acréscimo)",1,"ab","coroa"],
   rim:["Faixa do RIM / chapa lateral (DN × π × altura)",1,"ab","cil"],
+  pescoco:["Pescoço de BV / bocal (DN em pol × 0,0254 × π × altura)",1,"ab","pesc"],
   raios:["Coroa pelos raios (π × (R² − r²))",1,"ab","raios"],
   escSup:["Escada inclinada – face superior (C × L, +10%)",1.1,"ab","ret"],
   escInf:["Escada inclinada – face inferior (C × L, +30%)",1.3,"ab","ret"],
@@ -494,7 +495,7 @@ const TMC = {
   geral:{rev:true,n:"Geral – todas as formas",d:"Todas as formas de cálculo disponíveis.",f:Object.keys(FORMAS),lab:{a:"Dim. 1 (C / D / B)",b:"Dim. 2 (L / h / d)",c:"Dim. 3 (altura h)",bit:"Bitola / perfil",q:"Qtd"},modelo:[]},
   isolamento:{rev:true,n:"Isolamento térmico (volume m³)",d:"Itens 1.87, 1.88 e 1.89: teto = π × D² ÷ 4 × espessura; costado = π × DN × altura × espessura; trechos retos = C × L × espessura. Na coluna “Etapa cobrada” escolha 30% · Remoção ou 70% · Instalação.",f:["volCil","volFaixa","volRet","volDir"],lab:{a:"DN do tanque / comprimento (m)",b:"Altura do costado / largura (m)",c:"Espessura (m)",q:"Qtd"},modelo:[["Isolamento do teto (π × D² ÷ 4 × espessura)","volCil"],["Isolamento do costado (π × DN × altura × espessura)","volFaixa"]]},
   civil:{rev:true,n:"Rota de fuga, minidique, muros e muretas",d:"Faixas no perímetro do tanque (π × D × largura), acessos e paredes. Na largura dá para somar: 0,4+2,15+0,4.",f:["faixa","ret","raios","trap","tri","cil","direto"],lab:{a:"C / D / B (m)",b:"Largura / d / b (m)",c:"Altura h (m)",q:"Qtd"},modelo:[["Rota de fuga no perímetro do tanque","faixa"],["Acesso à rota de fuga","ret"],["Parede interna","faixa"],["Parede externa","faixa"],["Faixa amarela","faixa"]]},
-  teto:{rev:true,n:"Teto, fundo, lençol e contraventamento",d:"Círculo (π × D² ÷ 4), coroa entre dois diâmetros (flutuador = teto − lençol) e face inferior +30%.",f:["circ","coroa","coroaInf","coroaSup","rim","ret","direto","cil"],lab:{a:"Diâmetro D (m)",b:"Diâmetro interno d / altura (m)",q:"Qtd"},modelo:[["Teto / fundo (círculo)","circ"],["Flutuador (coroa: teto − lençol)","coroa"],["Contraventamento – face inferior","coroaInf"]]},
+  teto:{rev:true,n:"Teto, fundo, lençol e contraventamento",d:"Círculo (π × D² ÷ 4), coroa entre dois diâmetros (flutuador = teto − lençol) e face inferior +30%.",f:["circ","coroa","coroaInf","coroaSup","rim","pescoco","ret","direto","cil"],lab:{a:"Diâmetro D (m)",b:"Diâmetro interno d / altura (m)",q:"Qtd"},modelo:[["Teto / fundo (círculo)","circ"],["Flutuador (coroa: teto − lençol)","coroa"],["Contraventamento – face inferior","coroaInf"]]},
   tubulacao:{rev:true,n:"Tubulação e suportes",d:"Linhas pelo comprimento × m²/m do diâmetro e suportes pelo perfil.",f:["tubo","tuboG","perfil","direto"],lab:{a:"Comprimento (m)",bit:"Diâmetro / perfil",q:"Qtd de peças"},modelo:[["Linha","tubo"],["Suporte","perfil"]]},
   unidade:{rev:true,n:"Unidades (BV, PL, TH, drenos, agitadores, peças)",d:"Itens medidos por unidade: abertura de BV/PL, teste hidrostático, drenos flexíveis, agitadores, bocais, TAG.",f:["un"],lab:{q:"Quantidade"},modelo:[["","un"]]},
 };
@@ -525,7 +526,7 @@ const dBR = s => { const d=dataISO(s); return d ? d.toISOString().slice(0,10).sp
 function formaDe(e){ return FORMAS[e.tipo] ? e.tipo : null; }
 function baseElem(e){
   const k=formaDe(e); if(!k) return null; const F=FORMAS[k], A=numE(e.a)||0, B=numE(e.b)||0, C=numE(e.c)||0;
-  switch(F[3]){ case "direto": return A; case "ret": return A*B; case "tri": return A*B/2; case "trap": return (A+B)/2*C; case "cil": return PI*A*B;
+  switch(F[3]){ case "direto": return A; case "ret": return A*B; case "tri": return A*B/2; case "trap": return (A+B)/2*C; case "cil": return PI*A*B; case "pesc": return PI*A*0.0254*B;
     case "circ": return PI*A*A/4; case "coroa": return PI*(A*A-B*B)/4; case "raios": return PI*(A*A-B*B); case "bit": return A*(M2M[e.bit]||0);
     case "retoque": return 0.15; case "diaria": return dias(e.a,e.b)||0; case "dias": return A||0;
     case "horas": return A/(B||JORNADA); case "vret": return A*B*C; case "vcil": return PI*A*A/4*C; case "vfaixa": return PI*A*B*C; default: return 1; }
@@ -543,6 +544,7 @@ const TETO_TIPOS={
   rimExt:{f:"rim",n:"RIM externo",la:"DN",lb:"Altura",da:g=>g.dnRE,db:g=>g.hR},
   contrav:{f:"coroaInf",n:"Contraventamento – face inferior",la:"DN externo",lb:"d interno"},
   contravSup:{f:"coroaSup",n:"Contraventamento – face superior",la:"DN externo",lb:"d interno"},
+  pescoco:{f:"pescoco",n:"Pescoço das BVs",la:"DN (pol)",lb:"Altura (m)"},
   extra:{f:"direto",n:"Área extra",la:"Área (m²)"}};
 const TUB_TIPOS={
   linha:{fs:[["tubo",""]],n:"Linha (até 26\")",nm:l=>l.bit?"Linha Ø "+l.bit:"",la:"Comprimento (m)",bits:"tubo"},
@@ -603,6 +605,7 @@ function textoElem(e){
   const a=dimTxt(e.a,A), b=dimTxt(e.b,B), c=dimTxt(e.c,C); let s;
   switch(F[3]){ case "direto": s=F[4]==="hs"?"Total de horas informado":a; break; case "ret": s=NOMES[k]?NOMES[k][0]+" "+a+" × "+NOMES[k][1]+" "+b:a+" × "+b; break; case "tri": s=a+" × "+b+" ÷ 2"; break; case "trap": s="("+a+" + "+b+") ÷ 2 × "+c; break;
     case "cil": s=NOMES[k]?NOMES[k][0]+" "+a+" × "+NOMES[k][1]+" "+b+" × π "+fmt(PI,4):"π × "+a+" × "+b; break; case "circ": s="DN "+a+" × DN "+a+" × π "+fmt(PI,4)+" ÷ 4"; break; case "coroa": s="(DN "+a+"² − d "+b+"²) × π "+fmt(PI,4)+" ÷ 4"; break; case "raios": s="π × ("+a+"² − "+b+"²)"; break;
+    case "pesc": s="DN "+(ehConta(e.a)?a:fmt(A||0,(A||0)%1?2:0))+"\" × 0,0254 = "+fmt(A*0.0254,4)+" m × π "+fmt(PI,4)+" × ALT "+b; break;
     case "bit": s=(k==="tubo"?"Ø "+(e.bit||"escolha o diâmetro")+" – C "+a+" m":(e.bit||"escolha o perfil")+" – "+a+" m")+" × "+fmt(M2M[e.bit]||0,2)+" m²/m"; break; case "retoque": s="0,15 m²"; break;
     case "diaria": s=`(${dBR(e.b)} − ${dBR(e.a)} + 1 dia)`; break;
     case "dias": s=(ehConta(e.a)?a:fmt(A||0,(A||0)%1?2:0))+" dias"; break;
@@ -612,7 +615,7 @@ function textoElem(e){
   if(q!=null && q!==1) s+=" × "+(ehConta(e.qtd)?contaTxt(e.qtd):fmt(q,q%1?2:0));
   if(p!=null && p!==100) s+=" × "+fmt(p,p%1?1:0)+"%";
   const ex=etParse(e.et); if(ex) s+=" × "+fmt(ex.f*100,0)+"% ("+ex.item+": "+ex.nome+")";
-  return s+" = "+fmt(calcElem(e),3)+(FORMAS[k][4]==="m3"?" m³":FORMAS[k][4]==="hs"?" h":FORMAS[k][4]==="kg"?" kg":/^(cil|ret|tri|trap|circ|coroa|raios|bit|retoque)$/.test(F[3])?" m²":"");
+  return s+" = "+fmt(calcElem(e),3)+(FORMAS[k][4]==="m3"?" m³":FORMAS[k][4]==="hs"?" h":FORMAS[k][4]==="kg"?" kg":/^(cil|pesc|ret|tri|trap|circ|coroa|raios|bit|retoque)$/.test(F[3])?" m²":"");
 }
 function etapasDe(it){ return DATA.etapas[it]||null; }
 function calcEtapas(m){
@@ -815,7 +818,7 @@ function htmlTeto(m){
       ${its.map(([it,i])=>`<td class="c">${usaDemao(it.item)?inp(`tq${r}_d${i}`,`data-an="${r}" data-ad="${i}"`,l.d[i],"–","sm num"):`<input type="checkbox" id="tq${r}_d${i}" data-an="${r}" data-ad="${i}" ${parseInt(l.d[i])>0?"checked":""} aria-label="Esta parte entra no item ${esc(it.item)}">`}</td>`).join("")}
       <td><button class="ghost" data-del-an="${r}" aria-label="Remover parte">✕</button></td></tr>`; }).join("")}
     </tbody></table></div>
-    <div class="row" style="margin-top:8px"><span class="hint" style="margin:0">Incluir:</span>${["lencol","rim","camisa","flut","rimExt","contrav","contravSup","extra"].map(k=>`<button data-tqadd="${k}">+ ${esc(TETO_TIPOS[k].n)}</button>`).join("")}</div>
+    <div class="row" style="margin-top:8px"><span class="hint" style="margin:0">Incluir:</span>${["lencol","rim","camisa","flut","rimExt","contrav","contravSup","pescoco","extra"].map(k=>`<button data-tqadd="${k}">+ ${esc(TETO_TIPOS[k].n)}</button>`).join("")}</div>
     <p class="hint">Medidas em branco usam os dados do topo (aparecem em cinza). Camisas: C × L × quantidade. Quando uma parte tem 2 demãos num item, a 2ª demão vira uma linha própria na memória.</p>`
     :`<p class="hint">Escolha os itens da PPU na seção 1 para montar a grade.</p>`}
   </div>`;
@@ -1552,7 +1555,7 @@ async function folhaMC(wb, nome, m){
     else { if(kind==="bit") put("F"+rr,e.bit||null,{fill:INP,sz:8,h:"center"}); else put("F"+rr,dimXL(e.c,u("c")),{fill:u("c")?INP:null,h:"right",f:"#,##0.00##"});
     put("G"+rr,kind==="bit"?(M2M[e.bit]||0):null,{h:"center",f:"0.00"}); }
     put("H"+rr,ehConta(e.qtd)&&contaXL(e.qtd)?F(contaXL(e.qtd),numE(e.qtd)):(numE(e.qtd)??1),{fill:INP,h:"center",f:"#,##0.##"}); put("I"+rr,kind==="cil"?PI*Fm[1]:Fm[1],{h:"center",f:kind==="cil"?"0.0000":"0.00"}); put("J"+rr,(numE(e.pct)??100)/100,{fill:INP,h:"center",f:"0%"});
-    const base={direto:`D${rr}`,ret:`D${rr}*E${rr}`,tri:`D${rr}*E${rr}/2`,trap:`(D${rr}+E${rr})/2*F${rr}`,cil:`D${rr}*E${rr}`,circ:`${PI}*D${rr}^2/4`,coroa:`${PI}*(D${rr}^2-E${rr}^2)/4`,raios:`${PI}*(D${rr}^2-E${rr}^2)`,bit:`D${rr}*G${rr}`,retoque:"0.15",diaria:`(E${rr}-D${rr}+1)`,dias:`D${rr}`,un:"1",horas:`D${rr}/E${rr}`,vret:`D${rr}*E${rr}*F${rr}`,vcil:`${PI}*D${rr}^2/4*F${rr}`,vfaixa:`${PI}*D${rr}*E${rr}*F${rr}`}[kind];
+    const base={direto:`D${rr}`,ret:`D${rr}*E${rr}`,tri:`D${rr}*E${rr}/2`,trap:`(D${rr}+E${rr})/2*F${rr}`,cil:`D${rr}*E${rr}`,pesc:`${PI}*D${rr}*0.0254*E${rr}`,circ:`${PI}*D${rr}^2/4`,coroa:`${PI}*(D${rr}^2-E${rr}^2)/4`,raios:`${PI}*(D${rr}^2-E${rr}^2)`,bit:`D${rr}*G${rr}`,retoque:"0.15",diaria:`(E${rr}-D${rr}+1)`,dias:`D${rr}`,un:"1",horas:`D${rr}/E${rr}`,vret:`D${rr}*E${rr}*F${rr}`,vcil:`${PI}*D${rr}^2/4*F${rr}`,vfaixa:`${PI}*D${rr}*E${rr}*F${rr}`}[kind];
     put("K"+rr,F(`ROUND(${base}*I${rr}*H${rr}*J${rr}${etParse(e.et)?"*"+etFator(e):""},3)`,x.v),{h:"right",f:"#,##0.000",b:1});
     L.forEach((l,k)=>put(C(12+k)+rr,e.fl[l.i]?fm(e,l.i):null,{fill:INP,h:"center",b:1,f:'[=1]"x";0"×"'}));
     const tx=textoElem(e); put(CD+rr,tx,{m:CDm&&CDm+rr,sz:8}); ws.getRow(rr).height=altL(Math.max(nLin(e.desc,W[1]),nLin(Fm[0],W[2]),nLin(tx,larg(CD,"R")))); });
