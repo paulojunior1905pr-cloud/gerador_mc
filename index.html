@@ -262,6 +262,9 @@ select.tprev option:not(.rev){color:var(--ink);background:var(--panel);font-weig
 .vh{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0)}
 .drop .btn{position:relative}
 #fotoMsg.err{color:#c0392b;white-space:pre-line}
+.prints{display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:10px}
+.prints .pr{max-width:100%;text-align:center}
+.prints img{max-width:100%;max-height:70vh;border:1px solid var(--line);border-radius:6px;background:#fff;display:block;margin:0 auto 6px}
 .drop.hot{border-color:var(--accent);color:var(--accent)}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--panel);
@@ -504,6 +507,7 @@ const TMC = {
   diaria:{rev:true,n:"Diárias de equipamentos e serviços",d:"PTA, gerador, bomba, guindaste (por período), topografia e caminhão vácuo (por horas ÷ jornada de 8,8 h).",f:["diaria","diasQ","horas"],lab:{a:"Início / horas / nº de dias",b:"Fim / jornada (h)",q:"Qtd de equipamentos"},modelo:[["","diaria"]]},
   estrutura:{rev:true,n:"Escadas, plataformas e guarda-corpos (pintura m²)",d:"Escada +10% (face superior) e +30% (face inferior), guarda-corpo C × h ÷ 2, grelha × 3.",f:["escSup","escInf","gcReto","gcCirc","grelha","platInf","piso","ret","perfil","direto"],lab:{a:"Comprimento ou DN (m)",b:"Largura ou altura (m)",bit:"Perfil",q:"Qtd"},modelo:[["Escada – face superior","escSup"],["Escada – face inferior","escInf"],["Corrimão / guarda-corpo","gcReto"],["Plataforma (grelha)","grelha"]]},
   peso:{n:"Estruturas por peso (kg)",d:"Item 1.76: escadas, plataformas, guarda-corpos, serpentina e ancoragem medidos em kg. Na coluna “Etapa cobrada” escolha a etapa (ex.: 60% · Remoção + Preparação e fabricação).",f:["pesoDir","pesoPerfil"],lab:{a:"Peso (kg) ou comprimento (m)",b:"kg/m do perfil",q:"Qtd de peças"},modelo:[["Peso conforme desenho / lista de material","pesoDir"]]},
+  print:{rev:true,n:"MC geral print (print do cálculo)",d:"O cálculo vai como imagem (print) na seção 2, centralizado no PDF e no Excel. Lance a quantidade de cada item numa linha “Área / quantidade informada” e marque o item; o restante da MC é preenchido normalmente.",f:["direto","volDir","pesoDir","hsDir","diasQ","un"],lab:{a:"Quantidade (conforme print)",q:"Qtd"},modelo:[["Conforme print do cálculo","direto"]]},
   geral:{rev:true,n:"Geral – todas as formas",d:"Todas as formas de cálculo disponíveis.",f:Object.keys(FORMAS),lab:{a:"Dim. 1 (C / D / B)",b:"Dim. 2 (L / h / d)",c:"Dim. 3 (altura h)",bit:"Bitola / perfil",q:"Qtd"},modelo:[]},
   isolamento:{rev:true,n:"Isolamento térmico (volume m³)",d:"Itens 1.87, 1.88 e 1.89: teto = π × D² ÷ 4 × espessura; costado = π × DN × altura × espessura; trechos retos = C × L × espessura. Na coluna “Etapa cobrada” escolha 30% · Remoção ou 70% · Instalação.",f:["volCil","volFaixa","volRet","volDir"],lab:{a:"DN do tanque / comprimento (m)",b:"Altura do costado / largura (m)",c:"Espessura (m)",q:"Qtd"},modelo:[["Isolamento do teto (π × D² ÷ 4 × espessura)","volCil"],["Isolamento do costado (π × DN × altura × espessura)","volFaixa"]]},
   civil:{rev:true,n:"Rota de fuga, minidique, muros e muretas",d:"Faixas no perímetro do tanque (π × D × largura), acessos e paredes. Na largura dá para somar: 0,4+2,15+0,4.",f:["faixa","ret","raios","trap","tri","cil","direto"],lab:{a:"C / D / B (m)",b:"Largura / d / b (m)",c:"Altura h (m)",q:"Qtd"},modelo:[["Rota de fuga no perímetro do tanque","faixa"],["Acesso à rota de fuga","ret"],["Parede interna","faixa"],["Parede externa","faixa"],["Faixa amarela","faixa"]]},
@@ -547,7 +551,7 @@ function baseElem(e){
 /* ---------- modelo ---------- */
 function novaMC(bm){ return {bm, mc:"", tanque:"", ro:"", servico:"", tipoMC:"geral", itens:Array.from({length:NI},()=>({item:"",metodo:"",demaos:""})),
   elems:Array.from({length:4},()=>novoElem()), quadro:Array.from({length:NI},()=>({ant:"",pct:"",man:""})),
-  etapa:{item:"",lotes:[novoLote(),novoLote()]}, modoAv:"acum", aneis:novaGrade(), tetoQ:novoTeto("completo"), escQ:{linhas:[novaLinhaTeto("escada")]}, tubQ:{linhas:[novaLinhaTeto("linha")]}, miniQ:novoMini(), obsMem:"", obs:"", fotos:[], updatedAt:Date.now()}; }
+  etapa:{item:"",lotes:[novoLote(),novoLote()]}, modoAv:"acum", aneis:novaGrade(), tetoQ:novoTeto("completo"), escQ:{linhas:[novaLinhaTeto("escada")]}, tubQ:{linhas:[novaLinhaTeto("linha")]}, miniQ:novoMini(), obsMem:"", obs:"", fotos:[], prints:[], updatedAt:Date.now()}; }
 const TETO_TIPOS={
   lencol:{f:"circ",n:"Lençol",la:"DN do lençol",da:g=>g.dnL},
   rim:{f:"rim",n:"Chapas do RIM do lençol",la:"DN",lb:"Altura",da:g=>g.dnL,db:g=>g.hR},
@@ -599,7 +603,7 @@ function normaliza(m){ const n=novaMC(m.bm||23); const o=Object.assign(n,m);
   o.tubQ={linhas:((m.tubQ&&m.tubQ.linhas)||[novaLinhaTeto("linha")]).filter(l=>TUB_TIPOS[l.tipo]).map(l=>Object.assign(novaLinhaTeto(l.tipo),l,{d:Array.from({length:NI},(_,i)=>(l.d||[])[i]??"")}))}; if(!o.tubQ.linhas.length) o.tubQ.linhas.push(novaLinhaTeto("linha"));
   o.miniQ=Object.assign(novoMini(),m.miniQ||{}); o.miniQ.linhas=(o.miniQ.linhas||[]).filter(l=>MINI_TIPOS[l.tipo]).map(l=>Object.assign(novaLinhaTeto(l.tipo),l,{d:Array.from({length:NI},(_,i)=>(l.d||[])[i]??"")})); if(!o.miniQ.linhas.length) o.miniQ=novoMini();
   o.aneis=Object.assign(novaGrade(),m.aneis||{}); o.aneis.linhas=(o.aneis.linhas&&o.aneis.linhas.length?o.aneis.linhas:[novaLinhaAnel("anel")]).map(l=>Object.assign(novaLinhaAnel(l.tipo||"anel"),l,{d:Array.from({length:NI},(_,i)=>(l.d||[])[i]??"")}));
-  o.elems.forEach(e=>{ if(e.tipo==="diasQ"&&(e.a===""||e.a==null)){ e.a=e.qtd||"1"; e.qtd=""; } }); o.fotos=m.fotos||[]; if(o.elems.some(e=>e.gen&&/ – \dª demão$/.test(e.desc||""))) geraGrade(o); return o; }
+  o.elems.forEach(e=>{ if(e.tipo==="diasQ"&&(e.a===""||e.a==null)){ e.a=e.qtd||"1"; e.qtd=""; } }); o.fotos=m.fotos||[]; o.prints=m.prints||[]; if(o.elems.some(e=>e.gen&&/ – \dª demão$/.test(e.desc||""))) geraGrade(o); return o; }
 
 /* etapa do critério cobrada na linha da memória: "item|a-b" (faixa de etapas) */
 function etParse(v){ const m=/^([\d.]+)\|(\d+)-(\d+)$/.exec(v||""); if(!m) return null; const et=DATA.etapas[m[1]]; if(!et) return null;
@@ -730,12 +734,12 @@ function abrir(id){ curId=id; cur=MCS[id]; renderList(); renderEditor(); }
 /* ---------- lista ---------- */
 /* fotos no banco que nenhuma MC usa mais (MCs duplicadas compartilham a mesma foto) */
 function apagaOrfas(fts){ if(!db) return; for(const f of fts){ if(!f||!f.db||!f.id) continue;
-  const usada=Object.values(MCS).concat(cur?[cur]:[]).some(m=>(m.fotos||[]).some(x=>x.id===f.id));
+  const usada=Object.values(MCS).concat(cur?[cur]:[]).some(m=>(m.fotos||[]).concat(m.prints||[]).some(x=>x.id===f.id));
   if(!usada){ delete FOTOS[f.id]; db.doc("fotos/"+f.id).delete().catch(()=>{}); } } }
 /* estimativa do espaço ocupado (MCs + fotos únicas) para o medidor do site */
 function espacoUsado(){ const vistos=new Set(); let b=0;
   for(const m of Object.values(MCS)){ b+=JSON.stringify(m).length;
-    for(const f of (m.fotos||[])){ if(!f.db||vistos.has(f.id)) continue; vistos.add(f.id); b+=((f.kb||(FOTOS[f.id]?Math.ceil(FOTOS[f.id].length/1024):200))+1)*1024; } }
+    for(const f of (m.fotos||[]).concat(m.prints||[])){ if(!f.db||vistos.has(f.id)) continue; vistos.add(f.id); b+=((f.kb||(FOTOS[f.id]?Math.ceil(FOTOS[f.id].length/1024):200))+1)*1024; } }
   return {bytes:b,fotos:vistos.size,mcs:Object.keys(MCS).length}; }
 function renderList(){ kpis(); if(window.mcEspaco) try{ window.mcEspaco(espacoUsado()); }catch(e){}
   const bms=[...new Set(Object.values(MCS).map(m=>m.bm))].sort((a,b)=>b-a);
@@ -1008,7 +1012,9 @@ function renderEditor(){
   </section>
 
   <section class="blk"><h2><span class="num">2</span> Memória de cálculo <small>${esc(tp.n)}. Uma linha por elemento; marque os itens a que a área se aplica.</small><button type="button" class="limpar" data-limpar="mem" title="Apaga só o que foi preenchido nesta seção">Limpar</button></h2>
-    ${htmlGrade(m)}
+    ${htmlGrade(m)}${m.tipoMC==="print"?`
+    <div class="drop" id="dropPrint"><p style="margin:0 0 8px"><b>Print do cálculo</b>: arraste a imagem aqui ou</p><label class="btn" style="display:inline-block"><input type="file" id="fPrint" accept="image/*" multiple class="vh">Escolher imagem</label><p class="hint" id="printMsg">A imagem sai centralizada na seção 2 do PDF e do Excel. Abaixo dela, lance a quantidade de cada item.</p></div>
+    <div class="prints" id="prints"></div>`:""}
     <div class="tblw"><table><thead><tr><th>Nº</th><th>Descrição / origem da medida</th><th>Forma de cálculo</th>${colsMem(tp).map(([k,l])=>`<th class="${k==="bit"?"":"r"}">${esc(l)}</th>`).join("")}<th class="r">${esc(tp.lab.q||"Qtd")}</th><th class="r">% consid.</th>${etOpcoes(m).length?`<th>Etapa cobrada (critério)</th>`:""}
       ${m.itens.map((it,i)=>`<th class="c" id="o_fh${i}">${esc(it.item||"Item "+(i+1))}</th>`).join("")}<th class="r">Resultado</th><th>Cálculo</th><th></th></tr></thead><tbody>
     ${m.elems.map((e,k)=>linhaMem(e,k,tp)).join("")}
@@ -1046,7 +1052,7 @@ function renderEditor(){
     <div class="row"><label class="f oriw">Página do Excel<select class="selOri"><option value="portrait">Vertical (em pé)</option><option value="landscape">Horizontal (deitada)</option></select></label><button class="pri" id="bXls">Baixar a MC (.xlsx)</button><button class="pri" id="bPdf">Baixar a MC (PDF)</button><button id="bProx">Copiar para o próximo BM</button><button id="bDup">Duplicar</button></div>
     <div class="confirm" id="delBox"><button id="bDel">Excluir MC</button></div></div>
   </section>`;
-  renderEtapas(); renderFotos(); updateOut(); syncOri(); navSecoes(); aplicaTrava();
+  renderEtapas(); renderFotos(); renderPrints(); updateOut(); syncOri(); navSecoes(); aplicaTrava();
 }
 const travada=m=>!!(m&&(m.fin||m.pendOn||m.pend));
 const LIVRES=new Set(["bFin","bSamc","bPend","h_pend","bXls","bPdf","bDup","bProx"]);
@@ -1073,6 +1079,10 @@ function renderFotos(){ kpis();
   const msg=$("#fotoMsg"); if(!db && !assets && !msg.classList.contains("err")) msg.textContent="Sem conexão: as fotos não ficarão salvas agora.";
   aplicaTrava();
 }
+function renderPrints(){ const box=$("#prints"); if(!box||!cur) return; const ps=cur.prints||[];
+  box.innerHTML=ps.map((f,k)=>`<div class="pr"><img src="${esc(fotoSrc(f)||"")}" data-psrc="${k}" alt="Print do cálculo ${k+1}"><button class="ghost rm" data-del-pr="${k}">Remover print</button></div>`).join("");
+  ps.forEach((f,k)=>{ if(f.db && !FOTOS[f.id]) carregaFotoDb(f.id).then(u=>{ const im=box.querySelector(`img[data-psrc="${k}"]`); if(u&&im) im.src=u; }); });
+  aplicaTrava(); }
 function fotoSrc(f){ return f.db ? FOTOS[f.id] : f.url; }
 async function carregaFotoDb(id){
   if(FOTOS[id]) return FOTOS[id]; if(!db) return null;
@@ -1142,6 +1152,7 @@ ED.addEventListener("click",async e=>{
   else if(t.dataset.limpaIt!=null){ const i=+t.dataset.limpaIt, cod=cur.itens[i].item;
     cur.itens[i]={item:"",metodo:"",demaos:""}; cur.quadro[i]={ant:"",pct:"",man:""}; cur.elems.forEach(e=>{ if(e.fl) e.fl[i]=false; });
     renderEditor(); salvar(); toast(`Item ${cod} retirado da MC`); }
+  else if(t.dataset.delPr!=null){ const [f]=cur.prints.splice(+t.dataset.delPr,1); renderPrints(); salvar(); apagaOrfas(f?[f]:[]); }
   else if(t.dataset.delFt!=null){ const [f]=cur.fotos.splice(+t.dataset.delFt,1); renderFotos(); salvar(); apagaOrfas(f?[f]:[]); }
   else if(t.dataset.limpar){ limparSecao(t.dataset.limpar); }
   else if(t.id==="bAddEl"){ const ult=cur.elems[cur.elems.length-1]; const n=novoElem(ult&&ult.tipo||tipoMC(cur).f[0]); if(ult) n.fl=[...ult.fl]; cur.elems.push(n); renderEditor(); document.getElementById(`e${cur.elems.length-1}_desc`)?.focus(); salvar(); }
@@ -1164,7 +1175,7 @@ ED.addEventListener("click",async e=>{
     curId=null; cur=c; filtroBM=c.bm; renderEditor(); salvar(); toast(`MC copiada para o BM-${String(c.bm).padStart(3,"0")} com o acumulado atualizado`); }
   else if(t.id==="bDel"){ $("#delBox").innerHTML=`<span>Excluir esta MC de vez?</span><button id="bDelSim">Sim, excluir</button><button id="bDelNao">Cancelar</button>`; }
   else if(t.id==="bDelNao"){ $("#delBox").innerHTML=`<button id="bDel">Excluir MC</button>`; }
-  else if(t.id==="bDelSim"){ const fts=(cur&&cur.fotos)||[]; if(curId&&db){ try{ await db.doc("mcs/"+curId).delete(); }catch(err){ toast("Não foi possível excluir: "+(err.code||err.message)); return; } }
+  else if(t.id==="bDelSim"){ const fts=cur?(cur.fotos||[]).concat(cur.prints||[]):[]; if(curId&&db){ try{ await db.doc("mcs/"+curId).delete(); }catch(err){ toast("Não foi possível excluir: "+(err.code||err.message)); return; } }
     delete MCS[curId]; curId=null; cur=null; renderEditor(); renderList(); toast("MC excluída"); apagaOrfas(fts); }
 });
 
@@ -1193,8 +1204,8 @@ async function salvaFotoDb(file, im){
   await db.doc("fotos/"+id).set({data,w:r.w,h:r.h,criado:new Date().toISOString()});
   FOTOS[id]=data; return {id,db:true,legenda:"",w:r.w,h:r.h,kb:Math.ceil(data.length/1024)};
 }
-async function enviarFotos(files){
-  const msg=$("#fotoMsg"); msg.classList.remove("err");
+async function enviarFotos(files, print=false){
+  const msg=$(print?"#printMsg":"#fotoMsg"); msg.classList.remove("err"); const lst=()=>print?(cur.prints=cur.prints||[]):cur.fotos, rend=print?renderPrints:renderFotos;
   if(!cur){ msg.textContent="Abra ou crie uma MC antes de anexar fotos."; msg.classList.add("err"); return; }
   const lista=files.filter(ehImagem); const erros=[]; let n=0, ok=0;
   if(!lista.length){ msg.textContent=files.length?"Nenhum arquivo de imagem foi reconhecido.":""; if(files.length) msg.classList.add("err"); return; }
@@ -1205,17 +1216,17 @@ async function enviarFotos(files){
       let foto=null, errA=null;
       if(assets){ try{ const {blob,w,h}=await reduzir(f,1600,0.82,im); const up=await assets.upload(blob,{type:"image/jpeg"}); BLOBS[up.id]=blob; foto={id:up.id,url:up.url,legenda:"",w,h}; }catch(e){ errA=e; } }
       if(!foto){ try{ foto=await salvaFotoDb(f,im); }catch(e){ throw (errA||e); } }
-      cur.fotos.push(foto); ok++; renderFotos(); salvar();
+      lst().push(foto); ok++; rend(); salvar();
     }catch(e){ erros.push(`${f.name}: ${e.code==="quota_or_state"?"espaço de fotos cheio":(e.message||e.code||"erro desconhecido")}`); }
     finally{ im&&im.fim(); }
   }
-  msg.textContent=(ok?`${ok} foto(s) anexada(s).`:"Nenhuma foto foi anexada.")+(erros.length?"\nProblemas:\n"+erros.join("\n"):"");
+  msg.textContent=(ok?`${ok} ${print?"print(s)":"foto(s)"} anexada(s).`:"Nenhuma imagem foi anexada.")+(erros.length?"\nProblemas:\n"+erros.join("\n"):"");
   if(erros.length) msg.classList.add("err");
 }
-ED.addEventListener("change",e=>{ if(e.target.id==="fFoto"){ enviarFotos([...e.target.files]); e.target.value=""; } });
-ED.addEventListener("dragover",e=>{ const d=e.target.closest("#drop"); if(d){ e.preventDefault(); d.classList.add("hot"); } });
-ED.addEventListener("dragleave",e=>{ const d=e.target.closest("#drop"); if(d) d.classList.remove("hot"); });
-ED.addEventListener("drop",e=>{ const d=e.target.closest("#drop"); if(d&&travada(cur)){ e.preventDefault(); return; } if(d){ e.preventDefault(); d.classList.remove("hot"); enviarFotos([...e.dataTransfer.files]); } });
+ED.addEventListener("change",e=>{ if(e.target.id==="fFoto"){ enviarFotos([...e.target.files]); e.target.value=""; } else if(e.target.id==="fPrint"){ enviarFotos([...e.target.files],true); e.target.value=""; } });
+ED.addEventListener("dragover",e=>{ const d=e.target.closest("#drop,#dropPrint"); if(d){ e.preventDefault(); d.classList.add("hot"); } });
+ED.addEventListener("dragleave",e=>{ const d=e.target.closest("#drop,#dropPrint"); if(d) d.classList.remove("hot"); });
+ED.addEventListener("drop",e=>{ const d=e.target.closest("#drop,#dropPrint"); if(d&&travada(cur)){ e.preventDefault(); return; } if(d){ e.preventDefault(); d.classList.remove("hot"); enviarFotos([...e.dataTransfer.files],d.id==="dropPrint"); } });
 
 /* ---------- Excel ---------- */
 const limpaNome = t => String(t||"").replace(/[\\/:*?"<>|\n\r\t]+/g," ").replace(/\s+/g," ").trim();
@@ -1466,7 +1477,14 @@ async function pdfMC(doc, m, VERT){
   // critério
   if(L.length){ sub("Critério de medição"); T({body:L.map(l=>[{content:l.item,styles:{fontStyle:"bold",halign:"center"}},pdfTxt(critTxt(l))]),styles:{fontSize:FS,cellPadding:2},columnStyles:{0:{cellWidth:16}}}); }
   // 2 memória
+  const PRT=m.tipoMC==="print"?(m.prints||[]):[];
+  const dimP=f=>{ const ratio=(f.w&&f.h)?f.w/f.h:4/3, hmax=H-12-10-4; let w=Math.min(CW,f.w?f.w*0.2646:CW), h=w/ratio; if(h>hmax){ h=hmax; w=h*ratio; } return {w,h,ratio}; };
+  const cabe=(h,yy)=>{ const livre=H-12-3-yy; return livre>=h ? h : livre>=Math.max(50,h*0.6) ? livre : 0; };
+  if(PRT.length && !cabe(dimP(PRT[0]).h,y+7)){ doc.addPage(); y=10; }
   sec("MEMÓRIA DE CÁLCULO");
+  for(const f of PRT){ const buf=await fotoBuf(f); if(!buf) continue;
+    let {w,h,ratio}=dimP(f); let hc=cabe(h,y); if(!hc){ doc.addPage(); y=10; hc=cabe(h,y)||h; } if(hc<h){ h=hc; w=h*ratio; }
+    doc.addImage(new Uint8Array(buf),"JPEG",ML+(CW-w)/2,y,w,h,undefined,"FAST"); y+=h+3; }
   const els=m.elems.map((e,k)=>({e,v:c.el[k]})).filter(x=>formaDe(x.e));
   T({head:[["Nº","DESCRIÇÃO DO ELEMENTO / ORIGEM","FORMA DE CÁLCULO","CÁLCULO DEMONSTRADO","RESULTADO",...L.map(l=>l.item)]],
     body:els.map((x,j)=>[rot(j),pdfTxt(x.e.desc),pdfTxt(nomeForma(x.e)),pdfTxt(textoElem(x.e).replace(/π (?=\d)/g,"")),{content:fmt(x.v,3),styles:{fontStyle:"bold",halign:"right"}},...L.map(l=>({content:x.e.fl[l.i]?(fm(x.e,l.i)>1?fm(x.e,l.i)+"×":"x"):"",styles:{halign:"center",fontStyle:"bold"}}))]),
@@ -1599,6 +1617,13 @@ async function folhaMC(wb, nome, m){
   // 2 memória
   const tp=tipoMC(m);
   sec(r,"2. MEMÓRIA DE CÁLCULO"); r++;
+  if(m.tipoMC==="print" && (m.prints||[]).length){ const px=W.map(w=>w*7+5), tot=px.reduce((a,b)=>a+b,0), PXL=20*HF, LMAX=tot-20, HMAX=VERT?900:560;
+    for(const f of m.prints){ const buf=await fotoBuf(f); if(!buf) continue;
+      const ratio=(f.w&&f.h)?f.w/f.h:4/3; let w=Math.min(LMAX,(f.w||LMAX)*1.25), h=w/ratio; if(h>HMAX){ h=HMAX; w=h*ratio; }
+      let x=(tot-w)/2, c0=0; while(c0<px.length-1 && x>=px[c0]){ x-=px[c0]; c0++; }
+      const id=wb.addImage({buffer:buf,extension:"jpeg"}); const nl=Math.ceil(h/PXL)+1;
+      for(let k=0;k<nl;k++) ws.getRow(r+k).height=15;
+      ws.addImage(id,{tl:{col:c0+x/px[c0],row:r-1+0.25},ext:{width:w,height:h}}); r+=nl; } }
   const hl=k=>abXL((usaCampo(tp,k)?(tp.lab[k]||{a:"DIM. 1",b:"DIM. 2",c:"DIM. 3",bit:"BITOLA / PERFIL"}[k]):"—").toUpperCase()).replace("(M)","(m)");
   const els0=m.elems.filter(e=>formaDe(e)), semFG=!els0.some(e=>{ const Fm=FORMAS[formaDe(e)]; return Fm[3]==="bit"||Fm[2].includes("c"); });
   const CD=L.length<6?C(12+L.length):"R", CDm=CD==="R"?null:"R", CINZA={type:"pattern",pattern:"solid",fgColor:{argb:"FFEDEDED"}};
