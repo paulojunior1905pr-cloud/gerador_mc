@@ -474,6 +474,7 @@ const FORMAS = {
   circ:["Círculo – teto / fundo / lençol (π × D² ÷ 4)",1,"a","circ"],
   coroa:["Coroa circular (π × (D² − d²) ÷ 4)",1,"ab","coroa"],
   bacia:["Bacia do dique sem o tanque (C × L − π × D² ÷ 4)",1,"abc","bacia"],
+  areaPct:["Área total × % cobrada",1,"ab","apct"],
   talude:["Talude inclinado (comprimento × √(altura² + base²))",1,"abc","talude"],
   coroaInf:["Contraventamento – face inferior (+30% fator contábil)",1.3,"ab","coroa"],
   coroaSup:["Contraventamento – face superior (sem acréscimo)",1,"ab","coroa"],
@@ -512,7 +513,7 @@ const TMC = {
   diaria:{rev:true,n:"Diárias de equipamentos e serviços",d:"PTA, gerador, bomba, guindaste (por período), topografia e caminhão vácuo (por horas ÷ jornada de 8,8 h).",f:["diaria","diasQ","horas"],lab:{a:"Início / horas / nº de dias",b:"Fim / jornada (h)",q:"Qtd de equipamentos"},modelo:[["","diaria"]]},
   estrutura:{rev:true,n:"Escadas, plataformas e guarda-corpos (pintura m²)",d:"Escada +10% (face superior) e +30% (face inferior), guarda-corpo C × h ÷ 2, grelha × 3.",f:["escSup","escInf","gcReto","gcCirc","grelha","platInf","piso","ret","perfil","direto"],lab:{a:"Comprimento ou DN (m)",b:"Largura ou altura (m)",bit:"Perfil",q:"Qtd"},modelo:[["Escada – face superior","escSup"],["Escada – face inferior","escInf"],["Corrimão / guarda-corpo","gcReto"],["Plataforma (grelha)","grelha"]]},
   peso:{n:"Estruturas por peso (kg)",d:"Item 1.76: escadas, plataformas, guarda-corpos, serpentina e ancoragem medidos em kg. Na coluna “Etapa cobrada” escolha a etapa (ex.: 60% · Remoção + Preparação e fabricação).",f:["pesoDir","pesoPerfil"],lab:{a:"Peso (kg) ou comprimento (m)",b:"kg/m do perfil",q:"Qtd de peças"},modelo:[["Peso conforme desenho / lista de material","pesoDir"]]},
-  rocada:{rev:true,n:"Roçada de vegetação (capina) – m²",d:"Item 1.139: medido por m² de área roçada (Anexo 1, 5.19.6). Bacia do dique = C × L − área do tanque; talude = comprimento × comprimento inclinado; faixa em volta do tanque = π × D × largura. Para descontar uma área (ex.: outro tanque, bacia de concreto), use Qtd −1.",f:["bacia","talude","ret","faixa","coroa","circ","tri","trap","direto"],lab:{a:"C / D (m)",b:"L / altura / largura (m)",c:"D do tanque / base do talude (m)",q:"Qtd"},modelo:[["Bacia do dique (sem o tanque)","bacia"],["Talude interno do dique","talude"],["Talude externo do dique","talude"]]},
+  rocada:{rev:true,n:"Capina e roçagem – m²",d:"Item 1.139 (Anexo 1, 5.19.6): medido por m² de área roçada. Informe a área total e a % cobrada neste BM e anexe a imagem/print da área (sai centralizada na seção 2). Se quiser demonstrar a área: bacia do dique = C × L − π × D² ÷ 4; talude = comprimento × √(altura² + base²).",f:["areaPct","bacia","talude","ret","faixa","coroa","circ","tri","trap","direto"],lab:{a:"Área total (m²) / C / D",b:"% cobrada / L / altura",c:"D do tanque / base do talude (m)",q:"Qtd"},modelo:[["Área total de capina e roçagem (conforme imagem)","areaPct"]]},
   print:{rev:true,n:"MC geral print (print do cálculo)",d:"O cálculo vai como imagem (print) na seção 2, centralizado no PDF e no Excel. Lance a quantidade de cada item numa linha “Área / quantidade informada” e marque o item; o restante da MC é preenchido normalmente.",f:["direto","volDir","pesoDir","hsDir","diasQ","un"],lab:{a:"Quantidade (conforme print)",q:"Qtd"},modelo:[["Conforme print do cálculo","direto"]]},
   geral:{rev:true,n:"Geral – todas as formas",d:"Todas as formas de cálculo disponíveis.",f:Object.keys(FORMAS),lab:{a:"Dim. 1 (C / D / B)",b:"Dim. 2 (L / h / d)",c:"Dim. 3 (altura h)",bit:"Bitola / perfil",q:"Qtd"},modelo:[]},
   isolamento:{rev:true,n:"Isolamento térmico (volume m³)",d:"Itens 1.87, 1.88 e 1.89: teto = π × D² ÷ 4 × espessura; costado = π × DN × altura × espessura; trechos retos = C × L × espessura. Na coluna “Etapa cobrada” escolha 30% · Remoção ou 70% · Instalação.",f:["volCil","volFaixa","volRet","volDir"],lab:{a:"DN do tanque / comprimento (m)",b:"Altura do costado / largura (m)",c:"Espessura (m)",q:"Qtd"},modelo:[["Isolamento do teto (π × D² ÷ 4 × espessura)","volCil"],["Isolamento do costado (π × DN × altura × espessura)","volFaixa"]]},
@@ -526,6 +527,7 @@ const FORMA_ANTIGA = {"Valor direto (área/qtd já calculada)":"direto","Retâng
   "Guarda-corpo / treliça / escada vertical (÷ 2)":"gcReto","Plataforma / piso vazado – grelha (× 3)":"grelha","Plataforma – face inferior c/ vigamento (+30%)":"platInf","Piso fechado liso ou xadrez (por face)":"piso",
   "Tubulação até 26\" (comprimento × m²/m)":"tubo","Perfil metálico (comprimento × m²/m)":"perfil","Retoque de pintura (0,15 m² cada)":"retoque","Unidade":"un","Diária":"diasQ"};
 const tipoMC = m => TMC[m.tipoMC]||TMC.geral;
+const temPrint = m => m.tipoMC==="print"||m.tipoMC==="rocada";
 const usaDemao = it => !!PPU[it] && /demão/i.test(PPU[it].c||"");
 const BASE_UN = {"Diária":"Por diária","Hs":"Por hora","m²":"Área única","un":"Por unidade","m³":"Por m³","kg":"Por kg","Kg":"Por kg","m":"Por metro","Vb":"Verba","Cj":"Por conjunto","cent":"Por cento"};
 const baseMed = it => PPU[it] ? (BASE_UN[PPU[it].u]||"Não se aplica") : "";
@@ -548,7 +550,7 @@ const dBR = s => { const d=dataISO(s); return d ? d.toISOString().slice(0,10).sp
 function formaDe(e){ return FORMAS[e.tipo] ? e.tipo : null; }
 function baseElem(e){
   const k=formaDe(e); if(!k) return null; const F=FORMAS[k], A=numE(e.a)||0, B=numE(e.b)||0, C=numE(e.c)||0;
-  switch(F[3]){ case "direto": return A; case "ret": return A*B; case "tri": return A*B/2; case "trap": return (A+B)/2*C; case "cil": return PI*A*B; case "bacia": return A*B-PI*C*C/4; case "talude": return A*Math.sqrt(B*B+C*C); case "pesc": return PI*A*0.0254*B;
+  switch(F[3]){ case "direto": return A; case "ret": return A*B; case "tri": return A*B/2; case "trap": return (A+B)/2*C; case "cil": return PI*A*B; case "bacia": return A*B-PI*C*C/4; case "apct": return A*B/100; case "talude": return A*Math.sqrt(B*B+C*C); case "pesc": return PI*A*0.0254*B;
     case "circ": return PI*A*A/4; case "coroa": return PI*(A*A-B*B)/4; case "raios": return PI*(A*A-B*B); case "bit": return A*(M2M[e.bit]||0);
     case "retoque": return 0.15; case "diaria": return dias(e.a,e.b)||0; case "dias": return A||0;
     case "horas": return A/(B||JORNADA); case "vret": return A*B*C; case "vcil": return PI*A*A/4*C; case "vfaixa": return PI*A*B*C; default: return 1; }
@@ -635,6 +637,7 @@ function textoElem(e){
   const a=dimTxt(e.a,A), b=dimTxt(e.b,B), c=dimTxt(e.c,C); let s;
   switch(F[3]){ case "direto": s=F[4]==="hs"?"Total de horas informado":a; break; case "ret": s=NOMES[k]?NOMES[k][0]+" "+a+" × "+NOMES[k][1]+" "+b:a+" × "+b; break; case "tri": s=a+" × "+b+" ÷ 2"; break; case "trap": s="("+a+" + "+b+") ÷ 2 × "+c; break;
     case "cil": s=NOMES[k]?NOMES[k][0]+" "+a+" × "+NOMES[k][1]+" "+b+" × π "+fmt(PI,4):"π × "+a+" × "+b; break; case "circ": s="DN "+a+" × DN "+a+" × π "+fmt(PI,4)+" ÷ 4"; break; case "coroa": s="(DN "+a+"² − d "+b+"²) × π "+fmt(PI,4)+" ÷ 4"; break; case "raios": s="π × ("+a+"² − "+b+"²)"; break;
+    case "apct": s="Área total "+a+" m² × "+(ehConta(e.b)?b:fmt(B||0,(B||0)%1?2:0))+"% (cobrado)"; break;
     case "bacia": s="C "+a+" × L "+b+" − (D "+c+"² × π "+fmt(PI,4)+" ÷ 4)"; break;
     case "talude": s="C "+a+" × √(ALT "+b+"² + BASE "+c+"²) = "+a+" × "+fmt(Math.sqrt((B||0)**2+(C||0)**2),3); break;
     case "pesc": s="DN "+(ehConta(e.a)?a:fmt(A||0,(A||0)%1?2:0))+"\" × 0,0254 = "+fmt(A*0.0254,4)+" m × π "+fmt(PI,4)+" × ALT "+b; break;
@@ -647,7 +650,7 @@ function textoElem(e){
   if(q!=null && q!==1) s+=" × "+(ehConta(e.qtd)?contaTxt(e.qtd):fmt(q,q%1?2:0));
   if(p!=null && p!==100) s+=" × "+fmt(p,p%1?1:0)+"%";
   const ex=etParse(e.et); if(ex) s+=" × "+fmt(ex.f*100,0)+"% ("+ex.item+": "+ex.nome+")";
-  return s+" = "+fmt(calcElem(e),3)+(FORMAS[k][4]==="m3"?" m³":FORMAS[k][4]==="hs"?" h":FORMAS[k][4]==="kg"?" kg":/^(cil|pesc|bacia|talude|ret|tri|trap|circ|coroa|raios|bit|retoque)$/.test(F[3])?" m²":"");
+  return s+" = "+fmt(calcElem(e),3)+(FORMAS[k][4]==="m3"?" m³":FORMAS[k][4]==="hs"?" h":FORMAS[k][4]==="kg"?" kg":/^(cil|pesc|bacia|apct|talude|ret|tri|trap|circ|coroa|raios|bit|retoque)$/.test(F[3])?" m²":"");
 }
 function etapasDe(it){ return DATA.etapas[it]||null; }
 function calcEtapas(m){
@@ -1020,8 +1023,8 @@ function renderEditor(){
   </section>
 
   <section class="blk"><h2><span class="num">2</span> Memória de cálculo <small>${esc(tp.n)}. Uma linha por elemento; marque os itens a que a área se aplica.</small><button type="button" class="limpar" data-limpar="mem" title="Apaga só o que foi preenchido nesta seção">Limpar</button></h2>
-    ${htmlGrade(m)}${m.tipoMC==="print"?`
-    <div class="drop" id="dropPrint"><p style="margin:0 0 8px"><b>Print do cálculo</b>: arraste a imagem aqui ou</p><label class="btn" style="display:inline-block"><input type="file" id="fPrint" accept="image/*" multiple class="vh">Escolher imagem</label><p class="hint" id="printMsg">A imagem sai centralizada na seção 2 do PDF e do Excel. Abaixo dela, lance a quantidade de cada item.</p></div>
+    ${htmlGrade(m)}${temPrint(m)?`
+    <div class="drop" id="dropPrint"><p style="margin:0 0 8px"><b>${m.tipoMC==="rocada"?"Imagem / print da área":"Print do cálculo"}</b>: arraste a imagem aqui ou</p><label class="btn" style="display:inline-block"><input type="file" id="fPrint" accept="image/*" multiple class="vh">Escolher imagem</label><p class="hint" id="printMsg">A imagem sai centralizada na seção 2 do PDF e do Excel. Abaixo dela, lance a quantidade de cada item.</p></div>
     <div class="prints" id="prints"></div>`:""}
     <div class="tblw"><table><thead><tr><th>Nº</th><th>Descrição / origem da medida</th><th>Forma de cálculo</th>${colsMem(tp).map(([k,l])=>`<th class="${k==="bit"?"":"r"}">${esc(l)}</th>`).join("")}<th class="r">${esc(tp.lab.q||"Qtd")}</th><th class="r">% consid.</th>${etOpcoes(m).length?`<th>Etapa cobrada (critério)</th>`:""}
       ${m.itens.map((it,i)=>`<th class="c" id="o_fh${i}">${esc(it.item||"Item "+(i+1))}</th>`).join("")}<th class="r">Resultado</th><th>Cálculo</th><th></th></tr></thead><tbody>
@@ -1485,7 +1488,7 @@ async function pdfMC(doc, m, VERT){
   // critério
   if(L.length){ sub("Critério de medição"); T({body:L.map(l=>[{content:l.item,styles:{fontStyle:"bold",halign:"center"}},pdfTxt(critTxt(l))]),styles:{fontSize:FS,cellPadding:2},columnStyles:{0:{cellWidth:16}}}); }
   // 2 memória
-  const PRT=m.tipoMC==="print"?(m.prints||[]):[];
+  const PRT=temPrint(m)?(m.prints||[]):[];
   const dimP=f=>{ const ratio=(f.w&&f.h)?f.w/f.h:4/3, hmax=H-12-10-4; let w=Math.min(CW,f.w?f.w*0.2646:CW), h=w/ratio; if(h>hmax){ h=hmax; w=h*ratio; } return {w,h,ratio}; };
   const cabe=(h,yy)=>{ const livre=H-12-3-yy; return livre>=h ? h : livre>=Math.max(50,h*0.6) ? livre : 0; };
   if(PRT.length && !cabe(dimP(PRT[0]).h,y+7)){ doc.addPage(); y=10; }
@@ -1625,7 +1628,7 @@ async function folhaMC(wb, nome, m){
   // 2 memória
   const tp=tipoMC(m);
   sec(r,"2. MEMÓRIA DE CÁLCULO"); r++;
-  if(m.tipoMC==="print" && (m.prints||[]).length){ const px=W.map(w=>w*7+5), tot=px.reduce((a,b)=>a+b,0), PXL=20*HF, LMAX=tot-20, HMAX=VERT?900:560;
+  if(temPrint(m) && (m.prints||[]).length){ const px=W.map(w=>w*7+5), tot=px.reduce((a,b)=>a+b,0), PXL=20*HF, LMAX=tot-20, HMAX=VERT?900:560;
     for(const f of m.prints){ const buf=await fotoBuf(f); if(!buf) continue;
       const ratio=(f.w&&f.h)?f.w/f.h:4/3; let w=Math.min(LMAX,(f.w||LMAX)*1.25), h=w/ratio; if(h>HMAX){ h=HMAX; w=h*ratio; }
       let x=(tot-w)/2, c0=0; while(c0<px.length-1 && x>=px[c0]){ x-=px[c0]; c0++; }
@@ -1647,7 +1650,7 @@ async function folhaMC(wb, nome, m){
     else { if(kind==="bit") put("F"+rr,e.bit||null,{fill:INP,sz:8,h:"center"}); else put("F"+rr,dimXL(e.c,u("c")),{fill:u("c")?INP:null,h:"right",f:"#,##0.00##"});
     put("G"+rr,kind==="bit"?(M2M[e.bit]||0):null,{h:"center",f:"0.00"}); }
     put("H"+rr,ehConta(e.qtd)&&contaXL(e.qtd)?F(contaXL(e.qtd),numE(e.qtd)):(numE(e.qtd)??1),{fill:INP,h:"center",f:"#,##0.##"}); put("I"+rr,kind==="cil"?PI*Fm[1]:Fm[1],{h:"center",f:kind==="cil"?"0.0000":"0.00"}); put("J"+rr,(numE(e.pct)??100)/100,{fill:INP,h:"center",f:"0%"});
-    const base={direto:`D${rr}`,ret:`D${rr}*E${rr}`,tri:`D${rr}*E${rr}/2`,trap:`(D${rr}+E${rr})/2*F${rr}`,cil:`D${rr}*E${rr}`,pesc:`${PI}*D${rr}*0.0254*E${rr}`,bacia:`(D${rr}*E${rr}-${PI}*F${rr}^2/4)`,talude:`D${rr}*SQRT(E${rr}^2+F${rr}^2)`,circ:`${PI}*D${rr}^2/4`,coroa:`${PI}*(D${rr}^2-E${rr}^2)/4`,raios:`${PI}*(D${rr}^2-E${rr}^2)`,bit:`D${rr}*G${rr}`,retoque:"0.15",diaria:`(E${rr}-D${rr}+1)`,dias:`D${rr}`,un:"1",horas:`D${rr}/E${rr}`,vret:`D${rr}*E${rr}*F${rr}`,vcil:`${PI}*D${rr}^2/4*F${rr}`,vfaixa:`${PI}*D${rr}*E${rr}*F${rr}`}[kind];
+    const base={direto:`D${rr}`,ret:`D${rr}*E${rr}`,tri:`D${rr}*E${rr}/2`,trap:`(D${rr}+E${rr})/2*F${rr}`,cil:`D${rr}*E${rr}`,pesc:`${PI}*D${rr}*0.0254*E${rr}`,apct:`D${rr}*E${rr}/100`,bacia:`(D${rr}*E${rr}-${PI}*F${rr}^2/4)`,talude:`D${rr}*SQRT(E${rr}^2+F${rr}^2)`,circ:`${PI}*D${rr}^2/4`,coroa:`${PI}*(D${rr}^2-E${rr}^2)/4`,raios:`${PI}*(D${rr}^2-E${rr}^2)`,bit:`D${rr}*G${rr}`,retoque:"0.15",diaria:`(E${rr}-D${rr}+1)`,dias:`D${rr}`,un:"1",horas:`D${rr}/E${rr}`,vret:`D${rr}*E${rr}*F${rr}`,vcil:`${PI}*D${rr}^2/4*F${rr}`,vfaixa:`${PI}*D${rr}*E${rr}*F${rr}`}[kind];
     put("K"+rr,F(`ROUND(${base}*I${rr}*H${rr}*J${rr}${etParse(e.et)?"*"+etFator(e):""},3)`,x.v),{h:"right",f:"#,##0.000",b:1});
     L.forEach((l,k)=>put(C(12+k)+rr,e.fl[l.i]?fm(e,l.i):null,{fill:INP,h:"center",b:1,f:'[=1]"x";0"×"'}));
     const tx=textoElem(e); put(CD+rr,tx,{m:CDm&&CDm+rr,sz:8}); ws.getRow(rr).height=altL(Math.max(nLin(e.desc,W[1]),nLin(FN,W[2]),nLin(tx,larg(CD,"R")))); });
