@@ -303,6 +303,16 @@ aside .mclist{background:var(--panel);border:1px solid var(--line);border-radius
 .mcrow.fin .n{color:#0b6b2f}
 .dmx{color:var(--accent);font-family:var(--f-mono)}
 .tag.fin{background:#2e9e57;color:#fff}
+.mcrow.samc{background:#e6eefb;box-shadow:inset 3px 0 0 #2f6fd6}
+.mcrow.samc.on{background:#d3e1f8;box-shadow:inset 3px 0 0 #2f6fd6,0 0 0 2px #2f6fd6}
+.mcrow.samc .n{color:#1d4f9e}
+.tag.samc{background:#2f6fd6;color:#fff}
+.mcrow .tq{font-weight:600}
+.mcrow.fin .tq,.mcrow.samc .tq{font-weight:700;color:#fff;padding:0 6px;border-radius:4px;background:#2e9e57}
+.mcrow.samc .tq{background:#2f6fd6}
+.finbar.ok.samc{background:#e6eefb;border-color:#2f6fd6;color:#1d4f9e}
+button.samcbt{background:#2f6fd6;border-color:#2f6fd6;color:#fff}
+.finbar.ok button{margin-left:0}
 .finbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 12px;padding:10px 12px;border-radius:9px;background:var(--chip)}
 .finbar.ok{background:#e3f5e8;border:1px solid #2e9e57;color:#0b6b2f}
 .finbar b{font-weight:600}
@@ -379,7 +389,7 @@ input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:n
 </style>
 
 <header class="top">
-  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 26/11 22:05 (com logos)</span></div>
+  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 27/11 10:22 (com logos)</span></div>
   <div class="sp"></div>
   <span class="status" id="status">Conectando…</span>
   <label class="tema">Tema<select id="selTema"><option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
@@ -392,6 +402,7 @@ input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:n
   <aside>
     <div class="listhead">
       <label class="f" style="flex:1">BM<select id="fBM"></select></label>
+      <label class="f" style="flex:1">Tanque<select id="fTQ"></select></label>
     </div>
     <div class="mclist" id="list"><div class="empty">Carregando as MCs salvas…</div></div>
     <label class="f oriw">Página do Excel<select class="selOri"><option value="portrait">Vertical (em pé)</option><option value="landscape">Horizontal (deitada)</option></select></label>
@@ -682,7 +693,8 @@ const BLOBS={}, FOTOS={};
 let ORI="portrait"; /* sempre abre na vertical; a troca vale só até recarregar */
 function syncOri(){ document.querySelectorAll(".selOri").forEach(s=>s.value=ORI); }
 document.addEventListener("change",e=>{ if(e.target.classList&&e.target.classList.contains("selOri")){ ORI=e.target.value; syncOri(); } });
-let db=null, assets=null, downloads=null, MCS={}, cur=null, curId=null, saveT=null, filtroBM=null;
+let db=null, assets=null, downloads=null, MCS={}, cur=null, curId=null, saveT=null, filtroBM=null, filtroTQ=null;
+const tqDe=m=>String(m.tanque||"").trim().toUpperCase();
 const BM_ATUAL_PADRAO = 24;
 function status(s){ $("#status").textContent=s; }
 
@@ -701,7 +713,7 @@ async function boot(){
     renderList();
   }, err=>{ clearTimeout(to); status("Erro ao ler: "+err.code); });
 }
-function idsFiltrados(){ return Object.keys(MCS).filter(id=>filtroBM==null||MCS[id].bm===filtroBM)
+function idsFiltrados(){ return Object.keys(MCS).filter(id=>(filtroBM==null||MCS[id].bm===filtroBM)&&(!filtroTQ||tqDe(MCS[id])===filtroTQ))
   .sort((a,b)=>(MCS[a].mc||"").localeCompare(MCS[b].mc||"","pt-BR",{numeric:true})); }
 function salvar(){
   if(!cur) return; cur.updatedAt=Date.now();
@@ -729,13 +741,17 @@ function renderList(){ kpis(); if(window.mcEspaco) try{ window.mcEspaco(espacoUs
   const bms=[...new Set(Object.values(MCS).map(m=>m.bm))].sort((a,b)=>b-a);
   if(filtroBM==null && bms.length) filtroBM=bms[0];
   $("#fBM").innerHTML='<option value="">Todos</option>'+bms.map(b=>`<option value="${b}" ${b===filtroBM?"selected":""}>BM-${String(b).padStart(3,"0")}</option>`).join("");
+  const tqs=[...new Set(Object.values(MCS).filter(m=>filtroBM==null||m.bm===filtroBM).map(tqDe).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"pt-BR",{numeric:true}));
+  if(filtroTQ&&!tqs.includes(filtroTQ)) filtroTQ=null;
+  $("#fTQ").innerHTML='<option value="">Todos</option>'+tqs.map(t=>opt(t,t,filtroTQ)).join("");
   const ids=idsFiltrados();
-  if(!ids.length){ $("#list").innerHTML=`<div class="empty">${Object.keys(MCS).length?"Nenhuma MC neste BM.":"Nenhuma MC salva ainda. Toque em <b>+ Nova MC</b> para montar a primeira."}</div>`; return; }
+  if(!ids.length){ $("#list").innerHTML=`<div class="empty">${Object.keys(MCS).length?(filtroTQ?"Nenhuma MC deste tanque neste BM.":"Nenhuma MC neste BM."):"Nenhuma MC salva ainda. Toque em <b>+ Nova MC</b> para montar a primeira."}</div>`; return; }
   $("#list").innerHTML=ids.map(id=>{ const m=MCS[id]; const c=calcMC(m);
-    return `<button class="mcrow ${id===curId?"on":""} ${m.fin?"fin":(m.pend||m.pendOn?"pend":"")}" data-id="${id}"${!m.fin&&m.pend?` title="Pendência: ${esc(m.pend)}"`:""}><span class="n">${esc(m.mc||"MC sem nº")}</span><span class="t">${esc(m.tanque)} · BM-${String(m.bm).padStart(3,"0")}${m.exemplo?' <span class="tag">exemplo</span>':""}</span><span class="v">${m.fin?'<span class="tag fin">✓ finalizada</span> ':(m.pend||m.pendOn?'<span class="tag pend">⚠ pendência</span> ':"")}${brl(c.total)} · ${esc(m.servico||"sem serviço")}</span></button>`; }).join("");
+    return `<button class="mcrow ${id===curId?"on":""} ${m.fin?(m.samc?"samc":"fin"):(m.pend||m.pendOn?"pend":"")}" data-id="${id}"${!m.fin&&m.pend?` title="Pendência: ${esc(m.pend)}"`:""}><span class="n">${esc(m.mc||"MC sem nº")}</span><span class="t"><span class="tq">${esc(m.tanque)}</span> · BM-${String(m.bm).padStart(3,"0")}${m.exemplo?' <span class="tag">exemplo</span>':""}</span><span class="v">${m.fin?(m.samc?'<span class="tag samc">✓ anexada no SAMC</span> ':'<span class="tag fin">✓ finalizada</span> '):(m.pend||m.pendOn?'<span class="tag pend">⚠ pendência</span> ':"")}${brl(c.total)} · ${esc(m.servico||"sem serviço")}</span></button>`; }).join("");
 }
 $("#list").addEventListener("click",e=>{ const b=e.target.closest(".mcrow"); if(b) abrir(b.dataset.id); });
 $("#fBM").addEventListener("change",e=>{ filtroBM=e.target.value?+e.target.value:null; renderList(); });
+$("#fTQ").addEventListener("change",e=>{ filtroTQ=e.target.value||null; renderList(); });
 $("#bNova").addEventListener("click",()=>{ curId=null; cur=novaMC(filtroBM||BM_ATUAL_PADRAO); renderEditor(); renderList(); window.scrollTo({top:0}); });
 
 /* ---------- editor ---------- */
@@ -961,7 +977,7 @@ function renderEditor(){
   const m=cur, [ini,fim]=periodo(m.bm), tp=tipoMC(m);
   ed.innerHTML=`
   <section class="blk"><h2><span class="num">MC</span> Cabeçalho <small>${esc(OBJETO)}</small></h2>
-    ${m.fin?`<div class="finbar ok"><b>✓ MC finalizada${m.finEm?" em "+esc(m.finEm):""}</b><span class="trava">🔒 Dados bloqueados. Para editar, desmarque a MC como finalizada.</span><button id="bFin">Desmarcar finalizada</button></div>`
+    ${m.fin?`<div class="finbar ok${m.samc?" samc":""}"><b>${m.samc?`✓ MC anexada no SAMC${m.samcEm?" em "+esc(m.samcEm):""}`:`✓ MC finalizada${m.finEm?" em "+esc(m.finEm):""}`}</b><span class="trava">🔒 Dados bloqueados. Para editar, desmarque a MC como finalizada.</span><div class="acts">${m.samc?`<button id="bSamc">Desmarcar SAMC</button>`:`<button id="bSamc" class="samcbt" title="Marque depois de anexar a MC no SAMC. Ela fica azul na lista.">Anexada no SAMC</button>`}<button id="bFin">Desmarcar finalizada</button></div></div>`
       :`<div class="finbar"><span>Quando terminar de conferir esta MC, marque como finalizada. Ela fica verde na lista de MCs.</span><div class="acts"><button id="bPend" class="pendbt">${m.pendOn||m.pend?"✕ Remover pendência":"⚠ Pendência"}</button><button id="bFin" class="finok">✓ Marcar MC como finalizada</button></div>
         ${m.pendOn||m.pend?`<div class="pendbox"><b>⚠ O que falta nesta MC</b><textarea id="h_pend" data-k="pend" placeholder="Ex.: falta foto do anel 3, conferir área do teto com a fiscalização…">${esc(m.pend||"")}</textarea><span class="trava">🔒 Os dados da MC ficam bloqueados enquanto houver pendência. Para editar, clique em Remover pendência.</span></div>`:""}</div>`}
     <div class="grid">
@@ -1033,7 +1049,7 @@ function renderEditor(){
   renderEtapas(); renderFotos(); updateOut(); syncOri(); navSecoes(); aplicaTrava();
 }
 const travada=m=>!!(m&&(m.fin||m.pendOn||m.pend));
-const LIVRES=new Set(["bFin","bPend","h_pend","bXls","bPdf","bDup","bProx"]);
+const LIVRES=new Set(["bFin","bSamc","bPend","h_pend","bXls","bPdf","bDup","bProx"]);
 function aplicaTrava(){ const ed=$("#ed"); if(!ed) return; const tv=travada(cur); ed.classList.toggle("travada",tv); if(!tv) return;
   ed.querySelectorAll("input,select,textarea,button").forEach(n=>{ if(LIVRES.has(n.id)||n.classList.contains("selOri")) return; n.disabled=true; }); }
 function renderEtapas(){
@@ -1140,9 +1156,10 @@ ED.addEventListener("click",async e=>{
   else if(t.id==="bXls"){ await baixar([cur], nomeArq(cur)); }
   else if(t.id==="bPdf"){ await baixarPDF([cur], nomeArq(cur).replace(/\.xlsx$/,".pdf")); }
   else if(t.id==="bPend"){ if(cur.pendOn||cur.pend){ if(cur.pend&&!confirm("Apagar a pendência anotada nesta MC?")) return; delete cur.pendOn; delete cur.pend; salvar(); renderEditor(); renderList(); toast("Pendência removida"); } else { cur.pendOn=true; salvar(); renderEditor(); renderList(); const n=document.getElementById("h_pend"); if(n) n.focus(); } }
-  else if(t.id==="bFin"){ if(cur.fin){ delete cur.fin; delete cur.finEm; } else { cur.fin=true; cur.finEm=new Date().toLocaleDateString("pt-BR"); } salvar(); renderEditor(); renderList(); toast(cur.fin?"MC marcada como finalizada":"MC voltou para em andamento"); }
-  else if(t.id==="bDup"){ const c=normaliza(JSON.parse(JSON.stringify(cur))); c.mc=(cur.mc||"MC")+" (cópia)"; delete c.exemplo; delete c.fin; delete c.finEm; delete c.pend; delete c.pendOn; curId=null; cur=c; renderEditor(); salvar(); toast("Cópia criada"); }
-  else if(t.id==="bProx"){ const calc=calcMC(cur); const c=normaliza(JSON.parse(JSON.stringify(cur))); c.bm=cur.bm+1; delete c.exemplo; delete c.fin; delete c.finEm; delete c.pend; delete c.pendOn;
+  else if(t.id==="bSamc"){ if(cur.samc){ delete cur.samc; delete cur.samcEm; } else { cur.samc=true; cur.samcEm=new Date().toLocaleDateString("pt-BR"); } salvar(); renderEditor(); renderList(); toast(cur.samc?"MC marcada como anexada no SAMC":"Marcação do SAMC removida"); }
+  else if(t.id==="bFin"){ if(cur.fin){ delete cur.fin; delete cur.finEm; delete cur.samc; delete cur.samcEm; } else { cur.fin=true; cur.finEm=new Date().toLocaleDateString("pt-BR"); } salvar(); renderEditor(); renderList(); toast(cur.fin?"MC marcada como finalizada":"MC voltou para em andamento"); }
+  else if(t.id==="bDup"){ const c=normaliza(JSON.parse(JSON.stringify(cur))); c.mc=(cur.mc||"MC")+" (cópia)"; delete c.exemplo; delete c.fin; delete c.finEm; delete c.samc; delete c.samcEm; delete c.pend; delete c.pendOn; curId=null; cur=c; renderEditor(); salvar(); toast("Cópia criada"); }
+  else if(t.id==="bProx"){ const calc=calcMC(cur); const c=normaliza(JSON.parse(JSON.stringify(cur))); c.bm=cur.bm+1; delete c.exemplo; delete c.fin; delete c.finEm; delete c.samc; delete c.samcEm; delete c.pend; delete c.pendOn;
     c.quadro=c.quadro.map((q,i)=>({ant:calc.linhas[i]?String(calc.linhas[i].acum).replace(".",","):"",pct:"",man:""})); c.fotos=[];
     curId=null; cur=c; filtroBM=c.bm; renderEditor(); salvar(); toast(`MC copiada para o BM-${String(c.bm).padStart(3,"0")} com o acumulado atualizado`); }
   else if(t.id==="bDel"){ $("#delBox").innerHTML=`<span>Excluir esta MC de vez?</span><button id="bDelSim">Sim, excluir</button><button id="bDelNao">Cancelar</button>`; }
@@ -1315,7 +1332,7 @@ async function baixarControle(bm, rjPct){
   titulo(C,"G",`CONTROLE DAS MCs · ${bmTxt(bm)} · ${MES}`,SUB);
   cab(C,3,["MC","TQ","NOME","SITUAÇÃO","SAMC","OBS","VALOR"]);
   let c=4; fin.forEach(m=>{ put(C,c,1,mcTxt(m),{h:"center",b:1}); put(C,c,2,tagDe(m),{h:"center"}); put(C,c,3,String(m.servico||"").toUpperCase(),{wrap:true});
-    put(C,c,4,"FINALIZADA"+(m.finEm?" em "+m.finEm:""),{h:"center"}); put(C,c,5,null,{fill:INP,h:"center",lista:"ANEXADO,A ANEXAR"}); put(C,c,6,null,{fill:INP,wrap:true});
+    put(C,c,4,"FINALIZADA"+(m.finEm?" em "+m.finEm:""),{h:"center"}); put(C,c,5,m.samc?"ANEXADO":null,{fill:INP,h:"center",lista:"ANEXADO,A ANEXAR"}); put(C,c,6,null,{fill:INP,wrap:true});
     put(C,c,7,F(`SUMIFS(${rg("H")},${rg("J")},A${c},${rg("C")},B${c})`,calcMC(m).total),{h:"right",f:"#,##0.00;[Red]-#,##0.00"}); c++; });
   for(let k=1;k<=7;k++) put(C,c,k,null,{fill:TOT,b:1}); C.getCell(c,3).value=`TOTAL · ${fin.length} MC(s)`; C.getCell(c,7).value=F(`SUM(G4:G${Math.max(4,c-1)})`,P0); C.getCell(c,7).numFmt="#,##0.00";
 
