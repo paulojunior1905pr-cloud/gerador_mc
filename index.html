@@ -389,7 +389,7 @@ input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:n
 </style>
 
 <header class="top">
-  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 27/11 10:22 (com logos)</span></div>
+  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 27/11 10:34 (com logos)</span></div>
   <div class="sp"></div>
   <span class="status" id="status">Conectando…</span>
   <label class="tema">Tema<select id="selTema"><option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
@@ -1360,13 +1360,13 @@ function itensDoTanque(tq,bm,soFin){
   return {itens,usadas,fora,total:r2(itens.reduce((s,g)=>s+g.v,0)),bms:[...new Set(usadas.map(m=>m.bm))]};
 }
 function desenhaTanque(tq,bm,soFin,R){
-  const S=2, W=1180, M=24, FT="Arial, Helvetica, sans-serif";
+  const S=1.5, W=1180, M=24, FT="Arial, Helvetica, sans-serif";
   const cols=[["ITEM",64,"c"],["RO",88,"c"],["DESCRIÇÃO",412,"l"],["UNID.",54,"c"],["QUANTIDADE",104,"r"],["PREÇO UNIT. (R$)",114,"r"],["VALOR (R$)",124,"r"],["MCs",172,"l"]];
   const cv=document.createElement("canvas"), x=cv.getContext("2d");
   const quebra=(t,w,font)=>{ x.font=font; const out=[]; String(t||"").split("\n").forEach(par=>{ let lin=""; par.split(/\s+/).filter(Boolean).forEach(p=>{ const tt=lin?lin+" "+p:p; if(x.measureText(tt).width>w&&lin){ out.push(lin); lin=p; } else lin=tt; }); out.push(lin); }); return out; };
   const F13="13px "+FT, F13B="bold 13px "+FT, LH=18, PAD=8;
   const linhas=R.itens.map(g=>{ const cel=[g.item,g.ros.join("\n"),g.d+(g.fat!==1?" (convencional −30%)":""),g.u,fmt(g.q,3),fmt(g.preco,2),fmt(g.v,2),g.mcs.join(", ")];
-    const ls=cel.map((t,i)=>quebra(t,cols[i][1]-2*PAD,i===0?F13B:F13)); return {ls,h:Math.max(...ls.map(a=>a.length))*LH+2*PAD,neg:g.v<0}; });
+    const ls=cel.map((t,i)=>quebra(t,cols[i][1]-2*PAD,i===0||i===4||i===6?F13B:F13)); return {ls,h:Math.max(...ls.map(a=>a.length))*LH+2*PAD,neg:g.v<0}; });
   const t=DATA.tanques[tq], [ini,fim]=bm!=null?periodo(bm):[null,null];
   const per=bm!=null?`${bmTxt(bm)} · ${dbr(ini)} a ${dbr(fim)}`:(R.bms.length?`Todos os BMs (${R.bms.map(bmTxt).join(", ")})`:"Todos os BMs");
   const cap=s=>s?s.charAt(0)+s.slice(1).toLowerCase().replace(/conico/,"cônico").replace(/geodesico/,"geodésico"):"";
@@ -1382,7 +1382,7 @@ function desenhaTanque(tq,bm,soFin,R){
   y+=TH; x.strokeStyle="#c9d3de"; x.lineWidth=1;
   if(!linhas.length){ x.textAlign="left"; x.fillStyle="#5b6876"; x.font="italic 14px "+FT; x.fillText("Nenhum item cobrado neste tanque para o período escolhido.",M+PAD,y+28); y+=44; }
   linhas.forEach((l,k)=>{ if(k%2){ x.fillStyle="#f6f8fb"; x.fillRect(M,y,larg,l.h); }
-    cx=M; l.ls.forEach((ls,i)=>{ const [,w,a]=cols[i]; x.textAlign=a==="c"?"center":a==="r"?"right":"left"; x.font=i===0||i===6?F13B:F13; x.fillStyle=i===6&&l.neg?"#b3261e":"#14212e";
+    cx=M; l.ls.forEach((ls,i)=>{ const [,w,a]=cols[i]; x.textAlign=a==="c"?"center":a==="r"?"right":"left"; x.font=i===0||i===4||i===6?F13B:F13; x.fillStyle=i===6&&l.neg?"#b3261e":"#14212e";
       ls.forEach((s,j)=>x.fillText(s,a==="c"?cx+w/2:a==="r"?cx+w-PAD:cx+PAD,y+PAD+13+j*LH)); cx+=w; });
     y+=l.h; x.beginPath(); x.moveTo(M,y+.5); x.lineTo(M+larg,y+.5); x.stroke(); });
   x.fillStyle="#E2EFDA"; x.fillRect(M,y,larg,40); x.fillStyle="#14212e"; x.font="bold 15px "+FT; x.textAlign="left"; x.fillText("TOTAL",M+PAD,y+26);
