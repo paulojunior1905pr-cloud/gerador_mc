@@ -378,7 +378,7 @@ input[readonly],.ro{background:transparent;border-color:transparent;box-shadow:n
 </style>
 
 <header class="top">
-  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 26/11 18:07 (com logos)</span></div>
+  <div class="brand"><b>Gerador de MC</b><span>Contrato 5900.0128196.24.2 · Tanques RNEST</span><span class="ver" title="Se esta data não for a mais recente, recarregue com Ctrl+F5">Versão 26/11 21:48 (com logos)</span></div>
   <div class="sp"></div>
   <span class="status" id="status">Conectando…</span>
   <label class="tema">Tema<select id="selTema"><option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
@@ -1395,15 +1395,15 @@ async function pdfMC(doc, m, VERT){
   T({body:[
     [{content:"OBJETO:",styles:lb},{content:OBJETO,colSpan:5,styles:{fontSize:FS-0.7}}],
     [{content:"TANQUE / EQUIP.:",styles:lb},{content:pdfTxt(m.tanque),styles:inp},{content:"RO:",styles:lb},{content:pdfTxt(m.ro),styles:inp},{content:"Nº DA MC:",styles:lb},{content:pdfTxt(m.mc),styles:inp}],
-    [{content:"BM / PERÍODO:",styles:lb},{content:"BM-"+String(m.bm).padStart(3,"0")+"   "+d(ini)+" a "+d(fim),colSpan:3,styles:{fontStyle:"bold"}},{content:"VALOR NO BM:",styles:lb},{content:brl(c.total),styles:{fillColor:TOT,fontStyle:"bold",fontSize:FS+2,halign:"center"}}],
+    [{content:"BM / PERÍODO:",styles:lb},{content:"BM-"+String(m.bm).padStart(3,"0")+"   "+d(ini)+" a "+d(fim),colSpan:3,styles:{fontStyle:"bold"}},{content:"VALOR DA MC:",styles:lb},{content:brl(c.total),styles:{fillColor:TOT,fontStyle:"bold",fontSize:FS+2,halign:"center"}}],
     [{content:"SERVIÇO:",styles:lb},{content:pdfTxt(m.servico),colSpan:5,styles:inp}],
   ],columnStyles:{0:{cellWidth:28},2:{cellWidth:24},4:{cellWidth:24}}});
   // 1 itens
   const L=c.linhas.filter(Boolean);
   sec("ITENS DA PPU MEDIDOS NESTA MC");
-  T({head:[["Nº","ITEM","DESCRIÇÃO (PPU DO CONTRATO)","UNID.","PREÇO PPU (R$)","PREÇO APLICADO (R$)",tituloDemao(L.map(l=>l.item)).toUpperCase()]],
-    body:L.map((l,k)=>{ const met=METODOS.find(x=>x[0]===l.metodo)||METODOS[0]; return [k+1,{content:l.item,styles:{fontStyle:"bold",halign:"center"}},pdfTxt(l.P.d),l.P.u,fmt(l.P.p),{content:fmt(l.precoAp),styles:{fontStyle:"bold"}},l.usaD?l.dem:{content:l.base,styles:{fontSize:FS-1,textColor:90}}]; }),
-    columnStyles:{0:{cellWidth:7,halign:"center"},1:{cellWidth:13},3:{cellWidth:11,halign:"center"},4:{cellWidth:20,halign:"right"},5:{cellWidth:22,halign:"right"},6:{cellWidth:17,halign:"center"}}});
+  T({head:[["Nº","ITEM","DESCRIÇÃO (PPU DO CONTRATO)","UNID.","PREÇO PPU","PREÇO APLICADO",tituloDemao(L.map(l=>l.item)).toUpperCase()]],
+    body:L.map((l,k)=>{ const met=METODOS.find(x=>x[0]===l.metodo)||METODOS[0]; return [k+1,{content:l.item,styles:{fontStyle:"bold",halign:"center"}},pdfTxt(l.P.d),l.P.u,brl(l.P.p),{content:brl(l.precoAp),styles:{fontStyle:"bold"}},l.usaD?l.dem:{content:l.base,styles:{fontSize:FS-1,textColor:90}}]; }),
+    columnStyles:{0:{cellWidth:7,halign:"center"},1:{cellWidth:13},3:{cellWidth:11,halign:"center"},4:{cellWidth:22,halign:"right"},5:{cellWidth:24,halign:"right"},6:{cellWidth:17,halign:"center"}}});
   // critério
   if(L.length){ sub("Critério de medição"); T({body:L.map(l=>[{content:l.item,styles:{fontStyle:"bold",halign:"center"}},pdfTxt(critTxt(l))]),styles:{fontSize:FS,cellPadding:2},columnStyles:{0:{cellWidth:16}}}); }
   // 2 memória
@@ -1417,10 +1417,10 @@ async function pdfMC(doc, m, VERT){
   if((m.obsMem||"").trim()){ y-=2; T({body:[[{content:"OBS.:",styles:{fontStyle:"bold",cellWidth:16}},pdfTxt(m.obsMem.trim())]],styles:{fontSize:FS-0.5}}); }
   // 3 quadro
   sec("MEDIÇÃO E AVANÇO POR ITEM");
-  T({head:[["ITEM","DESCRIÇÃO","UNID.","QTD MEMÓRIA",tituloDemao(L.map(l=>l.item)).toUpperCase(),"PREVISTO","ACUM. ANTERIOR","MEDIDO NO BM","ACUMULADO","% ACUM.","SALDO","PREÇO APLIC.","VALOR NO BM (R$)"]],
-    body:L.map(l=>[{content:l.item,styles:{fontStyle:"bold",halign:"center"}},{content:pdfTxt(descCurta(l.P.d)),styles:{fontSize:FS-1}},l.P.u,fmt(l.mem,3),l.usaD?l.dem:{content:l.base,styles:{fontSize:FS-1,textColor:90}},fmt(l.prev,3),fmt(l.ant,3),{content:fmt(l.bm,3),styles:{fontStyle:"bold"}},fmt(l.acum,3),l.pa==null?"":fmt(l.pa*100,1)+"%",fmt(l.saldo,3),fmt(l.precoAp),{content:fmt(l.valor),styles:{fontStyle:"bold"}}]),
-    foot:[[{content:"TOTAL",colSpan:12,styles:{halign:"left"}},{content:fmt(c.total),styles:{halign:"right",fontSize:FS+1}}]],
-    styles:{fontSize:FS-1.5,cellPadding:1},headStyles:Object.assign({},base.headStyles,{fontSize:HS-1}),columnStyles:{0:{cellWidth:10},1:{cellWidth:VERT?32:70},2:{cellWidth:9,halign:"center"},3:{halign:"right"},4:{cellWidth:15,halign:"center"},5:{halign:"right"},6:{halign:"right"},7:{halign:"right"},8:{halign:"right"},9:{halign:"center"},10:{halign:"right"},11:{halign:"right"},12:{cellWidth:VERT?19:24,halign:"right"}}});
+  T({head:[["ITEM","DESCRIÇÃO","UNID.","PREVISTO","ACUM. ANTERIOR","MEDIDO NO BM","ACUMULADO","% ACUM.","SALDO","PREÇO APLIC.","VALOR NO BM"]],
+    body:L.map(l=>[{content:l.item,styles:{fontStyle:"bold",halign:"center"}},{content:pdfTxt(descCurta(l.P.d)),styles:{fontSize:FS-1}},l.P.u,fmt(l.prev,3),fmt(l.ant,3),{content:fmt(l.bm,3),styles:{fontStyle:"bold"}},fmt(l.acum,3),l.pa==null?"":fmt(l.pa*100,1)+"%",fmt(l.saldo,3),brl(l.precoAp),{content:brl(l.valor),styles:{fontStyle:"bold"}}]),
+    foot:[[{content:"TOTAL",colSpan:10,styles:{halign:"left"}},{content:brl(c.total),styles:{halign:"right",fontSize:FS+1}}]],
+    styles:{fontSize:FS-1.5,cellPadding:1},headStyles:Object.assign({},base.headStyles,{fontSize:HS-1}),columnStyles:{0:{cellWidth:10},1:{cellWidth:VERT?48:90},2:{cellWidth:9,halign:"center"},3:{halign:"right"},4:{halign:"right"},5:{halign:"right"},6:{halign:"right"},7:{halign:"center"},8:{halign:"right"},9:{halign:"right"},10:{cellWidth:VERT?24:28,halign:"right"}}});
   // 4 etapas
   const et=etapasDe(m.etapa.item);
   if(et){ const lotes=m.etapa.lotes.filter(l=>num(l.area)!=null), cres=calcEtapas(m);
