@@ -185,7 +185,10 @@ aside{display:flex;flex-direction:column;gap:10px;min-width:0}
 .mcrow.on{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
 .mcrow .n{font-family:var(--f-mono);font-weight:600}
 .mcrow .t{color:var(--muted);font-size:12px}
-.mcrow .v{grid-column:1/-1;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mcrow{flex-shrink:0;min-height:max-content;align-items:center}
+.mcrow .v{grid-column:1/-1;font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;line-height:1.4}
+.mcrow .v .val{font-weight:600;color:var(--ink,inherit)}
+.mcrow .s{grid-column:1/-1;font-size:11.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .tag{font-size:11px;font-family:var(--f-mono);background:var(--chip);border-radius:4px;padding:1px 6px;color:var(--muted)}
 .empty{border:1px dashed var(--line);border-radius:8px;padding:16px;color:var(--muted)}
 main{display:flex;flex-direction:column;gap:14px;min-width:0}
@@ -751,7 +754,7 @@ function renderList(){ kpis(); if(window.mcEspaco) try{ window.mcEspaco(espacoUs
   const ids=idsFiltrados();
   if(!ids.length){ $("#list").innerHTML=`<div class="empty">${Object.keys(MCS).length?(filtroTQ?"Nenhuma MC deste tanque neste BM.":"Nenhuma MC neste BM."):"Nenhuma MC salva ainda. Toque em <b>+ Nova MC</b> para montar a primeira."}</div>`; return; }
   $("#list").innerHTML=ids.map(id=>{ const m=MCS[id]; const c=calcMC(m);
-    return `<button class="mcrow ${id===curId?"on":""} ${m.fin?(m.samc?"samc":"fin"):(m.pend||m.pendOn?"pend":"")}" data-id="${id}"${!m.fin&&m.pend?` title="Pendência: ${esc(m.pend)}"`:""}><span class="n">${esc(m.mc||"MC sem nº")}</span><span class="t"><span class="tq">${esc(m.tanque)}</span> · BM-${String(m.bm).padStart(3,"0")}${m.exemplo?' <span class="tag">exemplo</span>':""}</span><span class="v">${m.fin?(m.samc?'<span class="tag samc">✓ anexada no SAMC</span> ':'<span class="tag fin">✓ finalizada</span> '):(m.pend||m.pendOn?'<span class="tag pend">⚠ pendência</span> ':"")}${brl(c.total)} · ${esc(m.servico||"sem serviço")}</span></button>`; }).join("");
+    return `<button class="mcrow ${id===curId?"on":""} ${m.fin?(m.samc?"samc":"fin"):(m.pend||m.pendOn?"pend":"")}" data-id="${id}"${!m.fin&&m.pend?` title="Pendência: ${esc(m.pend)}"`:""}><span class="n">${esc(m.mc||"MC sem nº")}</span><span class="t"><span class="tq">${esc(m.tanque)}</span> · BM-${String(m.bm).padStart(3,"0")}${m.exemplo?' <span class="tag">exemplo</span>':""}</span><span class="v">${m.fin?(m.samc?'<span class="tag samc">✓ anexada no SAMC</span>':'<span class="tag fin">✓ finalizada</span>'):(m.pend||m.pendOn?'<span class="tag pend">⚠ pendência</span>':'<span class="tag">em andamento</span>')}<span class="val">${brl(c.total)}</span></span><span class="s" title="${esc(m.servico||"")}">${esc(m.servico||"sem serviço")}</span></button>`; }).join("");
 }
 $("#list").addEventListener("click",e=>{ const b=e.target.closest(".mcrow"); if(b) abrir(b.dataset.id); });
 $("#fBM").addEventListener("change",e=>{ filtroBM=e.target.value?+e.target.value:null; renderList(); });
